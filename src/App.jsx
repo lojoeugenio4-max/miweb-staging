@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ShoppingCart, Trash2, Send, Search } from "lucide-react";
-
+import hiddenProductsRaw from "./hiddenProducts";
 const WHATSAPP_NUMBER = "34670716744";
 
 const fixedProduct = (idnum, name, offerText = "") => ({
