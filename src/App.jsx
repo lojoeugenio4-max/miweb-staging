@@ -647,11 +647,15 @@ export default function App() {
             <div style={styles.searchBoxCompact}>
               <Search size={20} style={styles.searchIcon} />
               <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar..."
-                style={styles.searchInput}
-              />
+  value={search}
+  onChange={(event) => setSearch(event.target.value)}
+  placeholder={
+    selectedDepartment === "TODOS"
+      ? "Buscar artículo..."
+      : `Buscar en ${selectedDepartment}...`
+  }
+  style={styles.searchInput}
+/>
             </div>
 
             <button onClick={sendOrder} style={styles.stickyWhatsappButton}>
@@ -661,17 +665,24 @@ export default function App() {
 
           <label style={styles.label}>Departamento</label>
           <select
-            value={selectedDepartment}
-            onChange={(event) => setSelectedDepartment(event.target.value)}
-            style={styles.select}
-          >
-            <option value="TODOS">Todos los departamentos</option>
-            {departments.map((department) => (
-              <option key={department.name} value={department.name}>
-                {department.name}
-              </option>
-            ))}
-          </select>
+  value={selectedDepartment}
+  onChange={(event) => {
+    setSelectedDepartment(event.target.value);
+    setSearch("");
+  }}
+  style={styles.select}
+>
+  <option value="TODOS">Todos los departamentos</option>
+
+  {departments.map((department) => (
+    <option
+      key={department.name}
+      value={department.name}
+    >
+      {department.name}
+    </option>
+  ))}
+</select>
         </div>
 
         {filteredDepartments.map((department) => (
