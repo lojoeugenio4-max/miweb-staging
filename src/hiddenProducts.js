@@ -1,3 +1,9 @@
+const fixedProduct = (idnum, name, offerText = "") => ({
+  idnum,
+  name,
+  offerText,
+});
+
 const hiddenProductsRaw = [
   
       fixedProduct(284, "15 x 30 BOLSA TRAMPARENTE"),
