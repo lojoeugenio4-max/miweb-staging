@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ShoppingCart, Trash2, Send, Search } from "lucide-react";
 import hiddenProductsRaw from "./hiddenProducts";
+
 const WHATSAPP_NUMBER = "34670716744";
 
 const fixedProduct = (idnum, name, offerText = "") => ({
@@ -9,12 +10,11 @@ const fixedProduct = (idnum, name, offerText = "") => ({
   offerText,
 });
 
-/* AQUÍ DEJA TU LISTADO departments COMPLETO */
 const departments = [
   {
     name: "AGUA",
     products: [
-      fixedProduct(1, "AGUA FUENTELAJARA 1.5L","Comprando 10 cajas REGALO 1 caja "),
+      fixedProduct(1, "AGUA FUENTELAJARA 1.5L", "Comprando 10 cajas REGALO 1 caja "),
       fixedProduct(2, "AGUA LANJARON 1.5L PACK 6"),
       fixedProduct(3, "AGUA FUENTELAJARA 0.5L"),
       fixedProduct(4, "AGUA LANJARON 0.5L"),
@@ -54,7 +54,7 @@ const departments = [
       fixedProduct(29, "COCA ZERO S/CAFEINA 2L"),
       fixedProduct(30, "FANTA NARANJA 2L"),
       fixedProduct(31, "FANTA LIMON 2L"),
-       fixedProduct(32, "SEVEN UP 2L"),
+      fixedProduct(32, "SEVEN UP 2L"),
       fixedProduct(33, "REVOLTOSA COLA 2L"),
       fixedProduct(34, "REVOLTOSA NARANJA 2L"),
       fixedProduct(35, "REVOLTOSA LIMON 2L"),
@@ -91,7 +91,6 @@ const departments = [
       fixedProduct(61, "ZUMO JUVER PIÑA 850ML"),
       fixedProduct(62, "ZUMO JUVER MELOCOTON 850ML"),
       fixedProduct(63, "ZUMO JUVER NARANJA 850ML"),
-     
     ],
   },
   {
@@ -349,7 +348,7 @@ const departments = [
       fixedProduct(280, "PIZZA POLLO KANSAS"),
       fixedProduct(281, "PIZZA POLLO MOSTAZA MIEL"),
       fixedProduct(282, "PIZZA SALSA MEXICANA"),
-      ],
+    ],
   },
   {
     name: "CHARCUTERÍA CORTE",
@@ -369,15 +368,9 @@ const departments = [
       fixedProduct(255, "CHORIZO TRADICIONAL REVILLA KG"),
       fixedProduct(256, "CHORIZO CULAR IBERICO KG"),
       fixedProduct(257, "SALCHICHON TURON KG"),
-      
-     
-      
     ],
-  },// pega aquí todos tus departamentos visibles
+  },
 ];
-
-/* ARTÍCULOS OCULTOS: lo dejamos vacío para no ocupar */
-
 
 const imageModules = import.meta.glob(
   "./assets/productos/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}",
@@ -523,6 +516,25 @@ export default function App() {
     return visibleDepartments;
   }, [search, selectedDepartment]);
 
+  useEffect(() => {
+    if (!filteredDepartments.length) return;
+
+    const firstDepartment = filteredDepartments[0];
+    if (!firstDepartment?.products?.length) return;
+
+    const firstProduct = firstDepartment.products[0];
+    const firstProductId = `${firstDepartment.name}-${firstProduct.idnum}-${firstProduct.name}`;
+
+    const timer = setTimeout(() => {
+      rowRefs.current[firstProductId]?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, [filteredDepartments]);
+
   const selectedItems = useMemo(() => {
     return products
       .map((product) => ({
@@ -616,8 +628,7 @@ export default function App() {
           <div>
             <h1 style={styles.title}>Pedido online Cash Lojo</h1>
             <p style={styles.subtitle}>
-              Escribe cantidades en Unidades o Cajas y envía el pedido por
-              WhatsApp.
+              Escribe cantidades en Unidades o Cajas y envía el pedido por WhatsApp.
             </p>
           </div>
         </header>
@@ -668,25 +679,7 @@ export default function App() {
             <div style={styles.sectionHeader}>
               <h2 style={styles.sectionTitle}>{department.name}</h2>
             </div>
-useEffect(() => {
-  if (!filteredDepartments.length) return;
 
-  const firstDepartment = filteredDepartments[0];
-
-  if (!firstDepartment?.products?.length) return;
-
-  const firstProduct = firstDepartment.products[0];
-
-  const firstProductId = `${firstDepartment.name}-${firstProduct.idnum}-${firstProduct.name}`;
-
-  setTimeout(() => {
-    rowRefs.current[firstProductId]?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  }, 120);
-}, [filteredDepartments]);
-            
             {department.products.map((product) => {
               const productId = `${department.name}-${product.idnum}-${product.name}`;
               const imageSrc = productImagesByIdnum[product.idnum];
@@ -727,11 +720,7 @@ useEffect(() => {
                           enterKeyHint="done"
                           value={quantities[productId]?.cajas || ""}
                           onChange={(event) =>
-                            updateQuantity(
-                              productId,
-                              "cajas",
-                              event.target.value
-                            )
+                            updateQuantity(productId, "cajas", event.target.value)
                           }
                           onKeyDown={closeKeyboardOnEnter}
                           placeholder="0"
@@ -746,11 +735,7 @@ useEffect(() => {
                           enterKeyHint="done"
                           value={quantities[productId]?.unidades || ""}
                           onChange={(event) =>
-                            updateQuantity(
-                              productId,
-                              "unidades",
-                              event.target.value
-                            )
+                            updateQuantity(productId, "unidades", event.target.value)
                           }
                           onKeyDown={closeKeyboardOnEnter}
                           placeholder="0"
@@ -787,8 +772,7 @@ useEffect(() => {
           />
 
           <div style={styles.summary}>
-            <strong>Resumen:</strong> {selectedItems.length} artículos con
-            cantidad.
+            <strong>Resumen:</strong> {selectedItems.length} artículos con cantidad.
           </div>
 
           <button onClick={sendOrder} style={styles.primaryButton}>
@@ -815,10 +799,7 @@ useEffect(() => {
               #{selectedImage.idnum} {selectedImage.name}
             </p>
 
-            <button
-              onClick={() => setSelectedImage(null)}
-              style={styles.closeButton}
-            >
+            <button onClick={() => setSelectedImage(null)} style={styles.closeButton}>
               Cerrar
             </button>
           </div>
