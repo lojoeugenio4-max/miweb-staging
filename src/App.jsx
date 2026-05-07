@@ -9,7 +9,7 @@ const fixedProduct = (idnum, name, offerText = "") => ({
   offerText,
 });
 
-/* PEGA AQUÍ TU LISTADO DE DEPARTAMENTOS COMPLETO */
+/* AQUÍ DEJA TU LISTADO departments COMPLETO */
 const departments = [
   {
     name: "AGUA",
@@ -373,12 +373,12 @@ const departments = [
      
       
     ],
-  },
+  },// pega aquí todos tus departamentos visibles
 ];
 
-/* PEGA AQUÍ TU LISTADO DE ARTÍCULOS OCULTOS COMPLETO */
+/* ARTÍCULOS OCULTOS: lo dejamos vacío para no ocupar */
 const hiddenProductsRaw = [
- fixedProduct(284, "15 x 30 BOLSA TRAMPARENTE"),
+      fixedProduct(284, "15 x 30 BOLSA TRAMPARENTE"),
 fixedProduct(285, "355ML RED BULL GRANDE"),
 fixedProduct(287, "ABRILLANTADOR MICAL MAQUINAS 5L"),
 fixedProduct(288, "ABSOLUTE 200 ML ( PETACA )"),
@@ -991,7 +991,6 @@ const productImagesByIdnum = Object.fromEntries(
     const idnum = Number(
       fileName.toLowerCase().replace(/\.(jpg|jpeg|png|webp)$/, "")
     );
-
     return [idnum, src];
   })
 );
@@ -1081,12 +1080,18 @@ export default function App() {
   const [customerName, setCustomerName] = useState("");
   const [notes, setNotes] = useState("");
   const [search, setSearch] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("TODOS");
   const [selectedImage, setSelectedImage] = useState(null);
 
   const filteredDepartments = useMemo(() => {
     const cleanSearch = search.trim();
 
     const visibleDepartments = departments
+      .filter(
+        (department) =>
+          selectedDepartment === "TODOS" ||
+          department.name === selectedDepartment
+      )
       .map((department) => ({
         ...department,
         products: cleanSearch
@@ -1097,7 +1102,9 @@ export default function App() {
       }))
       .filter((department) => department.products.length > 0);
 
-    if (!cleanSearch) return visibleDepartments;
+    if (!cleanSearch || selectedDepartment !== "TODOS") {
+      return visibleDepartments;
+    }
 
     const hiddenMatches = hiddenProductsUnique.filter((product) =>
       productMatchesSearch(product.name, cleanSearch)
@@ -1111,7 +1118,7 @@ export default function App() {
     }
 
     return visibleDepartments;
-  }, [search]);
+  }, [search, selectedDepartment]);
 
   const selectedItems = useMemo(() => {
     return products
@@ -1153,6 +1160,7 @@ export default function App() {
     setCustomerName("");
     setNotes("");
     setSearch("");
+    setSelectedDepartment("TODOS");
   };
 
   const createWhatsAppMessage = () => {
@@ -1205,7 +1213,8 @@ export default function App() {
           <div>
             <h1 style={styles.title}>Pedido online Cash Lojo</h1>
             <p style={styles.subtitle}>
-              Escribe cantidades en Unidades o Cajas y envía el pedido por WhatsApp.
+              Escribe cantidades en Unidades o Cajas y envía el pedido por
+              WhatsApp.
             </p>
           </div>
         </header>
@@ -1235,6 +1244,20 @@ export default function App() {
               <Send size={18} /> WhatsApp
             </button>
           </div>
+
+          <label style={styles.label}>Departamento</label>
+          <select
+            value={selectedDepartment}
+            onChange={(event) => setSelectedDepartment(event.target.value)}
+            style={styles.select}
+          >
+            <option value="TODOS">Todos los departamentos</option>
+            {departments.map((department) => (
+              <option key={department.name} value={department.name}>
+                {department.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         {filteredDepartments.map((department) => (
@@ -1283,7 +1306,11 @@ export default function App() {
                           enterKeyHint="done"
                           value={quantities[productId]?.cajas || ""}
                           onChange={(event) =>
-                            updateQuantity(productId, "cajas", event.target.value)
+                            updateQuantity(
+                              productId,
+                              "cajas",
+                              event.target.value
+                            )
                           }
                           onKeyDown={closeKeyboardOnEnter}
                           placeholder="0"
@@ -1339,7 +1366,8 @@ export default function App() {
           />
 
           <div style={styles.summary}>
-            <strong>Resumen:</strong> {selectedItems.length} artículos con cantidad.
+            <strong>Resumen:</strong> {selectedItems.length} artículos con
+            cantidad.
           </div>
 
           <button onClick={sendOrder} style={styles.primaryButton}>
@@ -1450,6 +1478,15 @@ const styles = {
     fontSize: "16px",
     boxSizing: "border-box",
   },
+  select: {
+    width: "100%",
+    padding: "11px",
+    borderRadius: "12px",
+    border: "1px solid #cbd5e1",
+    fontSize: "16px",
+    boxSizing: "border-box",
+    background: "white",
+  },
   searchAndSendRow: {
     display: "grid",
     gridTemplateColumns: "1fr 112px",
@@ -1498,7 +1535,7 @@ const styles = {
     alignItems: "start",
     padding: "10px",
     borderTop: "1px solid #e2e8f0",
-    scrollMarginTop: "180px",
+    scrollMarginTop: "220px",
   },
   leftColumn: {
     display: "flex",
