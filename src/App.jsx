@@ -478,6 +478,7 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("TODOS");
   const [selectedImage, setSelectedImage] = useState(null);
+  const [compactHeader, setCompactHeader] = useState(false);
 
   const filteredDepartments = useMemo(() => {
     const cleanSearch = search.trim();
@@ -570,6 +571,22 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 120) {
+        setCompactHeader(true);
+      } else {
+        setCompactHeader(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
   const clearOrder = () => {
     setQuantities({});
     setCustomerName("");
@@ -620,6 +637,7 @@ export default function App() {
   return (
     <div style={styles.page}>
       <div style={styles.container}>
+        {!compactHeader && (
         <header style={styles.header}>
           <div style={styles.iconBox}>
             <ShoppingCart size={28} />
@@ -632,15 +650,23 @@ export default function App() {
             </p>
           </div>
         </header>
+      )}
 
         <div style={styles.cardSticky}>
-          <label style={styles.label}>Nombre o referencia del cliente</label>
-          <input
-            value={customerName}
-            onChange={(event) => setCustomerName(event.target.value)}
-            placeholder="Opcional"
-            style={styles.input}
-          />
+          {!compactHeader && (
+            <>
+              <label style={styles.label}>
+                Nombre o referencia del cliente
+              </label>
+
+              <input
+                value={customerName}
+                onChange={(event) => setCustomerName(event.target.value)}
+                placeholder="Opcional"
+                style={styles.input}
+              />
+            </>
+          )}
 
           <label style={styles.label}>Buscar artículo</label>
           <div style={styles.searchAndSendRow}>
