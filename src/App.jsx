@@ -1265,7 +1265,25 @@ export default function App() {
             <div style={styles.sectionHeader}>
               <h2 style={styles.sectionTitle}>{department.name}</h2>
             </div>
+useEffect(() => {
+  if (!filteredDepartments.length) return;
 
+  const firstDepartment = filteredDepartments[0];
+
+  if (!firstDepartment?.products?.length) return;
+
+  const firstProduct = firstDepartment.products[0];
+
+  const firstProductId = `${firstDepartment.name}-${firstProduct.idnum}-${firstProduct.name}`;
+
+  setTimeout(() => {
+    rowRefs.current[firstProductId]?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, 120);
+}, [filteredDepartments]);
+            
             {department.products.map((product) => {
               const productId = `${department.name}-${product.idnum}-${product.name}`;
               const imageSrc = productImagesByIdnum[product.idnum];
@@ -1535,7 +1553,7 @@ const styles = {
     alignItems: "start",
     padding: "10px",
     borderTop: "1px solid #e2e8f0",
-    scrollMarginTop: "220px",
+    scrollMarginTop: "170px",
   },
   leftColumn: {
     display: "flex",
