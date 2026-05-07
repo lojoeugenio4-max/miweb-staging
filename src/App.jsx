@@ -648,12 +648,11 @@ export default function App() {
               <Search size={20} style={styles.searchIcon} />
               <input
   value={search}
-  onChange={(event) => setSearch(event.target.value)}
-  placeholder={
-    selectedDepartment === "TODOS"
-      ? "Buscar artículo..."
-      : `Buscar en ${selectedDepartment}...`
-  }
+  onChange={(event) => {
+    setSearch(event.target.value);
+    setSelectedDepartment("TODOS");
+  }}
+  placeholder="Buscar artículo..."
   style={styles.searchInput}
 />
             </div>
