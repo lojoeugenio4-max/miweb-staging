@@ -20,7 +20,7 @@ const fixedProduct = (idnum, name, offerText = "") => ({
 });
 
 const departments = [
-   {
+  {
     name: "AGUA",
     products: [
       fixedProduct(1, "AGUA FUENTELAJARA 1.5L", "Comprando 10 cajas REGALO 1 caja "),
@@ -655,13 +655,6 @@ export default function App() {
     setSelectedDepartment("TODOS");
   };
 
-  const searchOnEnter = (event) => {
-    if (event.key === "Enter") {
-      applySearch();
-      event.currentTarget.blur();
-    }
-  };
-
   const openDepartmentDropdown = () => {
     setDepartmentDropdownOpen((open) => {
       const nextOpen = !open;
@@ -791,22 +784,32 @@ export default function App() {
           <label style={styles.label}>Buscar artículo</label>
 
           <div style={styles.searchAndSendRow}>
-            <div style={styles.searchBoxCompact}>
-              <Search size={20} style={styles.searchIcon} />
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                applySearch();
+                event.currentTarget.querySelector("input")?.blur();
+              }}
+              style={styles.searchForm}
+            >
+              <div style={styles.searchBoxCompact}>
+                <Search size={20} style={styles.searchIcon} />
 
-              <input
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
-                onKeyDown={searchOnEnter}
-                onBlur={applySearch}
-                inputMode="search"
-                enterKeyHint="done"
-                placeholder="Buscar..."
-                style={styles.searchInput}
-              />
-            </div>
+                <input
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
+                  onBlur={applySearch}
+                  type="search"
+                  inputMode="search"
+                  enterKeyHint="done"
+                  placeholder="Buscar..."
+                  style={styles.searchInput}
+                />
+              </div>
+            </form>
 
             <button
+              type="button"
               onClick={() => setShowOrderSummary(true)}
               style={{
                 ...styles.stickyWhatsappButton,
@@ -1198,6 +1201,9 @@ const styles = {
     gridTemplateColumns: "minmax(0, 1fr) 104px",
     gap: "8px",
     alignItems: "center",
+  },
+  searchForm: {
+    minWidth: 0,
   },
   searchBoxCompact: {
     position: "relative",
