@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import hiddenProductsRaw from "./hiddenProducts";
 
-const WHATSAPP_NUMBER = "34670716744";
+const WHATSAPP_NUMBER = "34670619113";
 const ORDER_STORAGE_KEY = "cash-lojo-pedido";
 
 const fixedProduct = (idnum, name, offerText = "") => ({
