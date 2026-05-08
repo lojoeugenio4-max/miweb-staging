@@ -476,6 +476,8 @@ const products = [...visibleProducts, ...hiddenProductsFormatted];
 export default function App() {
   const rowRefs = useRef({});
   const departmentDropdownRef = useRef(null);
+  const searchInputRef = useRef(null);
+  const stickyCardRef = useRef(null);
 
   const getSavedOrder = () => {
     try {
@@ -646,6 +648,15 @@ export default function App() {
   const closeKeyboardOnEnter = (event) => {
     if (event.key === "Enter") {
       event.currentTarget.blur();
+
+      setTimeout(() => {
+        stickyCardRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+
+        searchInputRef.current?.focus();
+      }, 120);
     }
   };
 
@@ -659,6 +670,13 @@ export default function App() {
     if (event.key === "Enter") {
       applySearch();
       event.currentTarget.blur();
+
+      setTimeout(() => {
+        stickyCardRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 80);
     }
   };
 
@@ -774,7 +792,7 @@ export default function App() {
           </header>
         )}
 
-        <div style={styles.cardSticky}>
+        <div ref={stickyCardRef} style={styles.cardSticky}>
           {!compactHeader && (
             <>
               <label style={styles.label}>Nombre o referencia del cliente</label>
@@ -795,6 +813,7 @@ export default function App() {
               <Search size={20} style={styles.searchIcon} />
 
               <input
+                ref={searchInputRef}
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
                 onKeyDown={searchOnEnter}
