@@ -1,5 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ShoppingCart, Trash2, Send, Search } from "lucide-react";
+import {
+  ShoppingCart,
+  Trash2,
+  Send,
+  Search,
+  ChevronDown,
+  Check,
+  Mic,
+} from "lucide-react";
 import hiddenProductsRaw from "./hiddenProducts";
 
 const WHATSAPP_NUMBER = "34670716744";
@@ -9,6 +17,7 @@ const fixedProduct = (idnum, name, offerText = "") => ({
   name,
   offerText,
 });
+
 
 const departments = [
   {
@@ -24,6 +33,29 @@ const departments = [
       fixedProduct(8, "AGUA SOLAN DE CABRAS S/G 5L GFA"),
       fixedProduct(9, "AGUA GOURMET CON GAS 0.5L"),
       fixedProduct(10, "AGUA GOURMET CON GAS 1.5L"),
+    ],
+  },
+  {
+    name: "CERVEZAS",
+    products: [
+      fixedProduct(102, "CERVEZA CRUZCAMPO LATA 33CL"),
+      fixedProduct(103, "CERVEZA ESTRELLA SUR LATA"),
+      fixedProduct(104, "ESTRELLA 0.0 LATA 33CL"),
+      fixedProduct(105, "CRUZCAMPO S/A LATA 33CL"),
+      fixedProduct(106, "RADLER LIMON CRUZCAMPO LATA"),
+      fixedProduct(107, "HEINEKEN LATA 33CL"),
+      fixedProduct(108, "CERVEZA CRUZCAMPO 50CL"),
+      fixedProduct(109, "ESTRELLA SUR 50CL LATA GRANDE"),
+      fixedProduct(110, "CERVEZA CRUZCAMPO CHAPA 1L"),
+      fixedProduct(111, "CERVEZA CRUZ DEL SUR 1L"),
+      fixedProduct(112, "CERVEZA ESTRELLA 1L"),
+      fixedProduct(113, "CERVEZA ESTRELLA 0.0 1L"),
+      fixedProduct(114, "CRUZCAMPO ROSCA 1L"),
+      fixedProduct(115, "CRUZCAMPO 750ML"),
+      fixedProduct(116, "CRUZCAMPO PACK 6"),
+      fixedProduct(117, "CRUZCAMPO BOTELLIN CAJA 24"),
+      fixedProduct(119, "CRUZCAMPO SIN ALCOHOL PACK"),
+      fixedProduct(120, "ESTRELLA DEL SUR PACK 6"),
     ],
   },
   {
@@ -75,49 +107,6 @@ const departments = [
     ],
   },
   {
-    name: "ZUMOS",
-    products: [
-      fixedProduct(50, "BIOFRUTA PASCUAL TROPICAL P3"),
-      fixedProduct(51, "BIOFRUTA PASCUAL PACIFICO P3"),
-      fixedProduct(52, "BIOFRUTA PASCUAL IBIZA P3"),
-      fixedProduct(53, "BIOFRUTA PASCUAL 1L TROPI"),
-      fixedProduct(54, "FUNC. D.SIMON TROPICAL P6"),
-      fixedProduct(55, "FUNC. D.SIMON CARIBE P6"),
-      fixedProduct(56, "FUNC. D.SIMON MEDITERRANEO P6"),
-      fixedProduct(57, "ZUMO D.SIMON PIÑA P6 200"),
-      fixedProduct(58, "ZUMO D.SIMON MELOCOTON P6 200"),
-      fixedProduct(59, "ROSTOY MELOCOTON 33CL"),
-      fixedProduct(60, "ROSTOY PIÑA COCO 33CL"),
-      fixedProduct(61, "ZUMO JUVER PIÑA 850ML"),
-      fixedProduct(62, "ZUMO JUVER MELOCOTON 850ML"),
-      fixedProduct(63, "ZUMO JUVER NARANJA 850ML"),
-    ],
-  },
-  {
-    name: "KUYX 3L",
-    products: [
-      fixedProduct(64, "KUYX NARANJA 3L"),
-      fixedProduct(65, "KUYX TROPICAL 3L"),
-      fixedProduct(66, "KUYX MANDARINA 3L"),
-      fixedProduct(67, "KUYX FRUTOS DEL BOSQUE 3L"),
-      fixedProduct(68, "KUYX PIÑA 3L"),
-      fixedProduct(69, "KUYX PIÑA COCO 3L"),
-      fixedProduct(70, "KUYX OCEANICO 3L"),
-    ],
-  },
-  {
-    name: "KUYX 330ML",
-    products: [
-      fixedProduct(71, "KUYX 330ML NARANJA"),
-      fixedProduct(72, "KUYX 330ML MANDARINA"),
-      fixedProduct(73, "KUYX 330ML TROPICAL"),
-      fixedProduct(74, "KUYX 330ML PIÑA"),
-      fixedProduct(75, "KUYX 330ML OCEANICO"),
-      fixedProduct(76, "KUYX 330ML MANGO"),
-      fixedProduct(77, "KUYX 330ML FRUTOS ROJOS"),
-    ],
-  },
-  {
     name: "ENERGÉTICAS",
     products: [
       fixedProduct(78, "CAMALEON 250ML"),
@@ -144,29 +133,6 @@ const departments = [
       fixedProduct(99, "POWERADE ICE 50CL"),
       fixedProduct(100, "POWERADE BLOOD 50CL"),
       fixedProduct(101, "ENERYETI PIRULETA 500ML"),
-    ],
-  },
-  {
-    name: "CERVEZAS",
-    products: [
-      fixedProduct(102, "CERVEZA CRUZCAMPO LATA 33CL"),
-      fixedProduct(103, "CERVEZA ESTRELLA SUR LATA"),
-      fixedProduct(104, "ESTRELLA 0.0 LATA 33CL"),
-      fixedProduct(105, "CRUZCAMPO S/A LATA 33CL"),
-      fixedProduct(106, "RADLER LIMON CRUZCAMPO LATA"),
-      fixedProduct(107, "HEINEKEN LATA 33CL"),
-      fixedProduct(108, "CERVEZA CRUZCAMPO 50CL"),
-      fixedProduct(109, "ESTRELLA SUR 50CL LATA GRANDE"),
-      fixedProduct(110, "CERVEZA CRUZCAMPO CHAPA 1L"),
-      fixedProduct(111, "CERVEZA CRUZ DEL SUR 1L"),
-      fixedProduct(112, "CERVEZA ESTRELLA 1L"),
-      fixedProduct(113, "CERVEZA ESTRELLA 0.0 1L"),
-      fixedProduct(114, "CRUZCAMPO ROSCA 1L"),
-      fixedProduct(115, "CRUZCAMPO 750ML"),
-      fixedProduct(116, "CRUZCAMPO PACK 6"),
-      fixedProduct(117, "CRUZCAMPO BOTELLIN CAJA 24"),
-      fixedProduct(119, "CRUZCAMPO SIN ALCOHOL PACK"),
-      fixedProduct(120, "ESTRELLA DEL SUR PACK 6"),
     ],
   },
   {
@@ -199,7 +165,64 @@ const departments = [
     ],
   },
   {
-    name: "LÁCTEOS",
+    name: "PIZZAS",
+    products: [
+      fixedProduct(273, "PIZZA CAMPOFRIO 5 QUESOS"),
+      fixedProduct(274, "PIZZA CAMPOFRIO JAMON QUESO"),
+      fixedProduct(275, "PIZZA CAMPOFRIO BOLOÑESA"),
+      fixedProduct(276, "PIZZA CAMPOFRIO CARBONARA"),
+      fixedProduct(277, "PIZZA CAMPOFRIO BARBACOA"),
+      fixedProduct(278, "PIZZA JAMON BACON CEBOLLA"),
+      fixedProduct(279, "PIZZA PEPPERONI CAMPOFRIO"),
+      fixedProduct(280, "PIZZA POLLO KANSAS"),
+      fixedProduct(281, "PIZZA POLLO MOSTAZA MIEL"),
+      fixedProduct(282, "PIZZA SALSA MEXICANA"), 
+    ],
+  },
+  {
+    name: "CHARCUTERÍA LONCHEADA",
+    products: [
+      fixedProduct(245, "QUESO SEMI PUROVI 1.50E"),
+      fixedProduct(258, "CHOPPED BEEF CAMPOFRIO 95G"),
+      fixedProduct(259, "CHOPPED CERDO CAMPOFRIO 95G"),
+      fixedProduct(260, "MORTADELA SICILIANA CAMPOFRIO 95G"),
+      fixedProduct(261, "MORTADELA C/A CAMPOFRIO 95G"),
+      fixedProduct(262, "JAMON CURADO NAVIDUL 50G"),
+      fixedProduct(263, "PECHUGA PAVO CAMPOFRIO 70G"),
+      fixedProduct(264, "JAMON COCIDO EXTRA CAMPOFRIO 75G"),
+      fixedProduct(265, "CHORIZO REVILLA 65G"),
+      fixedProduct(266, "CHORIZO PAMPLONA REVILLA 65G"),
+      fixedProduct(267, "SALAMI REVILLA 65G"),
+      fixedProduct(268, "SALCHICHON REVILLA 65G"),
+      fixedProduct(269, "TAQUITOS NAVIDUL 50G"),
+      fixedProduct(270, "BACON OSCAR MAYER LONCHA 100G"),
+      fixedProduct(271, "SALCHICHAS CAMPOFRIO FRANKFURT"),
+      
+    ],
+  },
+  {
+    name: "APERITIVOS",
+    products: [
+      fixedProduct(186, "PIPAS SEVILLANAS"),
+      fixedProduct(187, "REBUJINAS SEVILLANAS 120G"),
+      fixedProduct(188, "RISKETOS 120G"),
+      fixedProduct(189, "BUSCALIOS BARBACOA"),
+      fixedProduct(190, "TOSTAITOS SEVILLANOS"),
+      fixedProduct(191, "PATATAS HISPALANA 140G"),
+      fixedProduct(192, "PRINGLES CREAM ONION 70G"),
+      fixedProduct(193, "PRINGLES ORIGINAL 70G"),
+      fixedProduct(194, "PRINGLES ORIGINAL 165G"),
+      fixedProduct(195, "BOLAS MATCHBALL 105G"),
+      fixedProduct(196, "REVUELTO CARTUJANO 120G"),
+      fixedProduct(197, "PATATAS RUEDAS 100G"),
+      fixedProduct(198, "TOTAS ESTILO CASERO 100G"),
+      fixedProduct(199, "TOTAS CAMPESINA 100G"),
+      fixedProduct(200, "GOFRE CON CHOCO 110G"),
+      fixedProduct(201, "PALOMITA KETCHUP MOSTAZA 8U"),
+    ],
+  },
+  {
+    name: "LECHES Y BATIDOS/CAFÉS/LÁCTEOS",
     products: [
       fixedProduct(145, "LECHE COVAP ENTERA 1L"),
       fixedProduct(146, "LECHE COVAP SEMIDESNATADA 1L"),
@@ -223,6 +246,40 @@ const departments = [
       fixedProduct(164, "NATA COCINA RENY PICOT 200ML"),
     ],
   },
+  {
+    name: "ZUMOS",
+    products: [
+      fixedProduct(50, "BIOFRUTA PASCUAL TROPICAL P3"),
+      fixedProduct(51, "BIOFRUTA PASCUAL PACIFICO P3"),
+      fixedProduct(52, "BIOFRUTA PASCUAL IBIZA P3"),
+      fixedProduct(53, "BIOFRUTA PASCUAL 1L TROPI"),
+      fixedProduct(54, "FUNC. D.SIMON TROPICAL P6"),
+      fixedProduct(55, "FUNC. D.SIMON CARIBE P6"),
+      fixedProduct(56, "FUNC. D.SIMON MEDITERRANEO P6"),
+      fixedProduct(64, "KUYX NARANJA 3L"),
+      fixedProduct(65, "KUYX TROPICAL 3L"),
+      fixedProduct(66, "KUYX MANDARINA 3L"),
+      fixedProduct(67, "KUYX FRUTOS DEL BOSQUE 3L"),
+      fixedProduct(68, "KUYX PIÑA 3L"),
+      fixedProduct(69, "KUYX PIÑA COCO 3L"),
+      fixedProduct(70, "KUYX OCEANICO 3L"),
+      fixedProduct(71, "KUYX 330ML NARANJA"),
+      fixedProduct(72, "KUYX 330ML MANDARINA"),
+      fixedProduct(73, "KUYX 330ML TROPICAL"),
+      fixedProduct(74, "KUYX 330ML PIÑA"),
+      fixedProduct(75, "KUYX 330ML OCEANICO"),
+      fixedProduct(76, "KUYX 330ML MANGO"),
+      fixedProduct(77, "KUYX 330ML FRUTOS ROJOS"),
+      fixedProduct(59, "ROSTOY MELOCOTON 33CL"),
+      fixedProduct(60, "ROSTOY PIÑA COCO 33CL"),
+      fixedProduct(57, "ZUMO D.SIMON PIÑA P6 200"),
+      fixedProduct(58, "ZUMO D.SIMON MELOCOTON P6 200"),
+      fixedProduct(61, "ZUMO JUVER PIÑA 850ML"),
+      fixedProduct(62, "ZUMO JUVER MELOCOTON 850ML"),
+      fixedProduct(63, "ZUMO JUVER NARANJA 850ML"),
+    ],
+  },
+  
   {
     name: "ALIMENTACIÓN",
     products: [
@@ -249,27 +306,7 @@ const departments = [
       fixedProduct(185, "KETCHUP ORLANDO 265G"),
     ],
   },
-  {
-    name: "APERITIVOS",
-    products: [
-      fixedProduct(186, "PIPAS SEVILLANAS"),
-      fixedProduct(187, "REBUJINAS SEVILLANAS 120G"),
-      fixedProduct(188, "RISKETOS 120G"),
-      fixedProduct(189, "BUSCALIOS BARBACOA"),
-      fixedProduct(190, "TOSTAITOS SEVILLANOS"),
-      fixedProduct(191, "PATATAS HISPALANA 140G"),
-      fixedProduct(192, "PRINGLES CREAM ONION 70G"),
-      fixedProduct(193, "PRINGLES ORIGINAL 70G"),
-      fixedProduct(194, "PRINGLES ORIGINAL 165G"),
-      fixedProduct(195, "BOLAS MATCHBALL 105G"),
-      fixedProduct(196, "REVUELTO CARTUJANO 120G"),
-      fixedProduct(197, "PATATAS RUEDAS 100G"),
-      fixedProduct(198, "TOTAS ESTILO CASERO 100G"),
-      fixedProduct(199, "TOTAS CAMPESINA 100G"),
-      fixedProduct(200, "GOFRE CON CHOCO 110G"),
-      fixedProduct(201, "PALOMITA KETCHUP MOSTAZA 8U"),
-    ],
-  },
+
   {
     name: "LIMPIEZA",
     products: [
@@ -293,6 +330,26 @@ const departments = [
       fixedProduct(219, "TOALLITAS BEBE 120U"),
       fixedProduct(220, "ESCOBA PRIMER PRECIO"),
       fixedProduct(221, "PASTA COLGATE 75ML"),
+    ],
+  },
+  {
+    name: "CHARCUTERÍA CORTE",
+    products: [
+      fixedProduct(242, "CHOPPED TERNERA CAMPOFRIO KG"),
+      fixedProduct(243, "CHOPPED CERDO CAMPOFRIO KG"),
+      fixedProduct(244, "QUESO GOUDA BARRA KG"),
+      fixedProduct(246, "POLLO RELLENO CARLOTEÑA KG"),
+      fixedProduct(247, "POLLO RELLENO BLANCE KG"),
+      fixedProduct(248, "LOMO AL HORNO FAMADESA KG"),
+      fixedProduct(249, "MAGRETA AL AJILLO FAMADESA KG"),
+      fixedProduct(250, "JAMON COCIDO 1A CAMPOFRIO KG"),
+      fixedProduct(251, "PALETA REVILLA KG"),
+      fixedProduct(252, "PECHUGA PAVO NOEL KG"),
+      fixedProduct(253, "PECHUGA PAVOFRIO KG"),
+      fixedProduct(254, "CHORIZO EXTRA VILLAR KG"),
+      fixedProduct(255, "CHORIZO TRADICIONAL REVILLA KG"),
+      fixedProduct(256, "CHORIZO CULAR IBERICO KG"),
+      fixedProduct(257, "SALCHICHON TURON KG"),
     ],
   },
   {
@@ -320,56 +377,6 @@ const departments = [
       fixedProduct(241, "ESTUCHES DE LOS REYES"),
     ],
   },
-  {
-    name: "CHARCUTERÍA LONCHEADA",
-    products: [
-      fixedProduct(245, "QUESO SEMI PUROVI 1.50E"),
-      fixedProduct(258, "CHOPPED BEEF CAMPOFRIO 95G"),
-      fixedProduct(259, "CHOPPED CERDO CAMPOFRIO 95G"),
-      fixedProduct(260, "MORTADELA SICILIANA CAMPOFRIO 95G"),
-      fixedProduct(261, "MORTADELA C/A CAMPOFRIO 95G"),
-      fixedProduct(262, "JAMON CURADO NAVIDUL 50G"),
-      fixedProduct(263, "PECHUGA PAVO CAMPOFRIO 70G"),
-      fixedProduct(264, "JAMON COCIDO EXTRA CAMPOFRIO 75G"),
-      fixedProduct(265, "CHORIZO REVILLA 65G"),
-      fixedProduct(266, "CHORIZO PAMPLONA REVILLA 65G"),
-      fixedProduct(267, "SALAMI REVILLA 65G"),
-      fixedProduct(268, "SALCHICHON REVILLA 65G"),
-      fixedProduct(269, "TAQUITOS NAVIDUL 50G"),
-      fixedProduct(270, "BACON OSCAR MAYER LONCHA 100G"),
-      fixedProduct(271, "SALCHICHAS CAMPOFRIO FRANKFURT"),
-      fixedProduct(273, "PIZZA CAMPOFRIO 5 QUESOS"),
-      fixedProduct(274, "PIZZA CAMPOFRIO JAMON QUESO"),
-      fixedProduct(275, "PIZZA CAMPOFRIO BOLOÑESA"),
-      fixedProduct(276, "PIZZA CAMPOFRIO CARBONARA"),
-      fixedProduct(277, "PIZZA CAMPOFRIO BARBACOA"),
-      fixedProduct(278, "PIZZA JAMON BACON CEBOLLA"),
-      fixedProduct(279, "PIZZA PEPPERONI CAMPOFRIO"),
-      fixedProduct(280, "PIZZA POLLO KANSAS"),
-      fixedProduct(281, "PIZZA POLLO MOSTAZA MIEL"),
-      fixedProduct(282, "PIZZA SALSA MEXICANA"),
-    ],
-  },
-  {
-    name: "CHARCUTERÍA CORTE",
-    products: [
-      fixedProduct(242, "CHOPPED TERNERA CAMPOFRIO KG"),
-      fixedProduct(243, "CHOPPED CERDO CAMPOFRIO KG"),
-      fixedProduct(244, "QUESO GOUDA BARRA KG"),
-      fixedProduct(246, "POLLO RELLENO CARLOTEÑA KG"),
-      fixedProduct(247, "POLLO RELLENO BLANCE KG"),
-      fixedProduct(248, "LOMO AL HORNO FAMADESA KG"),
-      fixedProduct(249, "MAGRETA AL AJILLO FAMADESA KG"),
-      fixedProduct(250, "JAMON COCIDO 1A CAMPOFRIO KG"),
-      fixedProduct(251, "PALETA REVILLA KG"),
-      fixedProduct(252, "PECHUGA PAVO NOEL KG"),
-      fixedProduct(253, "PECHUGA PAVOFRIO KG"),
-      fixedProduct(254, "CHORIZO EXTRA VILLAR KG"),
-      fixedProduct(255, "CHORIZO TRADICIONAL REVILLA KG"),
-      fixedProduct(256, "CHORIZO CULAR IBERICO KG"),
-      fixedProduct(257, "SALCHICHON TURON KG"),
-    ],
-  },
 ];
 
 const imageModules = import.meta.glob(
@@ -388,6 +395,21 @@ const productImagesByIdnum = Object.fromEntries(
       fileName.toLowerCase().replace(/\.(jpg|jpeg|png|webp)$/, "")
     );
     return [idnum, src];
+  })
+);
+
+const departmentImages = Object.fromEntries(
+  departments.map((department) => {
+    const firstProductWithImage = department.products.find(
+      (product) => productImagesByIdnum[product.idnum]
+    );
+
+    return [
+      department.name,
+      firstProductWithImage
+        ? productImagesByIdnum[firstProductWithImage.idnum]
+        : null,
+    ];
   })
 );
 
@@ -456,6 +478,19 @@ const products = [...visibleProducts, ...hiddenProductsFormatted];
 
 export default function App() {
   const rowRefs = useRef({});
+  const departmentDropdownRef = useRef(null);
+
+  const [quantities, setQuantities] = useState({});
+  const [customerName, setCustomerName] = useState("");
+  const [notes, setNotes] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("TODOS");
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [compactHeader, setCompactHeader] = useState(false);
+  const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
+  const [voiceText, setVoiceText] = useState("");
+  const [isListening, setIsListening] = useState(false);
 
   useEffect(() => {
     let viewport = document.querySelector("meta[name=viewport]");
@@ -472,13 +507,39 @@ export default function App() {
     );
   }, []);
 
-  const [quantities, setQuantities] = useState({});
-  const [customerName, setCustomerName] = useState("");
-  const [notes, setNotes] = useState("");
-  const [search, setSearch] = useState("");
-  const [selectedDepartment, setSelectedDepartment] = useState("TODOS");
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [compactHeader, setCompactHeader] = useState(false);
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        departmentDropdownRef.current &&
+        !departmentDropdownRef.current.contains(event.target)
+      ) {
+        setDepartmentDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, []);
+
+  const departmentOptions = useMemo(() => {
+    return [
+      {
+        name: "TODOS",
+        label: "Todos los departamentos",
+        count: visibleProducts.length,
+      },
+      ...departments.map((department) => ({
+        name: department.name,
+        label: department.name,
+        count: department.products.length,
+      })),
+    ];
+  }, []);
 
   const filteredDepartments = useMemo(() => {
     const cleanSearch = search.trim();
@@ -565,19 +626,142 @@ export default function App() {
     }, 100);
   };
 
+  const addProductFromVoice = (spokenText) => {
+    const text = normalizeText(spokenText);
+
+    const numberMatch = text.match(/\d+/);
+    const quantity = numberMatch ? numberMatch[0] : "1";
+
+    const isCaja =
+      text.includes("caja") ||
+      text.includes("cajas") ||
+      text.includes("box") ||
+      text.includes("boxes");
+
+    const matchedProduct = products.find((product) => {
+      const productWords = normalizeText(product.name)
+        .split(/[^a-z0-9ñ]+/i)
+        .filter((word) => word.length > 2);
+
+      return productWords.some((word) => text.includes(word));
+    });
+
+    if (!matchedProduct) {
+      alert(`No he encontrado el producto dictado:\n\n"${spokenText}"`);
+      return;
+    }
+
+    setQuantities((current) => ({
+      ...current,
+      [matchedProduct.id]: {
+        ...current[matchedProduct.id],
+        [isCaja ? "cajas" : "unidades"]: quantity,
+      },
+    }));
+
+    setSelectedDepartment(matchedProduct.department);
+    setSearchInput("");
+    setSearch("");
+
+    setTimeout(() => {
+      rowRefs.current[matchedProduct.id]?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 150);
+  };
+
+  const startVoiceOrder = () => {
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert(
+        "Tu navegador no permite dictado por voz. Prueba con Chrome en Android."
+      );
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "es-ES";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      setVoiceText("");
+    };
+
+    recognition.onresult = (event) => {
+      const spokenText = event.results[0][0].transcript;
+      setVoiceText(spokenText);
+      addProductFromVoice(spokenText);
+    };
+
+    recognition.onerror = () => {
+      alert("No se ha podido escuchar correctamente. Inténtalo otra vez.");
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
+
   const closeKeyboardOnEnter = (event) => {
     if (event.key === "Enter") {
       event.currentTarget.blur();
     }
   };
 
+  const applySearch = () => {
+    const cleanValue = searchInput.trim();
+    setSearch(cleanValue);
+    setSelectedDepartment("TODOS");
+  };
+
+  const searchOnEnter = (event) => {
+    if (event.key === "Enter") {
+      applySearch();
+      event.currentTarget.blur();
+    }
+  };
+
+  const openDepartmentDropdown = () => {
+    setDepartmentDropdownOpen((open) => {
+      const nextOpen = !open;
+
+      if (nextOpen) {
+        setTimeout(() => {
+          departmentDropdownRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        }, 50);
+      }
+
+      return nextOpen;
+    });
+  };
+
+  const selectDepartment = (departmentName) => {
+    setSelectedDepartment(departmentName);
+    setSearchInput("");
+    setSearch("");
+    setDepartmentDropdownOpen(false);
+
+    setTimeout(() => {
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }, 80);
+  };
+
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 120) {
-        setCompactHeader(true);
-      } else {
-        setCompactHeader(false);
-      }
+      setCompactHeader(window.scrollY > 120);
     };
 
     window.addEventListener("scroll", handleScroll);
@@ -591,8 +775,11 @@ export default function App() {
     setQuantities({});
     setCustomerName("");
     setNotes("");
+    setSearchInput("");
     setSearch("");
     setSelectedDepartment("TODOS");
+    setDepartmentDropdownOpen(false);
+    setVoiceText("");
   };
 
   const createWhatsAppMessage = () => {
@@ -638,19 +825,20 @@ export default function App() {
     <div style={styles.page}>
       <div style={styles.container}>
         {!compactHeader && (
-        <header style={styles.header}>
-          <div style={styles.iconBox}>
-            <ShoppingCart size={28} />
-          </div>
+          <header style={styles.header}>
+            <div style={styles.iconBox}>
+              <ShoppingCart size={28} />
+            </div>
 
-          <div>
-            <h1 style={styles.title}>Pedido online Cash Lojo</h1>
-            <p style={styles.subtitle}>
-              Escribe cantidades en Unidades o Cajas y envía el pedido por WhatsApp.
-            </p>
-          </div>
-        </header>
-      )}
+            <div>
+              <h1 style={styles.title}>Pedido online Cash Lojo</h1>
+              <p style={styles.subtitle}>
+                Escribe cantidades en Unidades o Cajas y envía el pedido por
+                WhatsApp.
+              </p>
+            </div>
+          </header>
+        )}
 
         <div style={styles.cardSticky}>
           {!compactHeader && (
@@ -669,18 +857,21 @@ export default function App() {
           )}
 
           <label style={styles.label}>Buscar artículo</label>
+
           <div style={styles.searchAndSendRow}>
             <div style={styles.searchBoxCompact}>
               <Search size={20} style={styles.searchIcon} />
+
               <input
-  value={search}
-  onChange={(event) => {
-    setSearch(event.target.value);
-    setSelectedDepartment("TODOS");
-  }}
-  placeholder="Buscar artículo..."
-  style={styles.searchInput}
-/>
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                onKeyDown={searchOnEnter}
+                onBlur={applySearch}
+                inputMode="search"
+                enterKeyHint="done"
+                placeholder="Buscar artículo..."
+                style={styles.searchInput}
+              />
             </div>
 
             <button onClick={sendOrder} style={styles.stickyWhatsappButton}>
@@ -688,26 +879,102 @@ export default function App() {
             </button>
           </div>
 
-          <label style={styles.label}>Departamento</label>
-          <select
-  value={selectedDepartment}
-  onChange={(event) => {
-    setSelectedDepartment(event.target.value);
-    setSearch("");
-  }}
-  style={styles.select}
->
-  <option value="TODOS">Todos los departamentos</option>
+          <button
+            type="button"
+            onClick={startVoiceOrder}
+            style={{
+              ...styles.voiceButton,
+              ...(isListening ? styles.voiceButtonActive : {}),
+            }}
+          >
+            <Mic size={18} />
+            {isListening ? "Escuchando pedido..." : "Dictar pedido por voz"}
+          </button>
 
-  {departments.map((department) => (
-    <option
-      key={department.name}
-      value={department.name}
-    >
-      {department.name}
-    </option>
-  ))}
-</select>
+          {voiceText && (
+            <div style={styles.voiceText}>Último dictado: “{voiceText}”</div>
+          )}
+
+          <label style={styles.label}>Departamento</label>
+
+          <div ref={departmentDropdownRef} style={styles.departmentSelector}>
+            <button
+              type="button"
+              onClick={openDepartmentDropdown}
+              style={styles.departmentButton}
+            >
+              <div>
+                <div style={styles.departmentButtonLabel}>
+                  {selectedDepartment === "TODOS"
+                    ? "Todos los departamentos"
+                    : selectedDepartment}
+                </div>
+
+                <div style={styles.departmentButtonHint}>
+                  Toca para cambiar de departamento
+                </div>
+              </div>
+
+              <ChevronDown
+                size={20}
+                style={{
+                  ...styles.departmentChevron,
+                  transform: departmentDropdownOpen
+                    ? "rotate(180deg)"
+                    : "rotate(0deg)",
+                }}
+              />
+            </button>
+
+            {departmentDropdownOpen && (
+              <div style={styles.departmentDropdown}>
+                <div style={styles.departmentList}>
+                  {departmentOptions.map((option) => {
+                    const isActive = selectedDepartment === option.name;
+                    const departmentImage = departmentImages[option.name];
+
+                    return (
+                      <button
+                        key={option.name}
+                        type="button"
+                        onClick={() => selectDepartment(option.name)}
+                        style={{
+                          ...styles.departmentOption,
+                          ...(isActive ? styles.departmentOptionActive : {}),
+                        }}
+                      >
+                        <div style={styles.departmentOptionContent}>
+                          {option.name !== "TODOS" && departmentImage ? (
+                            <img
+                              src={departmentImage}
+                              alt={option.label}
+                              style={styles.departmentMiniImage}
+                            />
+                          ) : (
+                            <div style={styles.departmentMiniPlaceholder}>
+                              📋
+                            </div>
+                          )}
+
+                          <div>
+                            <div style={styles.departmentOptionName}>
+                              {option.label}
+                            </div>
+
+                            <div style={styles.departmentOptionCount}>
+                              {option.count} artículos
+                            </div>
+                          </div>
+                        </div>
+
+                        {isActive && <Check size={18} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {filteredDepartments.map((department) => (
@@ -751,12 +1018,17 @@ export default function App() {
                     <div style={styles.qtyRow}>
                       <div>
                         <label style={styles.qtyLabel}>Cajas</label>
+
                         <input
                           inputMode="numeric"
                           enterKeyHint="done"
                           value={quantities[productId]?.cajas || ""}
                           onChange={(event) =>
-                            updateQuantity(productId, "cajas", event.target.value)
+                            updateQuantity(
+                              productId,
+                              "cajas",
+                              event.target.value
+                            )
                           }
                           onKeyDown={closeKeyboardOnEnter}
                           placeholder="0"
@@ -766,12 +1038,17 @@ export default function App() {
 
                       <div>
                         <label style={styles.qtyLabel}>Unid.</label>
+
                         <input
                           inputMode="numeric"
                           enterKeyHint="done"
                           value={quantities[productId]?.unidades || ""}
                           onChange={(event) =>
-                            updateQuantity(productId, "unidades", event.target.value)
+                            updateQuantity(
+                              productId,
+                              "unidades",
+                              event.target.value
+                            )
                           }
                           onKeyDown={closeKeyboardOnEnter}
                           placeholder="0"
@@ -799,6 +1076,7 @@ export default function App() {
 
         <div style={styles.card}>
           <label style={styles.label}>Observaciones</label>
+
           <textarea
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
@@ -808,7 +1086,8 @@ export default function App() {
           />
 
           <div style={styles.summary}>
-            <strong>Resumen:</strong> {selectedItems.length} artículos con cantidad.
+            <strong>Resumen:</strong> {selectedItems.length} artículos con
+            cantidad.
           </div>
 
           <button onClick={sendOrder} style={styles.primaryButton}>
@@ -835,7 +1114,10 @@ export default function App() {
               #{selectedImage.idnum} {selectedImage.name}
             </p>
 
-            <button onClick={() => setSelectedImage(null)} style={styles.closeButton}>
+            <button
+              onClick={() => setSelectedImage(null)}
+              style={styles.closeButton}
+            >
               Cerrar
             </button>
           </div>
@@ -916,15 +1198,6 @@ const styles = {
     fontSize: "16px",
     boxSizing: "border-box",
   },
-  select: {
-    width: "100%",
-    padding: "11px",
-    borderRadius: "12px",
-    border: "1px solid #cbd5e1",
-    fontSize: "16px",
-    boxSizing: "border-box",
-    background: "white",
-  },
   searchAndSendRow: {
     display: "grid",
     gridTemplateColumns: "1fr 112px",
@@ -948,6 +1221,144 @@ const styles = {
     border: "1px solid #cbd5e1",
     fontSize: "16px",
     boxSizing: "border-box",
+  },
+  voiceButton: {
+    width: "100%",
+    height: "46px",
+    border: "none",
+    borderRadius: "12px",
+    background: "#2563eb",
+    color: "white",
+    fontSize: "15px",
+    fontWeight: "bold",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    marginTop: "10px",
+    cursor: "pointer",
+  },
+  voiceButtonActive: {
+    background: "#dc2626",
+  },
+  voiceText: {
+    marginTop: "8px",
+    background: "#eff6ff",
+    border: "1px solid #bfdbfe",
+    color: "#1e3a8a",
+    padding: "9px 10px",
+    borderRadius: "10px",
+    fontSize: "13px",
+    fontWeight: "600",
+  },
+  departmentSelector: {
+    position: "relative",
+  },
+  departmentButton: {
+    width: "100%",
+    padding: "12px 14px",
+    borderRadius: "14px",
+    border: "1px solid #cbd5e1",
+    background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
+    textAlign: "left",
+    boxSizing: "border-box",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.04)",
+    cursor: "pointer",
+  },
+  departmentButtonLabel: {
+    fontSize: "16px",
+    fontWeight: "800",
+    color: "#0f172a",
+  },
+  departmentButtonHint: {
+    marginTop: "2px",
+    fontSize: "12px",
+    fontWeight: "600",
+    color: "#64748b",
+  },
+  departmentChevron: {
+    color: "#334155",
+    transition: "transform 0.18s ease",
+    flexShrink: 0,
+  },
+  departmentDropdown: {
+    position: "absolute",
+    top: "calc(100% + 8px)",
+    left: 0,
+    right: 0,
+    zIndex: 50,
+    background: "white",
+    border: "1px solid #e2e8f0",
+    borderRadius: "16px",
+    boxShadow: "0 18px 45px rgba(15,23,42,0.18)",
+    padding: "10px",
+    boxSizing: "border-box",
+  },
+  departmentList: {
+    maxHeight: "320px",
+    overflowY: "auto",
+    display: "grid",
+    gap: "6px",
+  },
+  departmentOption: {
+    width: "100%",
+    border: "none",
+    borderRadius: "12px",
+    background: "white",
+    padding: "9px 10px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "10px",
+    textAlign: "left",
+    color: "#0f172a",
+    cursor: "pointer",
+  },
+  departmentOptionActive: {
+    background: "#0f172a",
+    color: "white",
+  },
+  departmentOptionContent: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    minWidth: 0,
+  },
+  departmentMiniImage: {
+    width: "46px",
+    height: "46px",
+    borderRadius: "12px",
+    objectFit: "contain",
+    background: "white",
+    border: "1px solid #cbd5e1",
+    flexShrink: 0,
+  },
+  departmentMiniPlaceholder: {
+    width: "46px",
+    height: "46px",
+    borderRadius: "12px",
+    background: "#e2e8f0",
+    border: "1px solid #cbd5e1",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "22px",
+    flexShrink: 0,
+  },
+  departmentOptionName: {
+    fontSize: "14px",
+    fontWeight: "800",
+    textTransform: "uppercase",
+  },
+  departmentOptionCount: {
+    marginTop: "2px",
+    fontSize: "12px",
+    fontWeight: "600",
+    opacity: 0.75,
   },
   section: {
     background: "white",
