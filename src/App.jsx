@@ -10,6 +10,7 @@ import {
 import hiddenProductsRaw from "./hiddenProducts";
 
 const WHATSAPP_NUMBER = "34670716744";
+const ORDER_STORAGE_KEY = "cash-lojo-pedido";
 
 const fixedProduct = (idnum, name, offerText = "") => ({
   idnum,
@@ -475,15 +476,41 @@ export default function App() {
   const rowRefs = useRef({});
   const departmentDropdownRef = useRef(null);
 
-  const [quantities, setQuantities] = useState({});
-  const [customerName, setCustomerName] = useState("");
-  const [notes, setNotes] = useState("");
+  const getSavedOrder = () => {
+    try {
+      const saved = localStorage.getItem(ORDER_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const [quantities, setQuantities] = useState(
+    () => getSavedOrder().quantities || {}
+  );
+  const [customerName, setCustomerName] = useState(
+    () => getSavedOrder().customerName || ""
+  );
+  const [notes, setNotes] = useState(() => getSavedOrder().notes || "");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("TODOS");
   const [selectedImage, setSelectedImage] = useState(null);
   const [compactHeader, setCompactHeader] = useState(false);
   const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
+  const [showSentPrompt, setShowSentPrompt] = useState(false);
+  const [showOrderSummary, setShowOrderSummary] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem(
+      ORDER_STORAGE_KEY,
+      JSON.stringify({
+        quantities,
+        customerName,
+        notes,
+      })
+    );
+  }, [quantities, customerName, notes]);
 
   useEffect(() => {
     let viewport = document.querySelector("meta[name=viewport]");
@@ -494,10 +521,7 @@ export default function App() {
       document.head.appendChild(viewport);
     }
 
-    viewport.setAttribute(
-      "content",
-      "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
-    );
+    viewport.setAttribute("content", "width=device-width, initial-scale=1");
   }, []);
 
   useEffect(() => {
@@ -689,6 +713,9 @@ export default function App() {
     setSearch("");
     setSelectedDepartment("TODOS");
     setDepartmentDropdownOpen(false);
+    setShowSentPrompt(false);
+    setShowOrderSummary(false);
+    localStorage.removeItem(ORDER_STORAGE_KEY);
   };
 
   const createWhatsAppMessage = () => {
@@ -727,7 +754,8 @@ export default function App() {
       "_blank"
     );
 
-    clearOrder();
+    setShowOrderSummary(false);
+    setShowSentPrompt(true);
   };
 
   return (
@@ -752,9 +780,7 @@ export default function App() {
         <div style={styles.cardSticky}>
           {!compactHeader && (
             <>
-              <label style={styles.label}>
-                Nombre o referencia del cliente
-              </label>
+              <label style={styles.label}>Nombre o referencia del cliente</label>
 
               <input
                 value={customerName}
@@ -782,6 +808,17 @@ export default function App() {
                 style={styles.searchInput}
               />
             </div>
+
+            <button
+              onClick={() => setShowOrderSummary(true)}
+              style={{
+                ...styles.stickyViewButton,
+                opacity: selectedItems.length === 0 ? 0.5 : 1,
+              }}
+              disabled={selectedItems.length === 0}
+            >
+              Ver pedido
+            </button>
 
             <button onClick={sendOrder} style={styles.stickyWhatsappButton}>
               <Send size={18} /> WhatsApp
@@ -880,13 +917,20 @@ export default function App() {
               const productId = `${department.name}-${product.idnum}-${product.name}`;
               const imageSrc = productImagesByIdnum[product.idnum];
 
+              const isSelected =
+                Number(quantities[productId]?.cajas || 0) > 0 ||
+                Number(quantities[productId]?.unidades || 0) > 0;
+
               return (
                 <div
                   key={productId}
                   ref={(element) => {
                     rowRefs.current[productId] = element;
                   }}
-                  style={styles.row}
+                  style={{
+                    ...styles.row,
+                    ...(isSelected ? styles.rowSelected : {}),
+                  }}
                 >
                   <div style={styles.leftColumn}>
                     <div style={styles.imageBox}>
@@ -983,6 +1027,17 @@ export default function App() {
             cantidad.
           </div>
 
+          <button
+            onClick={() => setShowOrderSummary(true)}
+            style={{
+              ...styles.viewOrderButton,
+              opacity: selectedItems.length === 0 ? 0.5 : 1,
+            }}
+            disabled={selectedItems.length === 0}
+          >
+            Ver pedido
+          </button>
+
           <button onClick={sendOrder} style={styles.primaryButton}>
             <Send size={20} /> Enviar por WhatsApp
           </button>
@@ -992,6 +1047,82 @@ export default function App() {
           </button>
         </div>
       </div>
+
+      {showSentPrompt && (
+        <div style={styles.sentPrompt}>
+          <div style={styles.sentPromptText}>¿Pedido enviado?</div>
+
+          <div style={styles.sentPromptActions}>
+            <button onClick={clearOrder} style={styles.sentPromptConfirm}>
+              Sí, borrar pedido
+            </button>
+
+            <button
+              onClick={() => setShowSentPrompt(false)}
+              style={styles.sentPromptKeep}
+            >
+              Mantener
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showOrderSummary && (
+        <div style={styles.modal} onClick={() => setShowOrderSummary(false)}>
+          <div
+            style={styles.orderModalContent}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 style={styles.orderModalTitle}>Resumen del pedido</h2>
+
+            {customerName.trim() && (
+              <p style={styles.orderCustomer}>
+                Cliente: <strong>{customerName.trim()}</strong>
+              </p>
+            )}
+
+            {selectedItems.length === 0 ? (
+              <p>No hay artículos con cantidad.</p>
+            ) : (
+              <div style={styles.orderItemsList}>
+                {selectedItems.map((item) => (
+                  <div key={item.id} style={styles.orderItem}>
+                    <div style={styles.orderItemName}>
+                      #{item.idnum} {item.name}
+                    </div>
+
+                    <div style={styles.orderItemQty}>
+                      {item.cajas > 0 && <span>{item.cajas} cajas</span>}
+                      {item.unidades > 0 && (
+                        <span>{item.unidades} unidades</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {notes.trim() && (
+              <div style={styles.orderNotes}>
+                <strong>Observaciones:</strong>
+                <br />
+                {notes.trim()}
+              </div>
+            )}
+
+            <button onClick={sendOrder} style={styles.primaryButton}>
+              <Send size={20} /> Enviar por WhatsApp
+            </button>
+
+            <button
+              onClick={() => setShowOrderSummary(false)}
+              style={styles.secondaryButton}
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
 
       {selectedImage && (
         <div style={styles.modal} onClick={() => setSelectedImage(null)}>
@@ -1093,7 +1224,7 @@ const styles = {
   },
   searchAndSendRow: {
     display: "grid",
-    gridTemplateColumns: "1fr 112px",
+    gridTemplateColumns: "1fr 86px 112px",
     gap: "8px",
     alignItems: "center",
   },
@@ -1250,6 +1381,10 @@ const styles = {
     borderTop: "1px solid #e2e8f0",
     scrollMarginTop: "170px",
   },
+  rowSelected: {
+    background: "#ecfdf5",
+    borderLeft: "5px solid #22c55e",
+  },
   leftColumn: {
     display: "flex",
     flexDirection: "column",
@@ -1373,6 +1508,27 @@ const styles = {
     gap: "6px",
     whiteSpace: "nowrap",
   },
+  stickyViewButton: {
+    width: "100%",
+    height: "44px",
+    border: "1px solid #cbd5e1",
+    borderRadius: "12px",
+    background: "white",
+    color: "#0f172a",
+    fontSize: "12px",
+    fontWeight: "bold",
+  },
+  viewOrderButton: {
+    width: "100%",
+    height: "50px",
+    border: "1px solid #0f172a",
+    borderRadius: "12px",
+    background: "white",
+    color: "#0f172a",
+    fontSize: "16px",
+    fontWeight: "bold",
+    marginBottom: "10px",
+  },
   secondaryButton: {
     width: "100%",
     height: "50px",
@@ -1386,6 +1542,47 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     gap: "8px",
+  },
+  sentPrompt: {
+    position: "fixed",
+    left: "12px",
+    right: "12px",
+    bottom: "12px",
+    zIndex: 9998,
+    background: "white",
+    borderRadius: "18px",
+    padding: "14px",
+    boxShadow: "0 18px 45px rgba(15,23,42,0.28)",
+    border: "1px solid #e2e8f0",
+  },
+  sentPromptText: {
+    fontSize: "16px",
+    fontWeight: "800",
+    marginBottom: "10px",
+    textAlign: "center",
+  },
+  sentPromptActions: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "8px",
+  },
+  sentPromptConfirm: {
+    height: "46px",
+    border: "none",
+    borderRadius: "12px",
+    background: "#22c55e",
+    color: "white",
+    fontSize: "14px",
+    fontWeight: "bold",
+  },
+  sentPromptKeep: {
+    height: "46px",
+    border: "1px solid #cbd5e1",
+    borderRadius: "12px",
+    background: "white",
+    color: "#0f172a",
+    fontSize: "14px",
+    fontWeight: "bold",
   },
   modal: {
     position: "fixed",
@@ -1423,5 +1620,56 @@ const styles = {
     fontSize: "15px",
     fontWeight: "bold",
     padding: "10px 18px",
+  },
+  orderModalContent: {
+    width: "min(520px, 95vw)",
+    maxHeight: "88vh",
+    overflowY: "auto",
+    background: "white",
+    borderRadius: "18px",
+    padding: "18px",
+    boxSizing: "border-box",
+  },
+  orderModalTitle: {
+    margin: "0 0 12px",
+    fontSize: "22px",
+  },
+  orderCustomer: {
+    background: "#f1f5f9",
+    padding: "10px",
+    borderRadius: "12px",
+    marginBottom: "12px",
+  },
+  orderItemsList: {
+    display: "grid",
+    gap: "8px",
+    marginBottom: "14px",
+  },
+  orderItem: {
+    border: "1px solid #e2e8f0",
+    borderRadius: "12px",
+    padding: "10px",
+    background: "#f8fafc",
+  },
+  orderItemName: {
+    fontSize: "14px",
+    fontWeight: "800",
+    marginBottom: "6px",
+  },
+  orderItemQty: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+    fontSize: "14px",
+    fontWeight: "bold",
+    color: "#16a34a",
+  },
+  orderNotes: {
+    background: "#fff7ed",
+    border: "1px solid #fed7aa",
+    borderRadius: "12px",
+    padding: "10px",
+    marginBottom: "14px",
+    fontSize: "14px",
   },
 };
