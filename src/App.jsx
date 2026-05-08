@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import hiddenProductsRaw from "./hiddenProducts";
 
-const WHATSAPP_NUMBER = "34670619113";
+const WHATSAPP_NUMBER = "34670716744";
 const ORDER_STORAGE_KEY = "cash-lojo-pedido";
 
 const fixedProduct = (idnum, name, offerText = "") => ({
@@ -20,7 +20,7 @@ const fixedProduct = (idnum, name, offerText = "") => ({
 });
 
 const departments = [
-  {
+   {
     name: "AGUA",
     products: [
       fixedProduct(1, "AGUA FUENTELAJARA 1.5L", "Comprando 10 cajas REGALO 1 caja "),
@@ -801,7 +801,7 @@ export default function App() {
                 onBlur={applySearch}
                 inputMode="search"
                 enterKeyHint="done"
-                placeholder="Buscar artículo..."
+                placeholder="Buscar..."
                 style={styles.searchInput}
               />
             </div>
@@ -814,7 +814,8 @@ export default function App() {
               }}
               disabled={selectedItems.length === 0}
             >
-              Revisar y Enviar
+              <span>Revisar</span>
+              <span>y Enviar</span>
             </button>
           </div>
 
@@ -1194,7 +1195,7 @@ const styles = {
   },
   searchAndSendRow: {
     display: "grid",
-    gridTemplateColumns: "1fr 150px",
+    gridTemplateColumns: "minmax(0, 1fr) 104px",
     gap: "8px",
     alignItems: "center",
   },
@@ -1205,12 +1206,13 @@ const styles = {
   searchIcon: {
     position: "absolute",
     left: "12px",
-    top: "11px",
+    top: "16px",
     color: "#64748b",
   },
   searchInput: {
     width: "100%",
-    padding: "11px 12px 11px 40px",
+    height: "52px",
+    padding: "13px 12px 13px 40px",
     borderRadius: "12px",
     border: "1px solid #cbd5e1",
     fontSize: "16px",
@@ -1465,18 +1467,21 @@ const styles = {
   },
   stickyWhatsappButton: {
     width: "100%",
-    height: "44px",
+    height: "52px",
     border: "none",
     borderRadius: "12px",
     background: "#0f172a",
     color: "white",
-    fontSize: "13px",
+    fontSize: "12px",
     fontWeight: "bold",
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: "6px",
-    whiteSpace: "nowrap",
+    gap: "1px",
+    lineHeight: "1.05",
+    textAlign: "center",
+    padding: "4px",
   },
   whatsappButton: {
     width: "100%",
