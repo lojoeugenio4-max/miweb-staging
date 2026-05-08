@@ -655,6 +655,13 @@ export default function App() {
     setSelectedDepartment("TODOS");
   };
 
+  const searchOnEnter = (event) => {
+    if (event.key === "Enter") {
+      applySearch();
+      event.currentTarget.blur();
+    }
+  };
+
   const openDepartmentDropdown = () => {
     setDepartmentDropdownOpen((open) => {
       const nextOpen = !open;
@@ -784,29 +791,20 @@ export default function App() {
           <label style={styles.label}>Buscar artículo</label>
 
           <div style={styles.searchAndSendRow}>
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                applySearch();
-                event.currentTarget.querySelector("input")?.blur();
-              }}
-              style={styles.searchForm}
-            >
-              <div style={styles.searchBoxCompact}>
-                <Search size={20} style={styles.searchIcon} />
+            <div style={styles.searchBoxCompact}>
+              <Search size={20} style={styles.searchIcon} />
 
-                <input
-                  value={searchInput}
-                  onChange={(event) => setSearchInput(event.target.value)}
-                  onBlur={applySearch}
-                  type="search"
-                  inputMode="search"
-                  enterKeyHint="done"
-                  placeholder="Buscar..."
-                  style={styles.searchInput}
-                />
-              </div>
-            </form>
+              <input
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                onKeyDown={searchOnEnter}
+                onBlur={applySearch}
+                inputMode="search"
+                enterKeyHint="done"
+                placeholder="Buscar..."
+                style={styles.searchInput}
+              />
+            </div>
 
             <button
               type="button"
@@ -1201,9 +1199,6 @@ const styles = {
     gridTemplateColumns: "minmax(0, 1fr) 104px",
     gap: "8px",
     alignItems: "center",
-  },
-  searchForm: {
-    minWidth: 0,
   },
   searchBoxCompact: {
     position: "relative",
