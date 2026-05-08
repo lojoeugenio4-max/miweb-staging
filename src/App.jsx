@@ -6,7 +6,6 @@ import {
   Search,
   ChevronDown,
   Check,
-  Mic,
 } from "lucide-react";
 import hiddenProductsRaw from "./hiddenProducts";
 
@@ -18,18 +17,17 @@ const fixedProduct = (idnum, name, offerText = "") => ({
   offerText,
 });
 
-
 const departments = [
   {
     name: "AGUA",
     products: [
       fixedProduct(1, "AGUA FUENTELAJARA 1.5L", "Comprando 10 cajas REGALO 1 caja "),
       fixedProduct(2, "AGUA LANJARON 1.5L PACK 6"),
-      fixedProduct(3, "AGUA FUENTELAJARA 0.5L"),
+      fixedProduct(3, "AGUA FUENTELAJARA 0.5L", "Comprando 10 cajas REGALO 1 caja "),
       fixedProduct(4, "AGUA LANJARON 0.5L"),
       fixedProduct(5, "AGUA VALTORRE 0.5L PITORRO"),
       fixedProduct(6, "AGUA VALTORRE GARRAFA 5L"),
-      fixedProduct(7, "AGUA SOLAN CABRAS 1.5L"),
+      fixedProduct(7, "AGUA SOLAN CABRAS 1.5L", "OFERTA"),
       fixedProduct(8, "AGUA SOLAN DE CABRAS S/G 5L GFA"),
       fixedProduct(9, "AGUA GOURMET CON GAS 0.5L"),
       fixedProduct(10, "AGUA GOURMET CON GAS 1.5L"),
@@ -38,23 +36,23 @@ const departments = [
   {
     name: "CERVEZAS",
     products: [
-      fixedProduct(102, "CERVEZA CRUZCAMPO LATA 33CL"),
-      fixedProduct(103, "CERVEZA ESTRELLA SUR LATA"),
+      fixedProduct(102, "CERVEZA CRUZCAMPO LATA 33CL", "Por 7 cajas REGALO 1 caja"),
+      fixedProduct(103, "CERVEZA ESTRELLA SUR LATA", "Por 9 cajas REGALO 1 caja"),
       fixedProduct(104, "ESTRELLA 0.0 LATA 33CL"),
-      fixedProduct(105, "CRUZCAMPO S/A LATA 33CL"),
-      fixedProduct(106, "RADLER LIMON CRUZCAMPO LATA"),
+      fixedProduct(105, "CRUZCAMPO S/A LATA 33CL", "Comprando 2 cajas PRECIO OFERTA"),
+      fixedProduct(106, "RADLER LIMON CRUZCAMPO LATA", "Comprando 2 cajas PRECIO OFERTA"),
       fixedProduct(107, "HEINEKEN LATA 33CL"),
-      fixedProduct(108, "CERVEZA CRUZCAMPO 50CL"),
-      fixedProduct(109, "ESTRELLA SUR 50CL LATA GRANDE"),
+      fixedProduct(108, "CERVEZA CRUZCAMPO 50CL", "Por 6 cajas REGALO 1 caja"),
+      fixedProduct(109, "ESTRELLA SUR 50CL LATA GRANDE", "Por 5 cajas REGALO 12 unidades"),
       fixedProduct(110, "CERVEZA CRUZCAMPO CHAPA 1L"),
-      fixedProduct(111, "CERVEZA CRUZ DEL SUR 1L"),
-      fixedProduct(112, "CERVEZA ESTRELLA 1L"),
+      fixedProduct(111, "CERVEZA CRUZ DEL SUR 1L", "Comprando 10 cajas PRECIO OFERTA"),
+      fixedProduct(112, "CERVEZA ESTRELLA 1L", "Por 25 cajas REGALO 1 caja"),
       fixedProduct(113, "CERVEZA ESTRELLA 0.0 1L"),
       fixedProduct(114, "CRUZCAMPO ROSCA 1L"),
       fixedProduct(115, "CRUZCAMPO 750ML"),
       fixedProduct(116, "CRUZCAMPO PACK 6"),
-      fixedProduct(117, "CRUZCAMPO BOTELLIN CAJA 24"),
-      fixedProduct(119, "CRUZCAMPO SIN ALCOHOL PACK"),
+      fixedProduct(117, "CRUZCAMPO BOTELLIN CAJA 24", "Comprando 5 cajas PRECIO OFERTA"),
+      fixedProduct(119, "CRUZCAMPO SIN ALCOHOL PACK6", "Comprando 2 cajas PRECIO OFERTA"),
       fixedProduct(120, "ESTRELLA DEL SUR PACK 6"),
     ],
   },
@@ -70,9 +68,9 @@ const departments = [
       fixedProduct(17, "AQUARIUS LIMON LATA 33CL"),
       fixedProduct(18, "SEVEN UP LATA 33CL"),
       fixedProduct(19, "PEPSI COLA LATA 33CL"),
-      fixedProduct(20, "NESTEA MARACUYA LATA 33CL"),
-      fixedProduct(21, "NESTEA LIMON LATA 33CL"),
-      fixedProduct(22, "NESTEA FRUTOS ROJOS LATA 33CL"),
+      fixedProduct(20, "NESTEA MARACUYA LATA 33CL", "Comprando 2 cajas PRECIO OFERTA"),
+      fixedProduct(21, "NESTEA LIMON LATA 33CL", "Comprando 2 cajas PRECIO OFERTA"),
+      fixedProduct(22, "NESTEA FRUTOS ROJOS LATA 33CL", "Comprando 2 cajas PRECIO OFERTA"),
       fixedProduct(23, "TONICA LATA 33CL"),
       fixedProduct(25, "SIMON LIFE MANGO LATA 33CL"),
       fixedProduct(26, "TINTO VERANO LIMON CASERA LATA"),
@@ -96,8 +94,8 @@ const departments = [
       fixedProduct(39, "AQUARIUS NARANJA 1.5L"),
       fixedProduct(40, "AQUARIUS BLANCO 1.5L"),
       fixedProduct(41, "NESTEA MARACUYA 1.5L"),
-      fixedProduct(42, "NESTEA 1.5L"),
-      fixedProduct(43, "NESTEA FRUTOS ROJOS 1.5L"),
+      fixedProduct(42, "NESTEA LIMÓN 1.5L"),
+      fixedProduct(43, "NESTEA FRUTOS ROJOS 1.5L", "Comprando 2 cajas PRECIO OFERTA"),
       fixedProduct(44, "SIMON LIFE NARANJA 1.5L"),
       fixedProduct(45, "SIMON LIFE MANDARINA 1.5L"),
       fixedProduct(46, "SIMON LIFE MANGO 1.5L"),
@@ -109,7 +107,7 @@ const departments = [
   {
     name: "ENERGÉTICAS",
     products: [
-      fixedProduct(78, "CAMALEON 250ML"),
+      fixedProduct(78, "CAMALEON 250ML", " Por 10 cajas REGALO 2 cajas"),
       fixedProduct(79, "CAMALEON GRANDE 50CL"),
       fixedProduct(80, "POWER KING 25CL"),
       fixedProduct(81, "POWER KING GRANDE 50CL"),
@@ -142,22 +140,22 @@ const departments = [
       fixedProduct(122, "VINO TINTO GRAN DUQUE 1L"),
       fixedProduct(123, "VINO BLANCO RIVILLA 2L"),
       fixedProduct(124, "VINO TINTO RIVILLA 2L"),
-      fixedProduct(125, "VINO TINTO DON SIMON 1L"),
-      fixedProduct(126, "VINO BLANCO DON SIMON 1L"),
+      fixedProduct(125, "VINO TINTO DON SIMON 1L", "OFERTA"),
+      fixedProduct(126, "VINO BLANCO DON SIMON 1L", "OFERTA"),
       fixedProduct(127, "VINO RIOJA SEÑORES 3/4"),
       fixedProduct(128, "TINTO VERANO CASERA 1.5L"),
       fixedProduct(129, "RON CACIQUE 70CL"),
       fixedProduct(130, "RON BARCELO AÑEJO 70CL"),
       fixedProduct(131, "RON NEGRITA 70CL"),
-      fixedProduct(132, "WHISKY WHITE LABEL 70CL"),
+      fixedProduct(132, "WHISKY WHITE LABEL 70CL", "Comprando 6 unidades PRECIO OFERTA"),
       fixedProduct(133, "WHISKY BALLANTINES 70CL"),
       fixedProduct(134, "WHISKY J&B 70CL"),
-      fixedProduct(135, "WHISKY JHONNIE WALKER E/ROJA 3/4"),
+      fixedProduct(135, "WHISKY JHONNIE WALKER E/ROJA 3/4", "Comprando 12 unidades PRECIO OFERTA"),
       fixedProduct(136, "WHISKY JHONNIE WALKER E/ROJA MINIATURA"),
       fixedProduct(137, "GINEBRA LARIOS 1L"),
-      fixedProduct(138, "GINEBRA BEEFEATER 70CL"),
+      fixedProduct(138, "GINEBRA BEEFEATER 70CL", "Comprando 6 unidades PRECIO OFERTA"),
       fixedProduct(139, "BRANDY TERRY 1L"),
-      fixedProduct(140, "ANIS CASTELLANA 70CL"),
+      fixedProduct(140, "ANIS CASTELLANA 70CL", " Por 12 botellas REGALO 1 botella"),
       fixedProduct(141, "LICOR MIURA 70CL"),
       fixedProduct(142, "MINI WHISKY WHITE LABEL"),
       fixedProduct(143, "MINI RON BARCELO"),
@@ -176,7 +174,7 @@ const departments = [
       fixedProduct(279, "PIZZA PEPPERONI CAMPOFRIO"),
       fixedProduct(280, "PIZZA POLLO KANSAS"),
       fixedProduct(281, "PIZZA POLLO MOSTAZA MIEL"),
-      fixedProduct(282, "PIZZA SALSA MEXICANA"), 
+      fixedProduct(282, "PIZZA SALSA MEXICANA"),
     ],
   },
   {
@@ -197,7 +195,6 @@ const departments = [
       fixedProduct(269, "TAQUITOS NAVIDUL 50G"),
       fixedProduct(270, "BACON OSCAR MAYER LONCHA 100G"),
       fixedProduct(271, "SALCHICHAS CAMPOFRIO FRANKFURT"),
-      
     ],
   },
   {
@@ -208,7 +205,7 @@ const departments = [
       fixedProduct(188, "RISKETOS 120G"),
       fixedProduct(189, "BUSCALIOS BARBACOA"),
       fixedProduct(190, "TOSTAITOS SEVILLANOS"),
-      fixedProduct(191, "PATATAS HISPALANA 140G"),
+      fixedProduct(191, "PATATAS HISPALANA 140G", "Por 1 caja REGALO 1 paquete"),
       fixedProduct(192, "PRINGLES CREAM ONION 70G"),
       fixedProduct(193, "PRINGLES ORIGINAL 70G"),
       fixedProduct(194, "PRINGLES ORIGINAL 165G"),
@@ -255,21 +252,21 @@ const departments = [
       fixedProduct(53, "BIOFRUTA PASCUAL 1L TROPI"),
       fixedProduct(54, "FUNC. D.SIMON TROPICAL P6"),
       fixedProduct(55, "FUNC. D.SIMON CARIBE P6"),
-      fixedProduct(56, "FUNC. D.SIMON MEDITERRANEO P6"),
-      fixedProduct(64, "KUYX NARANJA 3L"),
-      fixedProduct(65, "KUYX TROPICAL 3L"),
-      fixedProduct(66, "KUYX MANDARINA 3L"),
-      fixedProduct(67, "KUYX FRUTOS DEL BOSQUE 3L"),
-      fixedProduct(68, "KUYX PIÑA 3L"),
-      fixedProduct(69, "KUYX PIÑA COCO 3L"),
-      fixedProduct(70, "KUYX OCEANICO 3L"),
-      fixedProduct(71, "KUYX 330ML NARANJA"),
-      fixedProduct(72, "KUYX 330ML MANDARINA"),
-      fixedProduct(73, "KUYX 330ML TROPICAL"),
-      fixedProduct(74, "KUYX 330ML PIÑA"),
-      fixedProduct(75, "KUYX 330ML OCEANICO"),
-      fixedProduct(76, "KUYX 330ML MANGO"),
-      fixedProduct(77, "KUYX 330ML FRUTOS ROJOS"),
+      fixedProduct(56, "FUNC. D.SIMON MEDITERRANEO P6", "Por 2 cajas REGALO 1 unidad KUYX PIÑA COCO 3L"),
+      fixedProduct(64, "KUYX NARANJA 3L", "Por 2 cajas REGALO 1 unidad KUYX PIÑA COCO 3L"),
+      fixedProduct(65, "KUYX TROPICAL 3L", "Por 2 cajas REGALO 1 unidad KUYX PIÑA COCO 3L"),
+      fixedProduct(66, "KUYX MANDARINA 3L", "Por 2 cajas REGALO 1 unidad KUYX PIÑA COCO 3L"),
+      fixedProduct(67, "KUYX FRUTOS DEL BOSQUE 3L", "Por 2 cajas REGALO 1 unidad KUYX PIÑA COCO 3L"),
+      fixedProduct(68, "KUYX PIÑA 3L", "Por 2 cajas REGALO 1 unidad KUYX PIÑA COCO 3L"),
+      fixedProduct(69, "KUYX PIÑA COCO 3L", "Por 2 cajas REGALO 1 unidad KUYX PIÑA COCO 3L"),
+      fixedProduct(70, "KUYX OCEANICO 3L", "Por 2 cajas REGALO 1 unidad KUYX PIÑA COCO 3L"),
+      fixedProduct(71, "KUYX 330ML NARANJA", "Por 1 caja REGALO 1 unidad KUYX 330ML FRUTOS ROJOS"),
+      fixedProduct(72, "KUYX 330ML MANDARINA", "Por 1 caja REGALO 1 unidad KUYX 330ML FRUTOS ROJOS"),
+      fixedProduct(73, "KUYX 330ML TROPICAL", "Por 1 caja REGALO 1 unidad KUYX 330ML FRUTOS ROJOS"),
+      fixedProduct(74, "KUYX 330ML PIÑA", "Por 1 caja REGALO 1 unidad KUYX 330ML FRUTOS ROJOS"),
+      fixedProduct(75, "KUYX 330ML OCEANICO", "Por 1 caja REGALO 1 unidad KUYX 330ML FRUTOS ROJOS"),
+      fixedProduct(76, "KUYX 330ML MANGO", "Por 1 caja REGALO 1 unidad KUYX 330ML FRUTOS ROJOS"),
+      fixedProduct(77, "KUYX 330ML FRUTOS ROJOS", "Por 1 caja REGALO 1 unidad KUYX 330ML FRUTOS ROJOS"),
       fixedProduct(59, "ROSTOY MELOCOTON 33CL"),
       fixedProduct(60, "ROSTOY PIÑA COCO 33CL"),
       fixedProduct(57, "ZUMO D.SIMON PIÑA P6 200"),
@@ -279,14 +276,13 @@ const departments = [
       fixedProduct(63, "ZUMO JUVER NARANJA 850ML"),
     ],
   },
-  
   {
     name: "ALIMENTACIÓN",
     products: [
-      fixedProduct(165, "ACEITE GIRASOL ROSIL 1L"),
+      fixedProduct(165, "ACEITE GIRASOL ROSIL 1L", "Por 1 cajas REGALO 1 unidad"),
       fixedProduct(166, "ACEITE GIRASOL ROSIL 5L"),
       fixedProduct(167, "ACEITE OLIVA VIRGEN ROSIL 1L"),
-      fixedProduct(168, "AZUCAR 1KG"),
+      fixedProduct(168, "AZUCAR 1KG", "Comprando 2 cajas REGALO 1 K"),
       fixedProduct(169, "SAL FINA 1KG"),
       fixedProduct(170, "SAL GRUESA CHALUPA 1KG"),
       fixedProduct(171, "TOMATE FRITO ORLANDO 400G"),
@@ -299,14 +295,13 @@ const departments = [
       fixedProduct(178, "YATEKOMO POLLO 60G"),
       fixedProduct(179, "CALDO G.BLANCA POLLO 1L"),
       fixedProduct(180, "GARBANZOS FRASCO 560G"),
-      fixedProduct(181, "PAN RALLADO PANAERAS 300G"),
+      fixedProduct(181, "PAN RALLADO PANAERAS 300G", "OFERTA"),
       fixedProduct(182, "ARROZ BRILLANTE 1KG"),
       fixedProduct(183, "ARROZ BRILLANTE 500G"),
       fixedProduct(184, "MAYONESA YBARRA 450G"),
       fixedProduct(185, "KETCHUP ORLANDO 265G"),
     ],
   },
-
   {
     name: "LIMPIEZA",
     products: [
@@ -316,18 +311,18 @@ const departments = [
       fixedProduct(205, "LEJIA + DETERGENTE KIRIKO 2L"),
       fixedProduct(206, "LEJIA LIMON PERFUMADA KIRIKO 2L"),
       fixedProduct(207, "DETERGENTE KIRIKO MARSELLA 3L"),
-      fixedProduct(208, "DETERGENTE KIRIKO BASICO 2.8L"),
+      fixedProduct(208, "DETERGENTE KIRIKO BASICO 2.8L", "OFERTA"),
       fixedProduct(209, "LAVAVAJILLAS FLOTA 1.1L"),
       fixedProduct(210, "FLOTA VAJILLAS 750ML"),
-      fixedProduct(211, "FREGASUELOS PINO KIRIKO 1.5L"),
-      fixedProduct(212, "FREGASUELOS DAMA NOCHE 1.5L"),
-      fixedProduct(213, "FREGASUELOS J.MARSELLA 1.5L"),
-      fixedProduct(214, "FREGASUELOS SPA 1.5L"),
+      fixedProduct(211, "FREGASUELOS PINO KIRIKO 1.5L", "OFERTA"),
+      fixedProduct(212, "FREGASUELOS DAMA NOCHE 1.5L", "OFERTA"),
+      fixedProduct(213, "FREGASUELOS J.MARSELLA 1.5L", "OFERTA"),
+      fixedProduct(214, "FREGASUELOS SPA 1.5L", "OFERTA"),
       fixedProduct(215, "LIMPIACRISTALES KIRIKO 500ML"),
       fixedProduct(216, "PAPEL HIGIENICO FAMADIS 6R"),
       fixedProduct(217, "HIGIENICO ECONOMICO P12"),
       fixedProduct(218, "SECAMANO BUENO"),
-      fixedProduct(219, "TOALLITAS BEBE 120U"),
+      fixedProduct(219, "TOALLITAS BEBE BEKIDS 120U", "Por 1 Caja REGALO 2 unidades"),
       fixedProduct(220, "ESCOBA PRIMER PRECIO"),
       fixedProduct(221, "PASTA COLGATE 75ML"),
     ],
@@ -340,8 +335,8 @@ const departments = [
       fixedProduct(244, "QUESO GOUDA BARRA KG"),
       fixedProduct(246, "POLLO RELLENO CARLOTEÑA KG"),
       fixedProduct(247, "POLLO RELLENO BLANCE KG"),
-      fixedProduct(248, "LOMO AL HORNO FAMADESA KG"),
-      fixedProduct(249, "MAGRETA AL AJILLO FAMADESA KG"),
+      fixedProduct(248, "LOMO AL HORNO FAMADESA KG", "Comprando 1 Caja PRECIO OFERTA"),
+      fixedProduct(249, "MAGRETA AL AJILLO FAMADESA KG", "Comprando 1 Caja PRECIO OFERTA"),
       fixedProduct(250, "JAMON COCIDO 1A CAMPOFRIO KG"),
       fixedProduct(251, "PALETA REVILLA KG"),
       fixedProduct(252, "PECHUGA PAVO NOEL KG"),
@@ -367,7 +362,7 @@ const departments = [
       fixedProduct(231, "BOLSA BASURA NORMAL 30L"),
       fixedProduct(232, "BOLSAS PANADERIA 30X43"),
       fixedProduct(233, "SERVILLETA DOBLE BLANCA P2"),
-      fixedProduct(234, "ARENA GATO MIC&FRIENDS 5KG"),
+      fixedProduct(234, "ARENA GATO MIC&FRIENDS 5KG", "OFERTA"),
       fixedProduct(235, "VASO PLASTICO 350CC"),
       fixedProduct(236, "PAPEL OCB 100U"),
       fixedProduct(237, "CARBON"),
@@ -489,8 +484,6 @@ export default function App() {
   const [selectedImage, setSelectedImage] = useState(null);
   const [compactHeader, setCompactHeader] = useState(false);
   const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
-  const [voiceText, setVoiceText] = useState("");
-  const [isListening, setIsListening] = useState(false);
 
   useEffect(() => {
     let viewport = document.querySelector("meta[name=viewport]");
@@ -626,89 +619,6 @@ export default function App() {
     }, 100);
   };
 
-  const addProductFromVoice = (spokenText) => {
-    const text = normalizeText(spokenText);
-
-    const numberMatch = text.match(/\d+/);
-    const quantity = numberMatch ? numberMatch[0] : "1";
-
-    const isCaja =
-      text.includes("caja") ||
-      text.includes("cajas") ||
-      text.includes("box") ||
-      text.includes("boxes");
-
-    const matchedProduct = products.find((product) => {
-      const productWords = normalizeText(product.name)
-        .split(/[^a-z0-9ñ]+/i)
-        .filter((word) => word.length > 2);
-
-      return productWords.some((word) => text.includes(word));
-    });
-
-    if (!matchedProduct) {
-      alert(`No he encontrado el producto dictado:\n\n"${spokenText}"`);
-      return;
-    }
-
-    setQuantities((current) => ({
-      ...current,
-      [matchedProduct.id]: {
-        ...current[matchedProduct.id],
-        [isCaja ? "cajas" : "unidades"]: quantity,
-      },
-    }));
-
-    setSelectedDepartment(matchedProduct.department);
-    setSearchInput("");
-    setSearch("");
-
-    setTimeout(() => {
-      rowRefs.current[matchedProduct.id]?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-    }, 150);
-  };
-
-  const startVoiceOrder = () => {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      alert(
-        "Tu navegador no permite dictado por voz. Prueba con Chrome en Android."
-      );
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "es-ES";
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.onstart = () => {
-      setIsListening(true);
-      setVoiceText("");
-    };
-
-    recognition.onresult = (event) => {
-      const spokenText = event.results[0][0].transcript;
-      setVoiceText(spokenText);
-      addProductFromVoice(spokenText);
-    };
-
-    recognition.onerror = () => {
-      alert("No se ha podido escuchar correctamente. Inténtalo otra vez.");
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognition.start();
-  };
-
   const closeKeyboardOnEnter = (event) => {
     if (event.key === "Enter") {
       event.currentTarget.blur();
@@ -779,7 +689,6 @@ export default function App() {
     setSearch("");
     setSelectedDepartment("TODOS");
     setDepartmentDropdownOpen(false);
-    setVoiceText("");
   };
 
   const createWhatsAppMessage = () => {
@@ -878,22 +787,6 @@ export default function App() {
               <Send size={18} /> WhatsApp
             </button>
           </div>
-
-          <button
-            type="button"
-            onClick={startVoiceOrder}
-            style={{
-              ...styles.voiceButton,
-              ...(isListening ? styles.voiceButtonActive : {}),
-            }}
-          >
-            <Mic size={18} />
-            {isListening ? "Escuchando pedido..." : "Dictar pedido por voz"}
-          </button>
-
-          {voiceText && (
-            <div style={styles.voiceText}>Último dictado: “{voiceText}”</div>
-          )}
 
           <label style={styles.label}>Departamento</label>
 
@@ -1221,35 +1114,6 @@ const styles = {
     border: "1px solid #cbd5e1",
     fontSize: "16px",
     boxSizing: "border-box",
-  },
-  voiceButton: {
-    width: "100%",
-    height: "46px",
-    border: "none",
-    borderRadius: "12px",
-    background: "#2563eb",
-    color: "white",
-    fontSize: "15px",
-    fontWeight: "bold",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "8px",
-    marginTop: "10px",
-    cursor: "pointer",
-  },
-  voiceButtonActive: {
-    background: "#dc2626",
-  },
-  voiceText: {
-    marginTop: "8px",
-    background: "#eff6ff",
-    border: "1px solid #bfdbfe",
-    color: "#1e3a8a",
-    padding: "9px 10px",
-    borderRadius: "10px",
-    fontSize: "13px",
-    fontWeight: "600",
   },
   departmentSelector: {
     position: "relative",
