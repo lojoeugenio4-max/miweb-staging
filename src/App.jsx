@@ -1,22 +1,29 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { ShoppingCart, Trash2, Send, Search } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ShoppingCart,
+  Trash2,
+  Send,
+  Search,
+  ChevronDown,
+  Check,
+  ArrowLeft,
+} from "lucide-react";
 
 const WHATSAPP_NUMBER = "34670716744";
+const ORDER_STORAGE_KEY = "cash-lojo-pedido";
 
-const fixedProduct = (id, name, note = "") => ({
-  id,
+const fixedProduct = (idnum, name, offerText = "") => ({
+  idnum,
   name,
-  note,
+  offerText,
 });
 
 const departments = [
   {
     name: "NOVEDAD",
-    products: [
-	fixedProduct(1056, "ATUN DORMA A.VEGETAL BOLSA 1 KG", "SUPER PRECIO hasta fin de existencia "),
-		
-	],
+    products: [],
   },
+
   {
     name: "AGUA",
     products: [
@@ -814,57 +821,36 @@ fixedProduct(1024, "VIVO PERRO POLLO LT 830"),
   },
 ];
 
-const normalizeText = (text) =>
-  text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-
-const productMatchesSearch = (text, searchText) => {
-  const normalizedText = normalizeText(text);
-  const searchWords = normalizeText(searchText)
-    .split(/[^a-z0-9ñ]+/i)
-    .filter(Boolean);
-
-  return searchWords.every((word) => normalizedText.includes(word));
-};
-
-const visibleProducts = departments.flatMap((department) =>
-  department.products.map((product) => ({
-    id: `${department.name}-${product.id}`,
-    name: product.name,
-    note: product.note,
-    department: department.name,
-    hidden: false,
-  }))
-);
-
-const products = visibleProducts;
+const products = [];
 
 export default function App() {
-  useEffect(() => {
-    let viewport = document.querySelector("meta[name=viewport]");
+  const rowRefs = useRef({});
+  const departmentDropdownRef = useRef(null);
+  const searchInputRef = useRef(null);
+  const stickyCardRef = useRef(null);
 
-    if (!viewport) {
-      viewport = document.createElement("meta");
-      viewport.setAttribute("name", "viewport");
-      document.head.appendChild(viewport);
-    }
-
-    viewport.setAttribute(
-      "content",
-      "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
-    );
-  }, []);
+  const [quantities, setQuantities] = useState({});
+  const [customerName, setCustomerName] = useState("");
+  const [notes, setNotes] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("TODOS");
+  const [compactHeader, setCompactHeader] = useState(false);
+  const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
+  const [showOrderSummary, setShowOrderSummary] = useState(false);
 
   useEffect(() => {
     const style = document.createElement("style");
 
     style.innerHTML = `
       @keyframes novedadBlink {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0; }
+        0%,100% {
+          opacity: 1;
+        }
+
+        50% {
+          opacity: 0.2;
+        }
       }
     `;
 
@@ -875,251 +861,184 @@ export default function App() {
     };
   }, []);
 
-  const [quantities, setQuantities] = useState({});
-  const [customerName, setCustomerName] = useState("");
-  const [notes, setNotes] = useState("");
-  const [search, setSearch] = useState("");
-  const [selectedDepartment, setSelectedDepartment] = useState("TODOS");
+  const departmentOptions = useMemo(() => {
+    return [
+      {
+        name: "TODOS",
+        label: "Todos los departamentos",
+        count: departments.length,
+      },
+
+      ...departments.map((department) => ({
+        name: department.name,
+        label: department.name,
+        count: department.products.length,
+      })),
+    ];
+  }, []);
 
   const filteredDepartments = useMemo(() => {
-    let result = departments;
-
-    if (selectedDepartment !== "TODOS") {
-      result = result.filter(
-        (department) => department.name === selectedDepartment
-      );
-    }
-
-    const cleanSearch = search.trim();
-
-    if (!cleanSearch) {
-      return result;
-    }
-
-    return result
-      .map((department) => {
-        const departmentMatches = productMatchesSearch(
-          department.name,
-          cleanSearch
-        );
-
-        return {
-          ...department,
-          products: departmentMatches
-            ? department.products
-            : department.products.filter((product) =>
-                productMatchesSearch(product.name, cleanSearch)
-              ),
-          departmentMatches,
-        };
-      })
-      .filter(
-        (department) =>
-          department.departmentMatches || department.products.length > 0
-      );
-  }, [search, selectedDepartment]);
-
-  const selectedItems = useMemo(() => {
-    return products
-      .map((product) => ({
-        ...product,
-        cajas: Number(quantities[product.id]?.cajas || 0),
-        unidades: Number(quantities[product.id]?.unidades || 0),
-      }))
-      .filter((product) => product.cajas > 0 || product.unidades > 0);
-  }, [quantities]);
-
-  const updateQuantity = (productId, field, value) => {
-    const cleanValue = value.replace(/[^0-9]/g, "");
-
-    setQuantities((current) => ({
-      ...current,
-      [productId]: {
-        ...current[productId],
-        [field]: cleanValue,
-      },
-    }));
-  };
-
-  const closeKeyboardOnEnter = (event) => {
-    if (event.key === "Enter") {
-      event.currentTarget.blur();
-    }
-  };
+    return departments.filter(
+      (department) =>
+        selectedDepartment === "TODOS" ||
+        department.name === selectedDepartment
+    );
+  }, [selectedDepartment]);
 
   const clearOrder = () => {
     setQuantities({});
     setCustomerName("");
     setNotes("");
+    setSearchInput("");
     setSearch("");
     setSelectedDepartment("TODOS");
-  };
-
-  const createWhatsAppMessage = () => {
-    const lines = ["Nuevo pedido", ""];
-
-    if (customerName.trim()) {
-      lines.push(`Cliente: ${customerName.trim()}`, "");
-    }
-
-    selectedItems.forEach((item) => {
-      const parts = [];
-
-      if (item.cajas > 0) parts.push(`*${item.cajas} cajas*`);
-      if (item.unidades > 0) parts.push(`*${item.unidades} unidades*`);
-
-      lines.push(`- ${item.name}: ${parts.join(" / ")}`);
-      lines.push("");
-    });
-
-    if (notes.trim()) {
-      lines.push(`Observaciones: ${notes.trim()}`, "");
-    }
-
-    lines.push("Enviado desde el formulario de pedidos");
-
-    return encodeURIComponent(lines.join("\n"));
-  };
-
-  const sendOrder = () => {
-    if (selectedItems.length === 0) {
-      alert("Introduce al menos una cantidad antes de enviar el pedido.");
-      return;
-    }
-
-    window.open(
-      `https://wa.me/${WHATSAPP_NUMBER}?text=${createWhatsAppMessage()}`,
-      "_blank"
-    );
-
-    clearOrder();
+    setDepartmentDropdownOpen(false);
+    setShowOrderSummary(false);
   };
 
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        <header style={styles.header}>
-          <div style={styles.iconBox}>
-            <ShoppingCart size={28} />
-          </div>
+        {!compactHeader && (
+          <header style={styles.header}>
+            <div style={styles.iconBox}>
+              <ShoppingCart size={28} />
+            </div>
 
-          <div>
-            <h1 style={styles.title}>Pedido online Cash Lojo</h1>
-            <p style={styles.subtitle}>
-              Escribe cantidades en Unidades o Cajas y envía el pedido por WhatsApp.
-            </p>
-          </div>
-        </header>
+            <div>
+              <h1 style={styles.title}>Pedido online Cash Lojo</h1>
 
-        <div style={styles.cardSticky}>
-          <label style={styles.label}>Nombre o referencia del cliente</label>
+              <p style={styles.subtitle}>
+                Escribe cantidades y envía el pedido por WhatsApp
+              </p>
+            </div>
+          </header>
+        )}
+
+        <div ref={stickyCardRef} style={styles.cardSticky}>
+          <label style={styles.label}>
+            Nombre o referencia del cliente
+          </label>
 
           <input
             value={customerName}
-            onChange={(event) => setCustomerName(event.target.value)}
+            onChange={(e) => setCustomerName(e.target.value)}
             placeholder="Opcional"
             style={styles.input}
           />
 
           <label style={styles.label}>Buscar artículo</label>
 
-          <div style={styles.filtersRow}>
+          <div style={styles.searchAndSendRow}>
             <div style={styles.searchBoxCompact}>
               <Search size={20} style={styles.searchIcon} />
 
               <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                ref={searchInputRef}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Buscar..."
                 style={styles.searchInput}
               />
             </div>
 
-            <select
-              value={selectedDepartment}
-              onChange={(event) => setSelectedDepartment(event.target.value)}
-              style={styles.select}
+            <button
+              type="button"
+              onClick={() => setShowOrderSummary(true)}
+              style={styles.stickyWhatsappButton}
             >
-              <option value="TODOS">Todos departamentos</option>
-
-              {departments.map((department) => (
-                <option key={department.name} value={department.name}>
-                  {department.name}
-                </option>
-              ))}
-            </select>
-
-            <button onClick={sendOrder} style={styles.stickyWhatsappButton}>
-              <Send size={18} /> WhatsApp
+              <span>Revisar</span>
+              <span>Enviar</span>
             </button>
+          </div>
+
+          <label style={styles.label}>Departamento</label>
+
+          <div ref={departmentDropdownRef} style={styles.departmentSelector}>
+            <button
+              type="button"
+              onClick={() =>
+                setDepartmentDropdownOpen(!departmentDropdownOpen)
+              }
+              style={styles.departmentButton}
+            >
+              <div>
+                <div style={styles.departmentButtonLabel}>
+                  {selectedDepartment === "TODOS"
+                    ? "Todos los departamentos"
+                    : selectedDepartment}
+                </div>
+
+                <div style={styles.departmentButtonHint}>
+                  Toca para cambiar
+                </div>
+              </div>
+
+              <ChevronDown size={20} />
+            </button>
+
+            {departmentDropdownOpen && (
+              <div style={styles.departmentDropdown}>
+                <div style={styles.departmentList}>
+                  {departmentOptions.map((option) => {
+                    const isActive = selectedDepartment === option.name;
+
+                    return (
+                      <button
+                        key={option.name}
+                        type="button"
+                        onClick={() => {
+                          setSelectedDepartment(option.name);
+                          setDepartmentDropdownOpen(false);
+                        }}
+                        style={{
+                          ...styles.departmentOption,
+                          ...(isActive
+                            ? styles.departmentOptionActive
+                            : {}),
+                        }}
+                      >
+                        <div
+                          style={{
+                            ...styles.departmentOptionName,
+
+                            ...(option.name === "NOVEDAD"
+                              ? styles.novedadText
+                              : {}),
+                          }}
+                        >
+                          {option.label}
+                        </div>
+
+                        {isActive && <Check size={18} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {filteredDepartments.map((department) => (
           <section key={department.name} style={styles.section}>
             <div style={styles.sectionHeader}>
-              <h2 style={styles.sectionTitle}>
-                {department.name === "NOVEDAD" ? (
-                  <span style={styles.novedadBlink}>NOVEDAD</span>
-                ) : (
-                  department.name
-                )}
+              <h2
+                style={{
+                  ...styles.sectionTitle,
+
+                  ...(department.name === "NOVEDAD"
+                    ? styles.novedadText
+                    : {}),
+                }}
+              >
+                {department.name}
               </h2>
             </div>
 
-            {department.products.length > 0 && (
-              <>
-                <div style={styles.gridHeader}>
-                  <div>Cajas</div>
-                  <div>Unid.</div>
-                  <div style={{ textAlign: "left" }}>Artículo</div>
-                </div>
-
-                {department.products.map((product) => {
-                  const productId = `${department.name}-${product.id}`;
-
-                  return (
-                    <div key={productId} style={styles.row}>
-                      <input
-                        inputMode="numeric"
-                        enterKeyHint="done"
-                        value={quantities[productId]?.cajas || ""}
-                        onChange={(event) =>
-                          updateQuantity(productId, "cajas", event.target.value)
-                        }
-                        onKeyDown={closeKeyboardOnEnter}
-                        placeholder="0"
-                        style={styles.qtyInput}
-                      />
-
-                      <input
-                        inputMode="numeric"
-                        enterKeyHint="done"
-                        value={quantities[productId]?.unidades || ""}
-                        onChange={(event) =>
-                          updateQuantity(
-                            productId,
-                            "unidades",
-                            event.target.value
-                          )
-                        }
-                        onKeyDown={closeKeyboardOnEnter}
-                        placeholder="0"
-                        style={styles.qtyInput}
-                      />
-
-                      <div>
-                        <p style={styles.productName}>{product.name}</p>
-
-                        {product.note && (
-                          <p style={styles.productNote}>{product.note}</p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </>
-            )}
+            <div style={styles.emptyDepartment}>
+              Sin artículos
+            </div>
           </section>
         ))}
 
@@ -1128,22 +1047,20 @@ export default function App() {
 
           <textarea
             value={notes}
-            onChange={(event) => setNotes(event.target.value)}
+            onChange={(e) => setNotes(e.target.value)}
             placeholder="Opcional"
             rows={3}
             style={styles.textarea}
           />
 
-          <div style={styles.summary}>
-            <strong>Resumen:</strong> {selectedItems.length} artículos con cantidad.
-          </div>
-
-          <button onClick={sendOrder} style={styles.primaryButton}>
-            <Send size={20} /> Enviar por WhatsApp
+          <button style={styles.primaryButton}>
+            <ShoppingCart size={20} />
+            Revisar y Enviar
           </button>
 
           <button onClick={clearOrder} style={styles.secondaryButton}>
-            <Trash2 size={20} /> Borrar pedido
+            <Trash2 size={20} />
+            Borrar pedido
           </button>
         </div>
       </div>
@@ -1155,17 +1072,20 @@ const styles = {
   page: {
     minHeight: "100vh",
     background: "#f1f5f9",
-    padding: "16px",
+    padding: "10px",
     color: "#0f172a",
     fontFamily: "Arial, sans-serif",
+    boxSizing: "border-box",
   },
+
   container: {
     maxWidth: "1100px",
     margin: "0 auto",
   },
+
   header: {
     background: "white",
-    padding: "20px",
+    padding: "16px",
     borderRadius: "18px",
     display: "flex",
     gap: "14px",
@@ -1173,6 +1093,7 @@ const styles = {
     marginBottom: "16px",
     boxShadow: "0 1px 6px rgba(0,0,0,0.08)",
   },
+
   iconBox: {
     background: "#0f172a",
     color: "white",
@@ -1180,25 +1101,29 @@ const styles = {
     padding: "12px",
     display: "flex",
   },
+
   title: {
     margin: 0,
-    fontSize: "24px",
+    fontSize: "22px",
   },
+
   subtitle: {
     margin: "6px 0 0",
     color: "#475569",
     fontSize: "14px",
   },
+
   cardSticky: {
     position: "sticky",
     top: "8px",
     zIndex: 10,
     background: "white",
-    padding: "16px",
+    padding: "14px",
     borderRadius: "18px",
     marginBottom: "18px",
     boxShadow: "0 1px 6px rgba(0,0,0,0.08)",
   },
+
   card: {
     background: "white",
     padding: "18px",
@@ -1206,6 +1131,7 @@ const styles = {
     marginTop: "18px",
     boxShadow: "0 1px 6px rgba(0,0,0,0.08)",
   },
+
   label: {
     display: "block",
     fontWeight: "bold",
@@ -1213,6 +1139,7 @@ const styles = {
     marginBottom: "6px",
     marginTop: "8px",
   },
+
   input: {
     width: "100%",
     padding: "11px",
@@ -1221,41 +1148,101 @@ const styles = {
     fontSize: "16px",
     boxSizing: "border-box",
   },
-  filtersRow: {
+
+  searchAndSendRow: {
     display: "grid",
-    gridTemplateColumns: "1fr 240px 118px",
+    gridTemplateColumns: "minmax(0, 1fr) 104px",
     gap: "8px",
     alignItems: "center",
   },
+
   searchBoxCompact: {
     position: "relative",
     minWidth: 0,
   },
+
   searchIcon: {
     position: "absolute",
     left: "12px",
-    top: "11px",
+    top: "16px",
     color: "#64748b",
   },
+
   searchInput: {
     width: "100%",
-    height: "44px",
-    padding: "11px 12px 11px 40px",
+    height: "52px",
+    padding: "13px 12px 13px 40px",
     borderRadius: "12px",
     border: "1px solid #cbd5e1",
     fontSize: "16px",
     boxSizing: "border-box",
   },
-  select: {
-    width: "100%",
-    height: "44px",
-    borderRadius: "12px",
-    border: "1px solid #cbd5e1",
-    padding: "0 12px",
-    fontSize: "15px",
-    background: "white",
-    boxSizing: "border-box",
+
+  departmentSelector: {
+    position: "relative",
   },
+
+  departmentButton: {
+    width: "100%",
+    padding: "12px 14px",
+    borderRadius: "14px",
+    border: "1px solid #cbd5e1",
+    background: "white",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    cursor: "pointer",
+  },
+
+  departmentButtonLabel: {
+    fontSize: "16px",
+    fontWeight: "800",
+  },
+
+  departmentButtonHint: {
+    fontSize: "12px",
+    color: "#64748b",
+  },
+
+  departmentDropdown: {
+    position: "absolute",
+    top: "calc(100% + 8px)",
+    left: 0,
+    right: 0,
+    zIndex: 50,
+    background: "white",
+    borderRadius: "16px",
+    padding: "10px",
+    boxShadow: "0 18px 45px rgba(15,23,42,0.18)",
+  },
+
+  departmentList: {
+    display: "grid",
+    gap: "6px",
+  },
+
+  departmentOption: {
+    border: "none",
+    borderRadius: "12px",
+    background: "white",
+    padding: "12px",
+    textAlign: "left",
+    cursor: "pointer",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  departmentOptionActive: {
+    background: "#0f172a",
+    color: "white",
+  },
+
+  departmentOptionName: {
+    fontWeight: "800",
+    textTransform: "uppercase",
+  },
+
   section: {
     background: "white",
     borderRadius: "18px",
@@ -1263,60 +1250,26 @@ const styles = {
     marginBottom: "18px",
     boxShadow: "0 1px 6px rgba(0,0,0,0.08)",
   },
+
   sectionHeader: {
     background: "#0f172a",
     color: "white",
     padding: "12px 16px",
   },
+
   sectionTitle: {
     margin: 0,
     fontSize: "18px",
     textTransform: "uppercase",
   },
-  novedadBlink: {
-    color: "red",
-    fontWeight: "bold",
-    animation: "novedadBlink 1s infinite",
-  },
-  gridHeader: {
-    display: "grid",
-    gridTemplateColumns: "80px 80px 1fr",
-    gap: "8px",
-    background: "#e2e8f0",
-    padding: "10px",
-    fontSize: "12px",
-    fontWeight: "bold",
+
+  emptyDepartment: {
+    padding: "20px",
     textAlign: "center",
-  },
-  row: {
-    display: "grid",
-    gridTemplateColumns: "80px 80px 1fr",
-    gap: "8px",
-    alignItems: "center",
-    padding: "9px 10px",
-    borderTop: "1px solid #e2e8f0",
-  },
-  qtyInput: {
-    width: "100%",
-    padding: "8px 4px",
-    borderRadius: "12px",
-    border: "1px solid #cbd5e1",
-    textAlign: "center",
+    color: "#64748b",
     fontWeight: "bold",
-    fontSize: "16px",
-    boxSizing: "border-box",
   },
-  productName: {
-    margin: 0,
-    fontSize: "16px",
-    fontWeight: "600",
-  },
-  productNote: {
-    margin: "4px 0 0",
-    fontSize: "13px",
-    fontWeight: "bold",
-    color: "#dc2626",
-  },
+
   textarea: {
     width: "100%",
     padding: "11px",
@@ -1325,13 +1278,7 @@ const styles = {
     fontSize: "16px",
     boxSizing: "border-box",
   },
-  summary: {
-    background: "#e2e8f0",
-    padding: "12px",
-    borderRadius: "12px",
-    margin: "14px 0",
-    fontSize: "14px",
-  },
+
   primaryButton: {
     width: "100%",
     height: "50px",
@@ -1345,23 +1292,25 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     gap: "8px",
+    marginTop: "12px",
     marginBottom: "10px",
   },
+
   stickyWhatsappButton: {
     width: "100%",
-    height: "44px",
+    height: "52px",
     border: "none",
     borderRadius: "12px",
-    background: "#22c55e",
+    background: "#0f172a",
     color: "white",
-    fontSize: "13px",
+    fontSize: "12px",
     fontWeight: "bold",
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: "6px",
-    whiteSpace: "nowrap",
   },
+
   secondaryButton: {
     width: "100%",
     height: "50px",
@@ -1375,5 +1324,11 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     gap: "8px",
+  },
+
+  novedadText: {
+    color: "#ff0000",
+    fontWeight: "900",
+    animation: "novedadBlink 0.8s infinite",
   },
 };
