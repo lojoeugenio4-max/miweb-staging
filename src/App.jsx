@@ -22,7 +22,9 @@ const fixedProduct = (idnum, name, offerText = "") => ({
 const departments = [
   {
     name: "NOVEDAD",
-    products: [],
+    products: [
+		fixedProduct(1056, "ATUN A.VEGETAL BOLSA 1 K", "SUPER PRECIO.Hasta Fin de Existencias "),
+	],
   },
 {
     name: "AGUA",
