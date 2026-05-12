@@ -814,8 +814,6 @@ fixedProduct(1024, "VIVO PERRO POLLO LT 830"),
   },
 ];
 
-const hiddenProductsRaw = [];
-
 const normalizeText = (text) =>
   text
     .toLowerCase()
@@ -867,8 +865,9 @@ export default function App() {
 
     style.innerHTML = `
       @keyframes blink {
-        0%, 50%, 100% { opacity: 1; }
-        25%, 75% { opacity: 0; }
+        0% { opacity: 1; }
+        50% { opacity: 0; }
+        100% { opacity: 1; }
       }
     `;
 
@@ -987,6 +986,7 @@ export default function App() {
 
           <div>
             <h1 style={styles.title}>Pedido online Cash Lojo</h1>
+
             <p style={styles.subtitle}>
               Escribe cantidades en Unidades o Cajas y envía el pedido por WhatsApp.
             </p>
@@ -1081,6 +1081,7 @@ export default function App() {
 
                       <div>
                         <p style={styles.productName}>{product.name}</p>
+
                         {product.note && (
                           <p style={styles.productNote}>{product.note}</p>
                         )}
@@ -1129,10 +1130,12 @@ const styles = {
     color: "#0f172a",
     fontFamily: "Arial, sans-serif",
   },
+
   container: {
     maxWidth: "1100px",
     margin: "0 auto",
   },
+
   header: {
     background: "white",
     padding: "20px",
@@ -1143,6 +1146,7 @@ const styles = {
     marginBottom: "16px",
     boxShadow: "0 1px 6px rgba(0,0,0,0.08)",
   },
+
   iconBox: {
     background: "#0f172a",
     color: "white",
@@ -1150,15 +1154,18 @@ const styles = {
     padding: "12px",
     display: "flex",
   },
+
   title: {
     margin: 0,
     fontSize: "24px",
   },
+
   subtitle: {
     margin: "6px 0 0",
     color: "#475569",
     fontSize: "14px",
   },
+
   cardSticky: {
     position: "sticky",
     top: "8px",
@@ -1169,6 +1176,7 @@ const styles = {
     marginBottom: "18px",
     boxShadow: "0 1px 6px rgba(0,0,0,0.08)",
   },
+
   card: {
     background: "white",
     padding: "18px",
@@ -1176,6 +1184,7 @@ const styles = {
     marginTop: "18px",
     boxShadow: "0 1px 6px rgba(0,0,0,0.08)",
   },
+
   label: {
     display: "block",
     fontWeight: "bold",
@@ -1183,6 +1192,7 @@ const styles = {
     marginBottom: "6px",
     marginTop: "8px",
   },
+
   input: {
     width: "100%",
     padding: "11px",
@@ -1191,22 +1201,26 @@ const styles = {
     fontSize: "16px",
     boxSizing: "border-box",
   },
+
   searchAndSendRow: {
     display: "grid",
     gridTemplateColumns: "1fr 118px",
     gap: "8px",
     alignItems: "center",
   },
+
   searchBoxCompact: {
     position: "relative",
     minWidth: 0,
   },
+
   searchIcon: {
     position: "absolute",
     left: "12px",
     top: "11px",
     color: "#64748b",
   },
+
   searchInput: {
     width: "100%",
     padding: "11px 12px 11px 40px",
@@ -1215,6 +1229,7 @@ const styles = {
     fontSize: "16px",
     boxSizing: "border-box",
   },
+
   section: {
     background: "white",
     borderRadius: "18px",
@@ -1222,21 +1237,27 @@ const styles = {
     marginBottom: "18px",
     boxShadow: "0 1px 6px rgba(0,0,0,0.08)",
   },
+
   sectionHeader: {
     background: "#0f172a",
     color: "white",
     padding: "12px 16px",
   },
+
   sectionTitle: {
     margin: 0,
     fontSize: "18px",
     textTransform: "uppercase",
   },
+
   novedadTitle: {
     color: "red",
     fontWeight: "bold",
-    animation: "blink 1s infinite",
+    animationName: "blink",
+    animationDuration: "1s",
+    animationIterationCount: "infinite",
   },
+
   gridHeader: {
     display: "grid",
     gridTemplateColumns: "80px 80px 1fr",
@@ -1247,6 +1268,7 @@ const styles = {
     fontWeight: "bold",
     textAlign: "center",
   },
+
   row: {
     display: "grid",
     gridTemplateColumns: "80px 80px 1fr",
@@ -1255,6 +1277,7 @@ const styles = {
     padding: "9px 10px",
     borderTop: "1px solid #e2e8f0",
   },
+
   qtyInput: {
     width: "100%",
     padding: "8px 4px",
@@ -1265,17 +1288,20 @@ const styles = {
     fontSize: "16px",
     boxSizing: "border-box",
   },
+
   productName: {
     margin: 0,
     fontSize: "16px",
     fontWeight: "600",
   },
+
   productNote: {
     margin: "4px 0 0",
     fontSize: "13px",
     fontWeight: "bold",
     color: "#dc2626",
   },
+
   textarea: {
     width: "100%",
     padding: "11px",
@@ -1284,6 +1310,7 @@ const styles = {
     fontSize: "16px",
     boxSizing: "border-box",
   },
+
   summary: {
     background: "#e2e8f0",
     padding: "12px",
@@ -1291,6 +1318,7 @@ const styles = {
     margin: "14px 0",
     fontSize: "14px",
   },
+
   primaryButton: {
     width: "100%",
     height: "50px",
@@ -1306,6 +1334,7 @@ const styles = {
     gap: "8px",
     marginBottom: "10px",
   },
+
   stickyWhatsappButton: {
     width: "100%",
     height: "44px",
@@ -1321,6 +1350,7 @@ const styles = {
     gap: "6px",
     whiteSpace: "nowrap",
   },
+
   secondaryButton: {
     width: "100%",
     height: "50px",
