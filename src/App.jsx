@@ -879,15 +879,24 @@ export default function App() {
   const [customerName, setCustomerName] = useState("");
   const [notes, setNotes] = useState("");
   const [search, setSearch] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("TODOS");
 
   const filteredDepartments = useMemo(() => {
+    let result = departments;
+
+    if (selectedDepartment !== "TODOS") {
+      result = result.filter(
+        (department) => department.name === selectedDepartment
+      );
+    }
+
     const cleanSearch = search.trim();
 
     if (!cleanSearch) {
-      return departments;
+      return result;
     }
 
-    return departments
+    return result
       .map((department) => {
         const departmentMatches = productMatchesSearch(
           department.name,
@@ -908,7 +917,7 @@ export default function App() {
         (department) =>
           department.departmentMatches || department.products.length > 0
       );
-  }, [search]);
+  }, [search, selectedDepartment]);
 
   const selectedItems = useMemo(() => {
     return products
@@ -943,6 +952,7 @@ export default function App() {
     setCustomerName("");
     setNotes("");
     setSearch("");
+    setSelectedDepartment("TODOS");
   };
 
   const createWhatsAppMessage = () => {
@@ -1011,9 +1021,9 @@ export default function App() {
             style={styles.input}
           />
 
-          <label style={styles.label}>Buscar artículo o departamento</label>
+          <label style={styles.label}>Buscar artículo</label>
 
-          <div style={styles.searchAndSendRow}>
+          <div style={styles.filtersRow}>
             <div style={styles.searchBoxCompact}>
               <Search size={20} style={styles.searchIcon} />
 
@@ -1024,6 +1034,20 @@ export default function App() {
                 style={styles.searchInput}
               />
             </div>
+
+            <select
+              value={selectedDepartment}
+              onChange={(event) => setSelectedDepartment(event.target.value)}
+              style={styles.select}
+            >
+              <option value="TODOS">Todos departamentos</option>
+
+              {departments.map((department) => (
+                <option key={department.name} value={department.name}>
+                  {department.name}
+                </option>
+              ))}
+            </select>
 
             <button onClick={sendOrder} style={styles.stickyWhatsappButton}>
               <Send size={18} /> WhatsApp
@@ -1135,12 +1159,10 @@ const styles = {
     color: "#0f172a",
     fontFamily: "Arial, sans-serif",
   },
-
   container: {
     maxWidth: "1100px",
     margin: "0 auto",
   },
-
   header: {
     background: "white",
     padding: "20px",
@@ -1151,7 +1173,6 @@ const styles = {
     marginBottom: "16px",
     boxShadow: "0 1px 6px rgba(0,0,0,0.08)",
   },
-
   iconBox: {
     background: "#0f172a",
     color: "white",
@@ -1159,18 +1180,15 @@ const styles = {
     padding: "12px",
     display: "flex",
   },
-
   title: {
     margin: 0,
     fontSize: "24px",
   },
-
   subtitle: {
     margin: "6px 0 0",
     color: "#475569",
     fontSize: "14px",
   },
-
   cardSticky: {
     position: "sticky",
     top: "8px",
@@ -1181,7 +1199,6 @@ const styles = {
     marginBottom: "18px",
     boxShadow: "0 1px 6px rgba(0,0,0,0.08)",
   },
-
   card: {
     background: "white",
     padding: "18px",
@@ -1189,7 +1206,6 @@ const styles = {
     marginTop: "18px",
     boxShadow: "0 1px 6px rgba(0,0,0,0.08)",
   },
-
   label: {
     display: "block",
     fontWeight: "bold",
@@ -1197,7 +1213,6 @@ const styles = {
     marginBottom: "6px",
     marginTop: "8px",
   },
-
   input: {
     width: "100%",
     padding: "11px",
@@ -1206,35 +1221,41 @@ const styles = {
     fontSize: "16px",
     boxSizing: "border-box",
   },
-
-  searchAndSendRow: {
+  filtersRow: {
     display: "grid",
-    gridTemplateColumns: "1fr 118px",
+    gridTemplateColumns: "1fr 240px 118px",
     gap: "8px",
     alignItems: "center",
   },
-
   searchBoxCompact: {
     position: "relative",
     minWidth: 0,
   },
-
   searchIcon: {
     position: "absolute",
     left: "12px",
     top: "11px",
     color: "#64748b",
   },
-
   searchInput: {
     width: "100%",
+    height: "44px",
     padding: "11px 12px 11px 40px",
     borderRadius: "12px",
     border: "1px solid #cbd5e1",
     fontSize: "16px",
     boxSizing: "border-box",
   },
-
+  select: {
+    width: "100%",
+    height: "44px",
+    borderRadius: "12px",
+    border: "1px solid #cbd5e1",
+    padding: "0 12px",
+    fontSize: "15px",
+    background: "white",
+    boxSizing: "border-box",
+  },
   section: {
     background: "white",
     borderRadius: "18px",
@@ -1242,25 +1263,21 @@ const styles = {
     marginBottom: "18px",
     boxShadow: "0 1px 6px rgba(0,0,0,0.08)",
   },
-
   sectionHeader: {
     background: "#0f172a",
     color: "white",
     padding: "12px 16px",
   },
-
   sectionTitle: {
     margin: 0,
     fontSize: "18px",
     textTransform: "uppercase",
   },
-
   novedadBlink: {
     color: "red",
     fontWeight: "bold",
     animation: "novedadBlink 1s infinite",
   },
-
   gridHeader: {
     display: "grid",
     gridTemplateColumns: "80px 80px 1fr",
@@ -1271,7 +1288,6 @@ const styles = {
     fontWeight: "bold",
     textAlign: "center",
   },
-
   row: {
     display: "grid",
     gridTemplateColumns: "80px 80px 1fr",
@@ -1280,7 +1296,6 @@ const styles = {
     padding: "9px 10px",
     borderTop: "1px solid #e2e8f0",
   },
-
   qtyInput: {
     width: "100%",
     padding: "8px 4px",
@@ -1291,20 +1306,17 @@ const styles = {
     fontSize: "16px",
     boxSizing: "border-box",
   },
-
   productName: {
     margin: 0,
     fontSize: "16px",
     fontWeight: "600",
   },
-
   productNote: {
     margin: "4px 0 0",
     fontSize: "13px",
     fontWeight: "bold",
     color: "#dc2626",
   },
-
   textarea: {
     width: "100%",
     padding: "11px",
@@ -1313,7 +1325,6 @@ const styles = {
     fontSize: "16px",
     boxSizing: "border-box",
   },
-
   summary: {
     background: "#e2e8f0",
     padding: "12px",
@@ -1321,7 +1332,6 @@ const styles = {
     margin: "14px 0",
     fontSize: "14px",
   },
-
   primaryButton: {
     width: "100%",
     height: "50px",
@@ -1337,7 +1347,6 @@ const styles = {
     gap: "8px",
     marginBottom: "10px",
   },
-
   stickyWhatsappButton: {
     width: "100%",
     height: "44px",
@@ -1353,7 +1362,6 @@ const styles = {
     gap: "6px",
     whiteSpace: "nowrap",
   },
-
   secondaryButton: {
     width: "100%",
     height: "50px",
