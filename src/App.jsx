@@ -821,15 +821,13 @@ const normalizeText = (text) =>
     .replace(/[\u0300-\u036f]/g, "")
     .trim();
 
-const productMatchesSearch = (product, searchText) => {
-  const normalizedProduct = normalizeText(product);
+const productMatchesSearch = (text, searchText) => {
+  const normalizedText = normalizeText(text);
   const searchWords = normalizeText(searchText)
     .split(/[^a-z0-9ñ]+/i)
     .filter(Boolean);
 
-  return searchWords.every((searchWord) =>
-    normalizedProduct.includes(searchWord)
-  );
+  return searchWords.every((word) => normalizedText.includes(word));
 };
 
 const visibleProducts = departments.flatMap((department) =>
@@ -864,10 +862,9 @@ export default function App() {
     const style = document.createElement("style");
 
     style.innerHTML = `
-      @keyframes blink {
-        0% { opacity: 1; }
+      @keyframes novedadBlink {
+        0%, 100% { opacity: 1; }
         50% { opacity: 0; }
-        100% { opacity: 1; }
       }
     `;
 
@@ -886,18 +883,30 @@ export default function App() {
   const filteredDepartments = useMemo(() => {
     const cleanSearch = search.trim();
 
+    if (!cleanSearch) {
+      return departments;
+    }
+
     return departments
-      .map((department) => ({
-        ...department,
-        products: cleanSearch
-          ? department.products.filter((product) =>
-              productMatchesSearch(product.name, cleanSearch)
-            )
-          : department.products,
-      }))
+      .map((department) => {
+        const departmentMatches = productMatchesSearch(
+          department.name,
+          cleanSearch
+        );
+
+        return {
+          ...department,
+          products: departmentMatches
+            ? department.products
+            : department.products.filter((product) =>
+                productMatchesSearch(product.name, cleanSearch)
+              ),
+          departmentMatches,
+        };
+      })
       .filter(
         (department) =>
-          department.products.length > 0 || department.name === "NOVEDAD"
+          department.departmentMatches || department.products.length > 0
       );
   }, [search]);
 
@@ -986,7 +995,6 @@ export default function App() {
 
           <div>
             <h1 style={styles.title}>Pedido online Cash Lojo</h1>
-
             <p style={styles.subtitle}>
               Escribe cantidades en Unidades o Cajas y envía el pedido por WhatsApp.
             </p>
@@ -1003,7 +1011,7 @@ export default function App() {
             style={styles.input}
           />
 
-          <label style={styles.label}>Buscar artículo</label>
+          <label style={styles.label}>Buscar artículo o departamento</label>
 
           <div style={styles.searchAndSendRow}>
             <div style={styles.searchBoxCompact}>
@@ -1026,15 +1034,12 @@ export default function App() {
         {filteredDepartments.map((department) => (
           <section key={department.name} style={styles.section}>
             <div style={styles.sectionHeader}>
-              <h2
-                style={{
-                  ...styles.sectionTitle,
-                  ...(department.name === "NOVEDAD"
-                    ? styles.novedadTitle
-                    : {}),
-                }}
-              >
-                {department.name}
+              <h2 style={styles.sectionTitle}>
+                {department.name === "NOVEDAD" ? (
+                  <span style={styles.novedadBlink}>NOVEDAD</span>
+                ) : (
+                  department.name
+                )}
               </h2>
             </div>
 
@@ -1250,12 +1255,10 @@ const styles = {
     textTransform: "uppercase",
   },
 
-  novedadTitle: {
+  novedadBlink: {
     color: "red",
     fontWeight: "bold",
-    animationName: "blink",
-    animationDuration: "1s",
-    animationIterationCount: "infinite",
+    animation: "novedadBlink 1s infinite",
   },
 
   gridHeader: {
