@@ -16,6 +16,7 @@ const premioVacio = {
 export default function Ruleta() {
   const [premios, setPremios] = useState([]);
   const [formulario, setFormulario] = useState(premioVacio);
+  const [idEditando, setIdEditando] = useState(null);
 
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
@@ -52,6 +53,13 @@ export default function Ruleta() {
       ...actual,
       [campo]: valor,
     }));
+  }
+
+  function cancelarEdicion() {
+    setIdEditando(null);
+    setFormulario(premioVacio);
+    setError("");
+    setMensaje("");
   }
 
   async function guardarPremio(evento) {
@@ -95,22 +103,39 @@ export default function Ruleta() {
 
     setGuardando(true);
 
-    const { error } = await supabase
-      .from("promociones_ruleta_premios")
-      .insert({
-        nombre,
-        color: formulario.color || "#f59e0b",
-        probabilidad,
-        stock,
-        activo: formulario.activo,
-        orden,
-      });
+    const datosPremio = {
+      nombre,
+      color: formulario.color || "#f59e0b",
+      probabilidad,
+      stock,
+      activo: formulario.activo,
+      orden,
+    };
 
-    if (error) {
-      setError("No se ha podido guardar el premio.");
+    const resultado = idEditando
+      ? await supabase
+          .from("promociones_ruleta_premios")
+          .update(datosPremio)
+          .eq("id", idEditando)
+      : await supabase
+          .from("promociones_ruleta_premios")
+          .insert(datosPremio);
+
+    if (resultado.error) {
+      setError(
+        idEditando
+          ? "No se ha podido actualizar el premio."
+          : "No se ha podido guardar el premio."
+      );
     } else {
-      setMensaje("Premio guardado correctamente.");
+      setMensaje(
+        idEditando
+          ? "Premio actualizado correctamente."
+          : "Premio guardado correctamente."
+      );
+
       setFormulario(premioVacio);
+      setIdEditando(null);
       await cargarPremios();
     }
 
@@ -118,6 +143,8 @@ export default function Ruleta() {
   }
 
   function editarPremio(premio) {
+    setIdEditando(premio.id);
+
     setFormulario({
       nombre: premio.nombre || "",
       color: premio.color || "#f59e0b",
@@ -126,6 +153,9 @@ export default function Ruleta() {
       activo: premio.activo ?? true,
       orden: premio.orden ?? "",
     });
+
+    setError("");
+    setMensaje("");
 
     window.scrollTo({
       top: 0,
@@ -153,6 +183,10 @@ export default function Ruleta() {
       return;
     }
 
+    if (idEditando === premio.id) {
+      cancelarEdicion();
+    }
+
     setMensaje("Premio eliminado correctamente.");
     await cargarPremios();
   }
@@ -178,6 +212,8 @@ export default function Ruleta() {
         guardando={guardando}
         error={error}
         mensaje={mensaje}
+        idEditando={idEditando}
+        cancelarEdicion={cancelarEdicion}
       />
 
       <div style={resumen}>
