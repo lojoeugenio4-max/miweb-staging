@@ -248,6 +248,7 @@ export default function App() {
   const [premiosRuleta, setPremiosRuleta] = useState([]);
   const [configuracionRuleta, setConfiguracionRuleta] = useState(null);
   const [articulosRuleta, setArticulosRuleta] = useState([]);
+  const [departamentosRuleta, setDepartamentosRuleta] = useState([]);
   const [pedidoPendienteRuleta, setPedidoPendienteRuleta] = useState(null);
 
   const t = translations[language];
@@ -283,6 +284,7 @@ export default function App() {
       if (!promocion) {
         setConfiguracionRuleta(null);
         setArticulosRuleta([]);
+        setDepartamentosRuleta([]);
         setPremiosRuleta([]);
         return;
       }
@@ -299,6 +301,18 @@ export default function App() {
       }
 
       setArticulosRuleta(articulos || []);
+
+      const { data: departamentosPromo, error: departamentosPromoError } =
+        await supabase
+          .from("promociones_ruleta_departamentos")
+          .select("*")
+          .eq("promocion_id", promocion.id);
+
+      if (departamentosPromoError) {
+        throw departamentosPromoError;
+      }
+
+      setDepartamentosRuleta(departamentosPromo || []);
 
       const { data: premios, error: premiosError } = await supabase
         .from("promociones_ruleta_premios")
@@ -317,6 +331,7 @@ export default function App() {
       console.error("Error cargando configuración de ruleta:", error);
       setConfiguracionRuleta(null);
       setArticulosRuleta([]);
+      setDepartamentosRuleta([]);
       setPremiosRuleta([]);
     }
   }
@@ -732,6 +747,7 @@ export default function App() {
         return {
           id: String(articulo.id),
           codigo: articulo.codigo,
+          departamento_id: articulo.departamento_id,
           idnum: articulo.codigo,
           nombre: articulo.nombre,
           name: articulo.nombre,
@@ -1208,19 +1224,25 @@ export default function App() {
       String(item.codigo_articulo || "").trim()
     );
 
+    const departamentosPermitidos = departamentosRuleta.map((item) =>
+      String(item.departamento_id || "").trim()
+    );
+
     const resumenPromocion = obtenerResumenPromocionRuleta({
       itemsPedido,
       codigosPermitidos,
+      departamentosPermitidos,
       cajasMinimas: configuracionRuleta?.cajas_minimas || 0,
     });
 
     const puedeJugarRuleta =
       configuracionRuleta &&
       premiosRuleta.length > 0 &&
-      codigosPermitidos.length > 0 &&
+      (codigosPermitidos.length > 0 || departamentosPermitidos.length > 0) &&
       pedidoCumplePromocionRuleta({
         itemsPedido,
         codigosPermitidos,
+        departamentosPermitidos,
         cajasMinimas: configuracionRuleta.cajas_minimas,
       });
 
