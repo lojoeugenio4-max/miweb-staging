@@ -1,13 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 
+import RuletaDepartamentos from "./RuletaDepartamentos";
+import RuletaArticulosTabla from "./RuletaArticulosTabla";
+
 export default function RuletaArticulos() {
+  const [pestana, setPestana] = useState("departamentos");
+
   const [promocion, setPromocion] = useState(null);
+  const [departamentos, setDepartamentos] = useState([]);
+  const [departamentosSeleccionados, setDepartamentosSeleccionados] = useState([]);
   const [articulos, setArticulos] = useState([]);
   const [articulosSeleccionados, setArticulosSeleccionados] = useState([]);
+
   const [busqueda, setBusqueda] = useState("");
+  const [departamentoFiltro, setDepartamentoFiltro] = useState("TODOS");
+  const [soloSeleccionados, setSoloSeleccionados] = useState(false);
+
   const [cargando, setCargando] = useState(true);
-  const [guardandoId, setGuardandoId] = useState(null);
+  const [guardandoDepartamentoId, setGuardandoDepartamentoId] = useState(null);
+  const [guardandoArticuloId, setGuardandoArticuloId] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -33,9 +45,42 @@ export default function RuletaArticulos() {
 
     setPromocion(promocionData);
 
+    const { data: departamentosData, error: departamentosError } = await supabase
+      .from("departamentos")
+      .select("id, nombre")
+      .order("nombre", { ascending: true });
+
+    if (departamentosError) {
+      setError("No se han podido cargar los departamentos.");
+      setCargando(false);
+      return;
+    }
+
+    const { data: departamentosSeleccionadosData, error: departamentosSeleccionadosError } =
+      await supabase
+        .from("promociones_ruleta_departamentos")
+        .select("*")
+        .eq("promocion_id", promocionData.id);
+
+    if (departamentosSeleccionadosError) {
+      setError("No se han podido cargar los departamentos seleccionados.");
+      setCargando(false);
+      return;
+    }
+
     const { data: articulosData, error: articulosError } = await supabase
       .from("articulos")
-      .select("id, codigo, nombre, activo")
+      .select(`
+        id,
+        codigo,
+        nombre,
+        activo,
+        departamento_id,
+        departamentos (
+          id,
+          nombre
+        )
+      `)
       .order("nombre", { ascending: true });
 
     if (articulosError) {
@@ -44,41 +89,72 @@ export default function RuletaArticulos() {
       return;
     }
 
-    const { data: seleccionadosData, error: seleccionadosError } =
+    const { data: articulosSeleccionadosData, error: articulosSeleccionadosError } =
       await supabase
         .from("promociones_ruleta_articulos")
         .select("*")
         .eq("promocion_id", promocionData.id);
 
-    if (seleccionadosError) {
+    if (articulosSeleccionadosError) {
       setError("No se han podido cargar los artículos seleccionados.");
       setCargando(false);
       return;
     }
 
+    setDepartamentos(departamentosData || []);
+    setDepartamentosSeleccionados(departamentosSeleccionadosData || []);
     setArticulos(articulosData || []);
-    setArticulosSeleccionados(seleccionadosData || []);
+    setArticulosSeleccionados(articulosSeleccionadosData || []);
     setCargando(false);
   }
 
-  const codigosSeleccionados = useMemo(() => {
-    return new Set(
-      articulosSeleccionados.map((item) => String(item.codigo_articulo))
+  async function cambiarDepartamento(departamento) {
+    if (!promocion) return;
+
+    setError("");
+    setGuardandoDepartamentoId(departamento.id);
+
+    const yaSeleccionado = departamentosSeleccionados.some(
+      (item) => String(item.departamento_id) === String(departamento.id)
     );
-  }, [articulosSeleccionados]);
 
-  const articulosFiltrados = useMemo(() => {
-    const texto = busqueda.trim().toLowerCase();
+    if (yaSeleccionado) {
+      const { error } = await supabase
+        .from("promociones_ruleta_departamentos")
+        .delete()
+        .eq("promocion_id", promocion.id)
+        .eq("departamento_id", departamento.id);
 
-    return articulos.filter((articulo) => {
-      if (!texto) return true;
+      if (error) {
+        setError("No se ha podido quitar el departamento.");
+      } else {
+        setDepartamentosSeleccionados((actual) =>
+          actual.filter(
+            (item) => String(item.departamento_id) !== String(departamento.id)
+          )
+        );
+      }
+    } else {
+      const nuevo = {
+        promocion_id: promocion.id,
+        departamento_id: departamento.id,
+      };
 
-      return (
-        String(articulo.codigo || "").toLowerCase().includes(texto) ||
-        String(articulo.nombre || "").toLowerCase().includes(texto)
-      );
-    });
-  }, [articulos, busqueda]);
+      const { data, error } = await supabase
+        .from("promociones_ruleta_departamentos")
+        .insert(nuevo)
+        .select("*")
+        .single();
+
+      if (error) {
+        setError("No se ha podido añadir el departamento.");
+      } else {
+        setDepartamentosSeleccionados((actual) => [...actual, data]);
+      }
+    }
+
+    setGuardandoDepartamentoId(null);
+  }
 
   async function cambiarArticulo(articulo) {
     if (!promocion) return;
@@ -90,10 +166,12 @@ export default function RuletaArticulos() {
       return;
     }
 
-    setGuardandoId(articulo.id);
     setError("");
+    setGuardandoArticuloId(articulo.id);
 
-    const yaSeleccionado = codigosSeleccionados.has(codigo);
+    const yaSeleccionado = articulosSeleccionados.some(
+      (item) => String(item.codigo_articulo) === codigo
+    );
 
     if (yaSeleccionado) {
       const { error } = await supabase
@@ -130,7 +208,7 @@ export default function RuletaArticulos() {
       }
     }
 
-    setGuardandoId(null);
+    setGuardandoArticuloId(null);
   }
 
   if (cargando) {
@@ -142,51 +220,59 @@ export default function RuletaArticulos() {
       <h4 style={titulo}>📦 Artículos que cuentan para la ruleta</h4>
 
       <div style={resumen}>
-        <strong>{articulosSeleccionados.length}</strong> artículos seleccionados · mínimo{" "}
-        <strong>{promocion?.cajas_minimas || 0}</strong> cajas entre todos ellos
+        <strong>{departamentosSeleccionados.length}</strong> departamentos ·{" "}
+        <strong>{articulosSeleccionados.length}</strong> artículos individuales · mínimo{" "}
+        <strong>{promocion?.cajas_minimas || 0}</strong> cajas válidas
       </div>
 
       {error && <div style={errorStyle}>{error}</div>}
 
-      <input
-        style={input}
-        type="text"
-        value={busqueda}
-        onChange={(e) => setBusqueda(e.target.value)}
-        placeholder="Buscar por código o nombre..."
-      />
+      <div style={tabs}>
+        <button
+          type="button"
+          style={{
+            ...tab,
+            ...(pestana === "departamentos" ? tabActivo : {}),
+          }}
+          onClick={() => setPestana("departamentos")}
+        >
+          🏢 Departamentos
+        </button>
 
-      <div style={lista}>
-        {articulosFiltrados.map((articulo) => {
-          const codigo = String(articulo.codigo || "").trim();
-          const seleccionado = codigosSeleccionados.has(codigo);
-
-          return (
-            <label
-              key={articulo.id}
-              style={{
-                ...fila,
-                ...(seleccionado ? filaSeleccionada : {}),
-                ...(!articulo.activo ? filaInactiva : {}),
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={seleccionado}
-                disabled={guardandoId === articulo.id}
-                onChange={() => cambiarArticulo(articulo)}
-              />
-
-              <span style={codigoStyle}>{articulo.codigo}</span>
-
-              <span style={nombreStyle}>
-                {articulo.nombre}
-                {!articulo.activo && " · INACTIVO"}
-              </span>
-            </label>
-          );
-        })}
+        <button
+          type="button"
+          style={{
+            ...tab,
+            ...(pestana === "articulos" ? tabActivo : {}),
+          }}
+          onClick={() => setPestana("articulos")}
+        >
+          📦 Artículos
+        </button>
       </div>
+
+      {pestana === "departamentos" ? (
+        <RuletaDepartamentos
+          departamentos={departamentos}
+          departamentosSeleccionados={departamentosSeleccionados}
+          guardandoId={guardandoDepartamentoId}
+          onCambiarDepartamento={cambiarDepartamento}
+        />
+      ) : (
+        <RuletaArticulosTabla
+          articulos={articulos}
+          articulosSeleccionados={articulosSeleccionados}
+          departamentosSeleccionados={departamentosSeleccionados}
+          busqueda={busqueda}
+          departamentoFiltro={departamentoFiltro}
+          soloSeleccionados={soloSeleccionados}
+          guardandoId={guardandoArticuloId}
+          onBusqueda={setBusqueda}
+          onDepartamentoFiltro={setDepartamentoFiltro}
+          onSoloSeleccionados={setSoloSeleccionados}
+          onCambiarArticulo={cambiarArticulo}
+        />
+      )}
     </div>
   );
 }
@@ -221,52 +307,28 @@ const resumen = {
   fontSize: "14px",
 };
 
-const input = {
-  width: "100%",
-  boxSizing: "border-box",
+const tabs = {
+  display: "flex",
+  gap: "8px",
+  marginBottom: "14px",
+  flexWrap: "wrap",
+};
+
+const tab = {
   border: "1px solid #d1d5db",
-  borderRadius: "10px",
-  padding: "10px",
-  fontSize: "14px",
   background: "#ffffff",
-  marginBottom: "12px",
-};
-
-const lista = {
-  display: "grid",
-  gap: "8px",
-  maxHeight: "420px",
-  overflowY: "auto",
-};
-
-const fila = {
-  display: "grid",
-  gridTemplateColumns: "24px 90px 1fr",
-  alignItems: "center",
-  gap: "8px",
-  border: "1px solid #e5e7eb",
-  borderRadius: "10px",
-  padding: "10px",
-  cursor: "pointer",
-  background: "#ffffff",
-};
-
-const filaSeleccionada = {
-  background: "#ecfdf5",
-  borderColor: "#86efac",
-};
-
-const filaInactiva = {
-  opacity: 0.55,
-};
-
-const codigoStyle = {
-  fontWeight: "800",
-  color: "#111827",
-};
-
-const nombreStyle = {
   color: "#374151",
+  borderRadius: "10px",
+  padding: "10px 14px",
+  fontSize: "14px",
+  fontWeight: "800",
+  cursor: "pointer",
+};
+
+const tabActivo = {
+  background: "#111827",
+  color: "#ffffff",
+  borderColor: "#111827",
 };
 
 const errorStyle = {
