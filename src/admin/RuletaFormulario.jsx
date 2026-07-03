@@ -1,146 +1,172 @@
-import React from "react";
-
 export default function RuletaFormulario({
-  form,
-  setForm,
-  onSubmit,
-  loading = false,
+  formulario,
+  cambiarCampo,
+  guardarPremio,
+  guardando,
+  error,
+  mensaje,
 }) {
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
   return (
-    <form onSubmit={onSubmit} className="bg-white rounded-xl shadow p-6 mb-6">
-      <h2 className="text-lg font-semibold mb-5">
-        Añadir premio a la ruleta
-      </h2>
+    <form style={formularioStyle} onSubmit={guardarPremio}>
+      <h4 style={bloqueTitulo}>➕ Nuevo premio</h4>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Nombre del premio
-          </label>
-
+      <div style={gridFormulario}>
+        <label style={label}>
+          Nombre del premio
           <input
+            style={input}
             type="text"
-            name="nombre"
-            value={form.nombre}
-            onChange={handleChange}
-            className="w-full border rounded-lg px-3 py-2"
-            placeholder="Ej: Pizza Familiar"
-            required
+            value={formulario.nombre}
+            onChange={(e) => cambiarCampo("nombre", e.target.value)}
+            placeholder="Ej: 10% descuento"
           />
-        </div>
+        </label>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Probabilidad (%)
-          </label>
-
+        <label style={label}>
+          Color
           <input
-            type="number"
-            name="probabilidad"
-            value={form.probabilidad}
-            onChange={handleChange}
-            className="w-full border rounded-lg px-3 py-2"
-            min="0"
-            max="100"
-            step="0.01"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Código de premio
-          </label>
-
-          <input
-            type="text"
-            name="codigo"
-            value={form.codigo}
-            onChange={handleChange}
-            className="w-full border rounded-lg px-3 py-2"
-            placeholder="Ej: PIZZA100"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Color
-          </label>
-
-          <input
+            style={inputColor}
             type="color"
-            name="color"
-            value={form.color}
-            onChange={handleChange}
-            className="w-full h-11 border rounded-lg p-1 cursor-pointer"
+            value={formulario.color}
+            onChange={(e) => cambiarCampo("color", e.target.value)}
           />
-        </div>
+        </label>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Stock (opcional)
-          </label>
-
+        <label style={label}>
+          Probabilidad
           <input
+            style={input}
             type="number"
-            name="stock"
-            value={form.stock}
-            onChange={handleChange}
-            className="w-full border rounded-lg px-3 py-2"
             min="0"
+            step="0.01"
+            value={formulario.probabilidad}
+            onChange={(e) => cambiarCampo("probabilidad", e.target.value)}
+            placeholder="Ej: 25"
+          />
+        </label>
+
+        <label style={label}>
+          Stock
+          <input
+            style={input}
+            type="number"
+            min="0"
+            step="1"
+            value={formulario.stock}
+            onChange={(e) => cambiarCampo("stock", e.target.value)}
             placeholder="Vacío = ilimitado"
           />
-        </div>
+        </label>
 
-        <div className="flex items-end">
-          <label className="inline-flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              name="activo"
-              checked={form.activo}
-              onChange={handleChange}
-            />
-
-            <span className="text-sm font-medium">
-              Premio activo
-            </span>
-          </label>
-        </div>
-
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium mb-1">
-            Descripción
-          </label>
-
-          <textarea
-            name="descripcion"
-            value={form.descripcion}
-            onChange={handleChange}
-            rows={3}
-            className="w-full border rounded-lg px-3 py-2"
-            placeholder="Descripción del premio..."
+        <label style={label}>
+          Orden
+          <input
+            style={input}
+            type="number"
+            min="0"
+            step="1"
+            value={formulario.orden}
+            onChange={(e) => cambiarCampo("orden", e.target.value)}
+            placeholder="Auto"
           />
-        </div>
+        </label>
+
+        <label style={checkLabel}>
+          <input
+            type="checkbox"
+            checked={formulario.activo}
+            onChange={(e) => cambiarCampo("activo", e.target.checked)}
+          />
+          Activo
+        </label>
       </div>
 
-      <div className="mt-6 flex justify-end">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg transition"
-        >
-          {loading ? "Guardando..." : "Guardar premio"}
-        </button>
-      </div>
+      {error && <div style={errorStyle}>{error}</div>}
+      {mensaje && <div style={okStyle}>{mensaje}</div>}
+
+      <button type="submit" style={botonPrincipal} disabled={guardando}>
+        {guardando ? "Guardando..." : "Guardar premio"}
+      </button>
     </form>
   );
 }
+
+const formularioStyle = {
+  border: "1px solid #e5e7eb",
+  borderRadius: "14px",
+  padding: "16px",
+  background: "#f9fafb",
+  marginBottom: "16px",
+};
+
+const bloqueTitulo = {
+  margin: "0 0 14px",
+  fontSize: "17px",
+  color: "#111827",
+};
+
+const gridFormulario = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gap: "12px",
+  marginBottom: "14px",
+};
+
+const label = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "6px",
+  fontSize: "13px",
+  fontWeight: "700",
+  color: "#374151",
+};
+
+const checkLabel = {
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  fontSize: "13px",
+  fontWeight: "700",
+  color: "#374151",
+  paddingTop: "24px",
+};
+
+const input = {
+  border: "1px solid #d1d5db",
+  borderRadius: "10px",
+  padding: "10px",
+  fontSize: "14px",
+  background: "#ffffff",
+};
+
+const inputColor = {
+  border: "1px solid #d1d5db",
+  borderRadius: "10px",
+  height: "39px",
+  padding: "4px",
+  background: "#ffffff",
+};
+
+const botonPrincipal = {
+  border: "none",
+  background: "#111827",
+  color: "#ffffff",
+  borderRadius: "10px",
+  padding: "10px 14px",
+  fontSize: "14px",
+  cursor: "pointer",
+};
+
+const errorStyle = {
+  marginBottom: "10px",
+  color: "#b91c1c",
+  fontSize: "14px",
+  fontWeight: "700",
+};
+
+const okStyle = {
+  marginBottom: "10px",
+  color: "#15803d",
+  fontSize: "14px",
+  fontWeight: "700",
+};
