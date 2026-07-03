@@ -6,6 +6,7 @@ import Ofertas from "./Ofertas";
 import Pushes from "./Pushes";
 import Estadisticas from "./Estadisticas";
 import Configuracion from "./Configuracion";
+import Promociones from "./Promociones";
 
 export default function AdminPanel() {
   const [opcion, setOpcion] = useState("articulos");
@@ -39,7 +40,7 @@ export default function AdminPanel() {
           <div>
             <h1 style={title(esMovil)}>Panel de administración</h1>
             <p style={subtitle}>
-              Gestión de artículos, departamentos, ofertas y configuración.
+              Gestión de artículos, departamentos, ofertas, promociones y configuración.
             </p>
           </div>
         </div>
@@ -48,6 +49,7 @@ export default function AdminPanel() {
           {opcion === "articulos" && <Articulos />}
           {opcion === "departamentos" && <Departamentos />}
           {opcion === "ofertas" && <Ofertas />}
+          {opcion === "promociones" && <Promociones />}
           {opcion === "pushes" && <Pushes />}
           {opcion === "estadisticas" && <Estadisticas />}
           {opcion === "configuracion" && <Configuracion />}
