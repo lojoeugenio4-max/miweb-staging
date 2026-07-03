@@ -24,6 +24,12 @@ export default function MenuAdmin({
       descripcion: "Promociones y avisos",
     },
     {
+      id: "promociones",
+      icono: "🎁",
+      titulo: "Promociones",
+      descripcion: "Ruleta, regalos y campañas",
+    },
+    {
       id: "pushes",
       icono: "📣",
       titulo: "Push Diario",
@@ -93,8 +99,8 @@ export default function MenuAdmin({
         <div style={bottomBox}>
           <div style={statusDot} />
           <div>
-            <strong style={bottomTitle}>Producción activa</strong>
-            <p style={bottomText}>pedidos-lojo.vercel.app</p>
+            <strong style={bottomTitle}>Entorno de pruebas</strong>
+            <p style={bottomText}>miweb-staging</p>
           </div>
         </div>
       )}
