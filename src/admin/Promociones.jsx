@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Ruleta from "./Ruleta";
 
 export default function Promociones() {
   const [seccion, setSeccion] = useState("inicio");
@@ -56,13 +57,7 @@ export default function Promociones() {
         </div>
       )}
 
-      {seccion === "ruleta" && (
-        <PanelSeccion
-          icono="🎡"
-          titulo="Ruleta promocional"
-          descripcion="Aquí configuraremos si la ruleta está activa, qué premios puede entregar y con qué probabilidad."
-        />
-      )}
+      {seccion === "ruleta" && <Ruleta />}
 
       {seccion === "regalos" && (
         <PanelSeccion
