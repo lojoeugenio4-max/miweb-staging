@@ -1,8 +1,38 @@
+export function crearPremiosConNoPremio(premios = []) {
+  const premiosReales = premios.filter((premio) => premio.activo);
+
+  const totalPremios = premiosReales.reduce(
+    (total, premio) => total + Number(premio.probabilidad || 0),
+    0
+  );
+
+  const restante = Math.max(0, 100 - totalPremios);
+
+  if (restante <= 0) {
+    return premiosReales;
+  }
+
+  return [
+    ...premiosReales,
+    {
+      id: "no-premio-automatico",
+      nombre: "Suerte la próxima vez",
+      color: "#64748b",
+      probabilidad: restante,
+      stock: null,
+      activo: true,
+      esNoPremio: true,
+    },
+  ];
+}
+
 export function filtrarPremiosDisponibles(premios = []) {
   return premios.filter((premio) => {
     if (!premio.activo) return false;
 
-    if (premio.stock === null) return true;
+    if (premio.esNoPremio) return true;
+
+    if (premio.stock === null || premio.stock === undefined) return true;
 
     return Number(premio.stock) > 0;
   });
@@ -23,9 +53,7 @@ export function elegirPremio(premios = []) {
   const total = calcularTotalProbabilidad(disponibles);
 
   if (total <= 0) {
-    return disponibles[
-      Math.floor(Math.random() * disponibles.length)
-    ];
+    return disponibles[Math.floor(Math.random() * disponibles.length)];
   }
 
   const numero = Math.random() * total;
@@ -43,13 +71,8 @@ export function elegirPremio(premios = []) {
   return disponibles[disponibles.length - 1];
 }
 
-export function calcularIndicePremio(
-  premios = [],
-  premioGanador
-) {
-  return premios.findIndex(
-    (premio) => premio.id === premioGanador.id
-  );
+export function calcularIndicePremio(premios = [], premioGanador) {
+  return premios.findIndex((premio) => premio.id === premioGanador.id);
 }
 
 export function calcularRotacionDestino({
@@ -58,23 +81,15 @@ export function calcularRotacionDestino({
   totalPremios,
 }) {
   const gradosSector = 360 / totalPremios;
+  const centroSector = indiceGanador * gradosSector + gradosSector / 2;
 
-  const centroSector =
-    indiceGanador * gradosSector + gradosSector / 2;
-
-  const destino =
-    rotacionActual +
-    360 * 6 +
-    (360 - centroSector);
-
-  return destino;
+  return rotacionActual + 360 * 8 + (360 - centroSector);
 }
 
-export async function descontarStock(
-  supabase,
-  premio
-) {
-  if (premio.stock === null) return;
+export async function descontarStock(supabase, premio) {
+  if (premio.esNoPremio) return;
+
+  if (premio.stock === null || premio.stock === undefined) return;
 
   if (Number(premio.stock) <= 0) return;
 
@@ -84,17 +99,4 @@ export async function descontarStock(
       stock: Number(premio.stock) - 1,
     })
     .eq("id", premio.id);
-}
-
-export function crearGradient(premios) {
-  const grados = 360 / premios.length;
-
-  return `conic-gradient(${premios
-    .map((premio, index) => {
-      const inicio = index * grados;
-      const fin = inicio + grados;
-
-      return `${premio.color || "#f59e0b"} ${inicio}deg ${fin}deg`;
-    })
-    .join(",")})`;
 }
