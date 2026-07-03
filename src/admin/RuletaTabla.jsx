@@ -3,8 +3,8 @@ import RuletaFila from "./RuletaFila";
 export default function RuletaTabla({
   premios,
   cargando,
-  onEditar = () => {},
-  onEliminar = () => {},
+  onEditar,
+  onEliminar,
 }) {
   return (
     <div style={tablaContenedor}>
@@ -14,8 +14,7 @@ export default function RuletaTabla({
         <p style={texto}>Cargando premios...</p>
       ) : premios.length === 0 ? (
         <div style={aviso}>
-          Todavía no hay premios configurados. Crea el primer premio para
-          empezar.
+          Todavía no hay premios configurados. Crea el primer premio para empezar.
         </div>
       ) : (
         <table style={tabla}>
