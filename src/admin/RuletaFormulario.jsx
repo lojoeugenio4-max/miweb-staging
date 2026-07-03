@@ -5,10 +5,14 @@ export default function RuletaFormulario({
   guardando,
   error,
   mensaje,
+  idEditando,
+  cancelarEdicion,
 }) {
   return (
     <form style={formularioStyle} onSubmit={guardarPremio}>
-      <h4 style={bloqueTitulo}>➕ Nuevo premio</h4>
+      <h4 style={bloqueTitulo}>
+        {idEditando ? "✏️ Editar premio" : "➕ Nuevo premio"}
+      </h4>
 
       <div style={gridFormulario}>
         <label style={label}>
@@ -84,9 +88,26 @@ export default function RuletaFormulario({
       {error && <div style={errorStyle}>{error}</div>}
       {mensaje && <div style={okStyle}>{mensaje}</div>}
 
-      <button type="submit" style={botonPrincipal} disabled={guardando}>
-        {guardando ? "Guardando..." : "Guardar premio"}
-      </button>
+      <div style={botones}>
+        <button type="submit" style={botonPrincipal} disabled={guardando}>
+          {guardando
+            ? "Guardando..."
+            : idEditando
+              ? "Actualizar premio"
+              : "Guardar premio"}
+        </button>
+
+        {idEditando && (
+          <button
+            type="button"
+            style={botonSecundario}
+            onClick={cancelarEdicion}
+            disabled={guardando}
+          >
+            Cancelar edición
+          </button>
+        )}
+      </div>
     </form>
   );
 }
@@ -147,10 +168,26 @@ const inputColor = {
   background: "#ffffff",
 };
 
+const botones = {
+  display: "flex",
+  gap: "10px",
+  flexWrap: "wrap",
+};
+
 const botonPrincipal = {
   border: "none",
   background: "#111827",
   color: "#ffffff",
+  borderRadius: "10px",
+  padding: "10px 14px",
+  fontSize: "14px",
+  cursor: "pointer",
+};
+
+const botonSecundario = {
+  border: "1px solid #d1d5db",
+  background: "#ffffff",
+  color: "#374151",
   borderRadius: "10px",
   padding: "10px 14px",
   fontSize: "14px",
