@@ -10,6 +10,15 @@ import {
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import logoLojo from "./assets/logo-lojo.jpg";
+import RuletaModal from "./components/RuletaModal";
+import {
+  pedidoCumplePromocionRuleta,
+  obtenerResumenPromocionRuleta,
+} from "./utils/promocionRuleta";
+import {
+  construirTextoPedidoWhatsApp,
+  abrirPedidoEnWhatsApp,
+} from "./utils/whatsappPedido";
 
 const WHATSAPP_NUMBER = "34670716744";
 const ORDER_STORAGE_KEY = "cash-lojo-pedido";
@@ -235,11 +244,82 @@ export default function App() {
   );
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
 
+  const [mostrarRuleta, setMostrarRuleta] = useState(false);
+  const [premiosRuleta, setPremiosRuleta] = useState([]);
+  const [configuracionRuleta, setConfiguracionRuleta] = useState(null);
+  const [articulosRuleta, setArticulosRuleta] = useState([]);
+  const [pedidoPendienteRuleta, setPedidoPendienteRuleta] = useState(null);
+
   const t = translations[language];
 
   useEffect(() => {
     localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
   }, [language]);
+
+  useEffect(() => {
+    cargarConfiguracionRuleta();
+  }, []);
+
+  async function cargarConfiguracionRuleta() {
+    try {
+      const hoy = getTodayISO();
+
+      const { data: promociones, error: promocionError } = await supabase
+        .from("promociones_ruleta")
+        .select("*")
+        .eq("activa", true)
+        .order("created_at", { ascending: true });
+
+      if (promocionError) {
+        throw promocionError;
+      }
+
+      const promocion = (promociones || []).find((item) => {
+        const inicioOk = !item.fecha_inicio || item.fecha_inicio <= hoy;
+        const finOk = !item.fecha_fin || item.fecha_fin >= hoy;
+        return inicioOk && finOk;
+      });
+
+      if (!promocion) {
+        setConfiguracionRuleta(null);
+        setArticulosRuleta([]);
+        setPremiosRuleta([]);
+        return;
+      }
+
+      setConfiguracionRuleta(promocion);
+
+      const { data: articulos, error: articulosError } = await supabase
+        .from("promociones_ruleta_articulos")
+        .select("*")
+        .eq("promocion_id", promocion.id);
+
+      if (articulosError) {
+        throw articulosError;
+      }
+
+      setArticulosRuleta(articulos || []);
+
+      const { data: premios, error: premiosError } = await supabase
+        .from("promociones_ruleta_premios")
+        .select("*")
+        .eq("promocion_id", promocion.id)
+        .eq("activo", true)
+        .order("orden", { ascending: true })
+        .order("created_at", { ascending: true });
+
+      if (premiosError) {
+        throw premiosError;
+      }
+
+      setPremiosRuleta(premios || []);
+    } catch (error) {
+      console.error("Error cargando configuración de ruleta:", error);
+      setConfiguracionRuleta(null);
+      setArticulosRuleta([]);
+      setPremiosRuleta([]);
+    }
+  }
 
   useEffect(() => {
     const abrirPushSiempre = () => {
@@ -1071,85 +1151,7 @@ export default function App() {
     }
   }
 
-  const sendByWhatsApp = () => {
-    if (!orderedItems.length) {
-      alert(t.alertEmpty);
-      return;
-    }
-
-    // Snapshot del pedido en el momento exacto del clic.
-    // Así podemos limpiar la app sin perder el contenido que irá a WhatsApp.
-    const itemsPedido = [...orderedItems];
-    const customerNamePedido = customerName.trim();
-    const notesPedido = notes.trim();
-
-    const lines = [];
-
-    lines.push(`*${t.orderSummary}*`);
-    lines.push("");
-
-    if (customerNamePedido) {
-      lines.push(`*${t.customer}:* ${customerNamePedido}`);
-      lines.push("");
-    }
-
-    const itemsOrdenados = [...itemsPedido].sort((a, b) => {
-      const departamentoA = String(
-        a.product.department || a.product.departamento || "SIN DEPARTAMENTO"
-      );
-      const departamentoB = String(
-        b.product.department || b.product.departamento || "SIN DEPARTAMENTO"
-      );
-
-      const compararDepartamento = departamentoA.localeCompare(
-        departamentoB,
-        "es",
-        { sensitivity: "base" }
-      );
-
-      if (compararDepartamento !== 0) return compararDepartamento;
-
-      return String(a.product.name || "").localeCompare(
-        String(b.product.name || ""),
-        "es",
-        { sensitivity: "base" }
-      );
-    });
-
-    itemsOrdenados.forEach((item) => {
-      const product = item.product;
-
-      // Nombre sin código y sin negrita
-      lines.push(String(product.name || "").trim());
-
-      // Cantidades en negrita
-      if (item.boxes) {
-        lines.push(`*${item.boxes} ${t.boxesLower}*`);
-      }
-
-      if (item.units) {
-        lines.push(`*${item.units} ${t.unitsLower}*`);
-      }
-
-      if (item.notes.trim()) {
-        lines.push(`${t.notes}: ${item.notes.trim()}`);
-      }
-
-      lines.push("");
-    });
-
-    if (notesPedido) {
-      lines.push(`*${t.notes}:* ${notesPedido}`);
-      lines.push("");
-    }
-
-    lines.push(t.sentFrom);
-
-    const message = encodeURIComponent(lines.join("\n"));
-    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${message}`;
-
-    // Dejamos el pedido eliminado ANTES de abandonar la app.
-    // No usamos await antes de abrir WhatsApp para no perder el gesto del usuario.
+  function limpiarPedidoDespuesEnvio() {
     localStorage.removeItem(ORDER_STORAGE_KEY);
     setQuantities({});
     setCustomerName("");
@@ -1165,13 +1167,92 @@ export default function App() {
     setPushCerrado(false);
     setMostrarVolverPush(false);
     setHeaderCollapsed(false);
+    setMostrarRuleta(false);
+    setPedidoPendienteRuleta(null);
+  }
+
+  function enviarPedidoFinal({ itemsPedido, customerNamePedido, notesPedido, premio = null }) {
+    const texto = construirTextoPedidoWhatsApp({
+      t,
+      itemsPedido,
+      customerNamePedido,
+      notesPedido,
+      premio,
+    });
+
+    limpiarPedidoDespuesEnvio();
 
     // Guardamos estadísticas en segundo plano, sin bloquear WhatsApp.
     guardarEstadisticasPedido(itemsPedido);
 
     // Abrir en la misma pestaña es lo más fiable en móviles.
-    window.location.assign(whatsappUrl);
+    abrirPedidoEnWhatsApp({
+      whatsappNumber: WHATSAPP_NUMBER,
+      texto,
+    });
+  }
+
+  const sendByWhatsApp = () => {
+    if (!orderedItems.length) {
+      alert(t.alertEmpty);
+      return;
+    }
+
+    // Snapshot del pedido en el momento exacto del clic.
+    // Así podemos limpiar la app sin perder el contenido que irá a WhatsApp.
+    const itemsPedido = [...orderedItems];
+    const customerNamePedido = customerName.trim();
+    const notesPedido = notes.trim();
+
+    const codigosPermitidos = articulosRuleta.map((item) =>
+      String(item.codigo_articulo || "").trim()
+    );
+
+    const resumenPromocion = obtenerResumenPromocionRuleta({
+      itemsPedido,
+      codigosPermitidos,
+      cajasMinimas: configuracionRuleta?.cajas_minimas || 0,
+    });
+
+    const puedeJugarRuleta =
+      configuracionRuleta &&
+      premiosRuleta.length > 0 &&
+      codigosPermitidos.length > 0 &&
+      pedidoCumplePromocionRuleta({
+        itemsPedido,
+        codigosPermitidos,
+        cajasMinimas: configuracionRuleta.cajas_minimas,
+      });
+
+    if (puedeJugarRuleta) {
+      setPedidoPendienteRuleta({
+        itemsPedido,
+        customerNamePedido,
+        notesPedido,
+        resumenPromocion,
+      });
+      setShowOrderSummary(false);
+      setMostrarRuleta(true);
+      return;
+    }
+
+    enviarPedidoFinal({
+      itemsPedido,
+      customerNamePedido,
+      notesPedido,
+    });
   };
+
+  function finalizarPedidoConPremio(premio) {
+    if (!pedidoPendienteRuleta) return;
+
+    enviarPedidoFinal({
+      itemsPedido: pedidoPendienteRuleta.itemsPedido,
+      customerNamePedido: pedidoPendienteRuleta.customerNamePedido,
+      notesPedido: pedidoPendienteRuleta.notesPedido,
+      premio,
+    });
+  }
 
   const pushItems = Array.isArray(pushOferta?.articulos)
     ? pushOferta.articulos
@@ -1190,6 +1271,15 @@ export default function App() {
 
   return (
     <div style={styles.page}>
+      {mostrarRuleta && pedidoPendienteRuleta && (
+        <RuletaModal
+          premios={premiosRuleta}
+          resumenPromocion={pedidoPendienteRuleta.resumenPromocion}
+          mensajeCliente={configuracionRuleta?.mensaje_cliente}
+          onPremioGanado={finalizarPedidoConPremio}
+        />
+      )}
+
       {pushOferta && pushItems.length > 0 && !pushCerrado && (
         <div style={styles.pushOverlay}>
           <button
