@@ -1,4 +1,8 @@
-export default function RuletaFila({ premio }) {
+export default function RuletaFila({
+  premio,
+  onEditar = () => {},
+  onEliminar = () => {},
+}) {
   return (
     <tr>
       <td style={td}>{premio.orden}</td>
@@ -32,6 +36,24 @@ export default function RuletaFila({ premio }) {
           <span style={inactivo}>Inactivo</span>
         )}
       </td>
+
+      <td style={tdAcciones}>
+        <button
+          style={botonEditar}
+          onClick={() => onEditar(premio)}
+          type="button"
+        >
+          ✏️
+        </button>
+
+        <button
+          style={botonEliminar}
+          onClick={() => onEliminar(premio)}
+          type="button"
+        >
+          🗑️
+        </button>
+      </td>
     </tr>
   );
 }
@@ -40,6 +62,12 @@ const td = {
   borderBottom: "1px solid #f3f4f6",
   padding: "10px",
   color: "#111827",
+};
+
+const tdAcciones = {
+  borderBottom: "1px solid #f3f4f6",
+  padding: "10px",
+  whiteSpace: "nowrap",
 };
 
 const muestraColor = {
@@ -70,4 +98,23 @@ const inactivo = {
   padding: "4px 9px",
   fontSize: "12px",
   fontWeight: "800",
+};
+
+const botonEditar = {
+  border: "none",
+  background: "#2563eb",
+  color: "#fff",
+  borderRadius: "8px",
+  padding: "6px 10px",
+  cursor: "pointer",
+  marginRight: "6px",
+};
+
+const botonEliminar = {
+  border: "none",
+  background: "#dc2626",
+  color: "#fff",
+  borderRadius: "8px",
+  padding: "6px 10px",
+  cursor: "pointer",
 };
