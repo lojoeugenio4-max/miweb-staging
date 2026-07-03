@@ -1,3 +1,11 @@
+function normalizar(texto) {
+  return String(texto || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
 export default function RuletaArticulosTabla({
   articulos = [],
   articulosSeleccionados = [],
@@ -28,14 +36,12 @@ export default function RuletaArticulosTabla({
     ).values()
   ).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), "es"));
 
-  const texto = busqueda.trim().toLowerCase();
+  const texto = normalizar(busqueda);
 
   const articulosFiltrados = articulos.filter((articulo) => {
-    const codigo = String(articulo.codigo || "").toLowerCase();
-    const nombre = String(articulo.nombre || "").toLowerCase();
-    const departamentoNombre = String(
-      articulo.departamentos?.nombre || ""
-    ).toLowerCase();
+    const codigo = normalizar(articulo.codigo);
+    const nombre = normalizar(articulo.nombre);
+    const departamentoNombre = normalizar(articulo.departamentos?.nombre);
 
     const coincideBusqueda =
       !texto ||
@@ -61,11 +67,7 @@ export default function RuletaArticulosTabla({
     const coincideSeleccionados =
       !soloSeleccionados || estaSeleccionado;
 
-    return (
-      coincideBusqueda &&
-      coincideDepartamento &&
-      coincideSeleccionados
-    );
+    return coincideBusqueda && coincideDepartamento && coincideSeleccionados;
   });
 
   return (
@@ -105,7 +107,6 @@ export default function RuletaArticulosTabla({
 
       <div style={resumen}>
         Mostrando <strong>{articulosFiltrados.length}</strong> artículos.
-        Los artículos de departamentos marcados ya cuentan automáticamente.
       </div>
 
       <div style={tablaWrapper}>
@@ -123,13 +124,11 @@ export default function RuletaArticulosTabla({
           <tbody>
             {articulosFiltrados.map((articulo) => {
               const codigo = String(articulo.codigo || "");
-              const seleccionadoIndividual =
-                codigosSeleccionados.has(codigo);
+              const seleccionadoIndividual = codigosSeleccionados.has(codigo);
 
-              const seleccionadoPorDepartamento =
-                departamentosMarcados.has(
-                  String(articulo.departamento_id)
-                );
+              const seleccionadoPorDepartamento = departamentosMarcados.has(
+                String(articulo.departamento_id)
+              );
 
               const estaSeleccionado =
                 seleccionadoIndividual || seleccionadoPorDepartamento;
@@ -158,9 +157,7 @@ export default function RuletaArticulosTabla({
 
                   <td style={td}>{articulo.nombre}</td>
 
-                  <td style={td}>
-                    {articulo.departamentos?.nombre || "-"}
-                  </td>
+                  <td style={td}>{articulo.departamentos?.nombre || "-"}</td>
 
                   <td style={td}>
                     {seleccionadoPorDepartamento ? (
