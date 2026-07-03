@@ -54,14 +54,13 @@ export default function Ruleta() {
     }));
   }
 
-  async function guardarPremio(e) {
-    e.preventDefault();
+  async function guardarPremio(evento) {
+    evento.preventDefault();
 
     setError("");
     setMensaje("");
 
     const nombre = formulario.nombre.trim();
-
     const probabilidad = Number(formulario.probabilidad);
 
     const stock =
@@ -80,17 +79,17 @@ export default function Ruleta() {
     }
 
     if (Number.isNaN(probabilidad) || probabilidad < 0) {
-      setError("La probabilidad debe ser mayor o igual que 0.");
+      setError("La probabilidad debe ser un número igual o mayor que 0.");
       return;
     }
 
     if (formulario.stock !== "" && (Number.isNaN(stock) || stock < 0)) {
-      setError("Stock incorrecto.");
+      setError("El stock debe estar vacío o ser un número igual o mayor que 0.");
       return;
     }
 
     if (Number.isNaN(orden) || orden < 0) {
-      setError("Orden incorrecto.");
+      setError("El orden debe estar vacío o ser un número igual o mayor que 0.");
       return;
     }
 
@@ -100,7 +99,7 @@ export default function Ruleta() {
       .from("promociones_ruleta_premios")
       .insert({
         nombre,
-        color: formulario.color,
+        color: formulario.color || "#f59e0b",
         probabilidad,
         stock,
         activo: formulario.activo,
@@ -118,8 +117,48 @@ export default function Ruleta() {
     setGuardando(false);
   }
 
+  function editarPremio(premio) {
+    setFormulario({
+      nombre: premio.nombre || "",
+      color: premio.color || "#f59e0b",
+      probabilidad: premio.probabilidad ?? "",
+      stock: premio.stock ?? "",
+      activo: premio.activo ?? true,
+      orden: premio.orden ?? "",
+    });
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }
+
+  async function eliminarPremio(premio) {
+    const confirmar = window.confirm(
+      `¿Eliminar el premio "${premio.nombre}"?`
+    );
+
+    if (!confirmar) return;
+
+    setError("");
+    setMensaje("");
+
+    const { error } = await supabase
+      .from("promociones_ruleta_premios")
+      .delete()
+      .eq("id", premio.id);
+
+    if (error) {
+      setError("No se ha podido eliminar el premio.");
+      return;
+    }
+
+    setMensaje("Premio eliminado correctamente.");
+    await cargarPremios();
+  }
+
   const totalProbabilidad = premios.reduce(
-    (t, p) => t + Number(p.probabilidad || 0),
+    (total, premio) => total + Number(premio.probabilidad || 0),
     0
   );
 
@@ -128,7 +167,8 @@ export default function Ruleta() {
       <h3 style={titulo}>🎡 Ruleta promocional</h3>
 
       <p style={texto}>
-        Gestiona los premios que aparecerán en la ruleta.
+        Gestiona los premios que aparecerán en la ruleta. Cada premio puede
+        tener probabilidad, stock, color y estado activo.
       </p>
 
       <RuletaFormulario
@@ -154,6 +194,8 @@ export default function Ruleta() {
       <RuletaTabla
         premios={premios}
         cargando={cargando}
+        onEditar={editarPremio}
+        onEliminar={eliminarPremio}
       />
     </div>
   );
