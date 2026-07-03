@@ -4,6 +4,13 @@ import { supabase } from "../supabaseClient";
 import RuletaDepartamentos from "./RuletaDepartamentos";
 import RuletaArticulosTabla from "./RuletaArticulosTabla";
 
+const promocionInicial = {
+  nombre: "Promoción ruleta principal",
+  activa: true,
+  cajas_minimas: 6,
+  mensaje_cliente: "Tu pedido participa en la ruleta promocional.",
+};
+
 export default function RuletaArticulos() {
   const [pestana, setPestana] = useState("departamentos");
 
@@ -26,85 +33,92 @@ export default function RuletaArticulos() {
     cargarDatos();
   }, []);
 
-  async function cargarDatos() {
-    setCargando(true);
-    setError("");
-
-    const { data: promocionData, error: promocionError } = await supabase
+  async function obtenerOCrearPromocion() {
+    const { data, error } = await supabase
       .from("promociones_ruleta")
       .select("*")
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
 
-    if (promocionError || !promocionData) {
-      setError("No se ha podido cargar la promoción.");
-      setCargando(false);
-      return;
+    if (error) {
+      throw error;
     }
 
-    setPromocion(promocionData);
-
-    const { data: departamentosData, error: departamentosError } = await supabase
-      .from("departamentos")
-      .select("id, nombre")
-      .order("nombre", { ascending: true });
-
-    if (departamentosError) {
-      setError("No se han podido cargar los departamentos.");
-      setCargando(false);
-      return;
+    if (data) {
+      return data;
     }
 
-    const { data: departamentosSeleccionadosData, error: departamentosSeleccionadosError } =
-      await supabase
-        .from("promociones_ruleta_departamentos")
-        .select("*")
-        .eq("promocion_id", promocionData.id);
+    const { data: nueva, error: crearError } = await supabase
+      .from("promociones_ruleta")
+      .insert(promocionInicial)
+      .select("*")
+      .single();
 
-    if (departamentosSeleccionadosError) {
-      setError("No se han podido cargar los departamentos seleccionados.");
-      setCargando(false);
-      return;
+    if (crearError) {
+      throw crearError;
     }
 
-    const { data: articulosData, error: articulosError } = await supabase
-      .from("articulos")
-      .select(`
-        id,
-        codigo,
-        nombre,
-        activo,
-        departamento_id,
-        departamentos (
+    return nueva;
+  }
+
+  async function cargarDatos() {
+    setCargando(true);
+    setError("");
+
+    try {
+      const promocionData = await obtenerOCrearPromocion();
+      setPromocion(promocionData);
+
+      const { data: departamentosData, error: departamentosError } = await supabase
+        .from("departamentos")
+        .select("id, nombre")
+        .order("nombre", { ascending: true });
+
+      if (departamentosError) throw departamentosError;
+
+      const { data: departamentosSeleccionadosData, error: departamentosSeleccionadosError } =
+        await supabase
+          .from("promociones_ruleta_departamentos")
+          .select("*")
+          .eq("promocion_id", promocionData.id);
+
+      if (departamentosSeleccionadosError) throw departamentosSeleccionadosError;
+
+      const { data: articulosData, error: articulosError } = await supabase
+        .from("articulos")
+        .select(`
           id,
-          nombre
-        )
-      `)
-      .order("nombre", { ascending: true });
+          codigo,
+          nombre,
+          activo,
+          departamento_id,
+          departamentos (
+            id,
+            nombre
+          )
+        `)
+        .order("nombre", { ascending: true });
 
-    if (articulosError) {
-      setError("No se han podido cargar los artículos.");
-      setCargando(false);
-      return;
+      if (articulosError) throw articulosError;
+
+      const { data: articulosSeleccionadosData, error: articulosSeleccionadosError } =
+        await supabase
+          .from("promociones_ruleta_articulos")
+          .select("*")
+          .eq("promocion_id", promocionData.id);
+
+      if (articulosSeleccionadosError) throw articulosSeleccionadosError;
+
+      setDepartamentos(departamentosData || []);
+      setDepartamentosSeleccionados(departamentosSeleccionadosData || []);
+      setArticulos(articulosData || []);
+      setArticulosSeleccionados(articulosSeleccionadosData || []);
+    } catch (err) {
+      console.error("Error cargando artículos ruleta:", err);
+      setError(`No se han podido cargar los datos: ${err.message || "Error desconocido"}`);
     }
 
-    const { data: articulosSeleccionadosData, error: articulosSeleccionadosError } =
-      await supabase
-        .from("promociones_ruleta_articulos")
-        .select("*")
-        .eq("promocion_id", promocionData.id);
-
-    if (articulosSeleccionadosError) {
-      setError("No se han podido cargar los artículos seleccionados.");
-      setCargando(false);
-      return;
-    }
-
-    setDepartamentos(departamentosData || []);
-    setDepartamentosSeleccionados(departamentosSeleccionadosData || []);
-    setArticulos(articulosData || []);
-    setArticulosSeleccionados(articulosSeleccionadosData || []);
     setCargando(false);
   }
 
@@ -126,7 +140,7 @@ export default function RuletaArticulos() {
         .eq("departamento_id", departamento.id);
 
       if (error) {
-        setError("No se ha podido quitar el departamento.");
+        setError(error.message);
       } else {
         setDepartamentosSeleccionados((actual) =>
           actual.filter(
@@ -135,19 +149,17 @@ export default function RuletaArticulos() {
         );
       }
     } else {
-      const nuevo = {
-        promocion_id: promocion.id,
-        departamento_id: departamento.id,
-      };
-
       const { data, error } = await supabase
         .from("promociones_ruleta_departamentos")
-        .insert(nuevo)
+        .insert({
+          promocion_id: promocion.id,
+          departamento_id: departamento.id,
+        })
         .select("*")
         .single();
 
       if (error) {
-        setError("No se ha podido añadir el departamento.");
+        setError(error.message);
       } else {
         setDepartamentosSeleccionados((actual) => [...actual, data]);
       }
@@ -181,28 +193,26 @@ export default function RuletaArticulos() {
         .eq("codigo_articulo", codigo);
 
       if (error) {
-        setError("No se ha podido quitar el artículo.");
+        setError(error.message);
       } else {
         setArticulosSeleccionados((actual) =>
           actual.filter((item) => String(item.codigo_articulo) !== codigo)
         );
       }
     } else {
-      const nuevo = {
-        promocion_id: promocion.id,
-        articulo_id: articulo.id,
-        codigo_articulo: codigo,
-        nombre_articulo: articulo.nombre || "",
-      };
-
       const { data, error } = await supabase
         .from("promociones_ruleta_articulos")
-        .insert(nuevo)
+        .insert({
+          promocion_id: promocion.id,
+          articulo_id: articulo.id,
+          codigo_articulo: codigo,
+          nombre_articulo: articulo.nombre || "",
+        })
         .select("*")
         .single();
 
       if (error) {
-        setError("No se ha podido añadir el artículo.");
+        setError(error.message);
       } else {
         setArticulosSeleccionados((actual) => [...actual, data]);
       }
