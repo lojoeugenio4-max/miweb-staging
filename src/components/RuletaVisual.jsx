@@ -1,135 +1,133 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { supabase } from "../supabaseClient";
+import RuletaCanvas from "./RuletaCanvas";
+import {
+  calcularIndicePremio,
+  calcularRotacionDestino,
+  descontarStock,
+  elegirPremio,
+  filtrarPremiosDisponibles,
+} from "./RuletaHelpers";
 
-export default function RuletaVisual({ premios = [] }) {
+export default function RuletaVisual({
+  premios = [],
+  onPremioGanado = () => {},
+}) {
   const [girando, setGirando] = useState(false);
   const [rotacion, setRotacion] = useState(0);
   const [premioGanado, setPremioGanado] = useState(null);
+  const [error, setError] = useState("");
 
-  const premiosActivos = premios.filter((premio) => premio.activo);
+  const premiosDisponibles = useMemo(
+    () => filtrarPremiosDisponibles(premios),
+    [premios]
+  );
 
-  function girarRuleta() {
-    if (girando || premiosActivos.length === 0) return;
+  async function girarRuleta() {
+    if (girando) return;
 
-    setGirando(true);
+    setError("");
     setPremioGanado(null);
 
-    const indiceGanador = Math.floor(Math.random() * premiosActivos.length);
-    const gradosPorPremio = 360 / premiosActivos.length;
-    const vueltas = 360 * 6;
-    const nuevaRotacion =
-      rotacion + vueltas + 360 - indiceGanador * gradosPorPremio;
+    if (!premiosDisponibles.length) {
+      setError("No hay premios disponibles para esta promoción.");
+      return;
+    }
 
+    const premioElegido = elegirPremio(premiosDisponibles);
+
+    if (!premioElegido) {
+      setError("No se ha podido elegir un premio.");
+      return;
+    }
+
+    const indiceGanador = calcularIndicePremio(
+      premiosDisponibles,
+      premioElegido
+    );
+
+    if (indiceGanador < 0) {
+      setError("No se ha podido calcular el premio ganador.");
+      return;
+    }
+
+    const nuevaRotacion = calcularRotacionDestino({
+      rotacionActual: rotacion,
+      indiceGanador,
+      totalPremios: premiosDisponibles.length,
+    });
+
+    setGirando(true);
     setRotacion(nuevaRotacion);
 
-    setTimeout(() => {
-      setPremioGanado(premiosActivos[indiceGanador]);
-      setGirando(false);
-    }, 4200);
+    window.setTimeout(async () => {
+      try {
+        await descontarStock(supabase, premioElegido);
+
+        setPremioGanado(premioElegido);
+        setGirando(false);
+
+        onPremioGanado(premioElegido);
+      } catch (err) {
+        console.error(err);
+        setGirando(false);
+        setError("El premio ha salido, pero no se ha podido actualizar el stock.");
+      }
+    }, 5600);
   }
 
-  if (premiosActivos.length === 0) {
+  if (!premiosDisponibles.length) {
     return (
       <div style={contenedor}>
-        <p style={texto}>No hay premios activos para mostrar en la ruleta.</p>
+        <p style={texto}>
+          No hay premios disponibles para esta promoción.
+        </p>
       </div>
     );
   }
 
   return (
     <div style={contenedor}>
-      <div style={puntero}>▼</div>
-
-      <div
-        style={{
-          ...ruleta,
-          transform: `rotate(${rotacion}deg)`,
-          transition: girando
-            ? "transform 4.2s cubic-bezier(0.12, 0.75, 0.18, 1)"
-            : "none",
-          background: crearConicGradient(premiosActivos),
-        }}
-      >
-        {premiosActivos.map((premio, index) => (
-          <div
-            key={premio.id}
-            style={{
-              ...textoPremio,
-              transform: `rotate(${
-                (360 / premiosActivos.length) * index +
-                360 / premiosActivos.length / 2
-              }deg)`,
-            }}
-          >
-            <span>{premio.nombre}</span>
-          </div>
-        ))}
-      </div>
+      <RuletaCanvas
+        premios={premiosDisponibles}
+        rotacion={rotacion}
+        girando={girando}
+      />
 
       <button
         type="button"
-        style={boton}
+        style={{
+          ...boton,
+          ...(girando ? botonDesactivado : {}),
+        }}
         onClick={girarRuleta}
         disabled={girando}
       >
         {girando ? "Girando..." : "Girar ruleta"}
       </button>
 
+      {error && <div style={errorStyle}>{error}</div>}
+
       {premioGanado && (
         <div style={resultado}>
-          🎉 Premio: <strong>{premioGanado.nombre}</strong>
+          <div style={resultadoIcono}>🎉</div>
+          <div>
+            Premio conseguido:
+            <br />
+            <strong>{premioGanado.nombre}</strong>
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-function crearConicGradient(premios) {
-  const grados = 360 / premios.length;
-
-  return `conic-gradient(${premios
-    .map((premio, index) => {
-      const inicio = index * grados;
-      const fin = inicio + grados;
-      return `${premio.color || "#f59e0b"} ${inicio}deg ${fin}deg`;
-    })
-    .join(", ")})`;
-}
-
 const contenedor = {
-  position: "relative",
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
   gap: "18px",
-  padding: "24px",
-};
-
-const puntero = {
-  fontSize: "34px",
-  color: "#dc2626",
-  zIndex: 2,
-  marginBottom: "-18px",
-};
-
-const ruleta = {
-  width: "320px",
-  height: "320px",
-  borderRadius: "50%",
-  border: "8px solid #111827",
-  position: "relative",
-  overflow: "hidden",
-  boxShadow: "0 20px 40px rgba(0,0,0,0.25)",
-};
-
-const textoPremio = {
-  position: "absolute",
-  left: "50%",
-  top: "50%",
-  width: "45%",
-  transformOrigin: "0 0",
-  fontSize: "12px",
-  fontWeight: "800",
-  color: "#111827",
+  padding: "18px 0",
 };
 
 const boton = {
@@ -137,22 +135,46 @@ const boton = {
   background: "#dc2626",
   color: "#ffffff",
   borderRadius: "999px",
-  padding: "12px 24px",
-  fontSize: "16px",
-  fontWeight: "800",
+  padding: "14px 28px",
+  fontSize: "17px",
+  fontWeight: "900",
   cursor: "pointer",
+  boxShadow: "0 12px 28px rgba(220,38,38,.35)",
+};
+
+const botonDesactivado = {
+  opacity: 0.65,
+  cursor: "not-allowed",
 };
 
 const resultado = {
-  background: "#ffffff",
-  border: "1px solid #e5e7eb",
-  borderRadius: "14px",
+  display: "flex",
+  alignItems: "center",
+  gap: "12px",
+  background: "#ecfdf5",
+  border: "1px solid #bbf7d0",
+  color: "#166534",
+  borderRadius: "16px",
   padding: "14px 18px",
-  fontSize: "18px",
-  color: "#111827",
+  fontSize: "17px",
+  textAlign: "left",
+};
+
+const resultadoIcono = {
+  fontSize: "34px",
 };
 
 const texto = {
   color: "#6b7280",
   fontSize: "15px",
+};
+
+const errorStyle = {
+  background: "#fee2e2",
+  border: "1px solid #fecaca",
+  color: "#991b1b",
+  borderRadius: "12px",
+  padding: "12px 14px",
+  fontSize: "14px",
+  fontWeight: "700",
 };
