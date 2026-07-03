@@ -1,6 +1,11 @@
 import RuletaFila from "./RuletaFila";
 
-export default function RuletaTabla({ premios, cargando }) {
+export default function RuletaTabla({
+  premios,
+  cargando,
+  onEditar = () => {},
+  onEliminar = () => {},
+}) {
   return (
     <div style={tablaContenedor}>
       <h4 style={bloqueTitulo}>Premios configurados</h4>
@@ -22,12 +27,18 @@ export default function RuletaTabla({ premios, cargando }) {
               <th style={th}>Probabilidad</th>
               <th style={th}>Stock</th>
               <th style={th}>Estado</th>
+              <th style={th}>Acciones</th>
             </tr>
           </thead>
 
           <tbody>
             {premios.map((premio) => (
-              <RuletaFila key={premio.id} premio={premio} />
+              <RuletaFila
+                key={premio.id}
+                premio={premio}
+                onEditar={onEditar}
+                onEliminar={onEliminar}
+              />
             ))}
           </tbody>
         </table>
