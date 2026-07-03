@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 
+import RuletaConfiguracion from "./RuletaConfiguracion";
+import RuletaArticulos from "./RuletaArticulos";
 import RuletaFormulario from "./RuletaFormulario";
 import RuletaTabla from "./RuletaTabla";
 
@@ -27,6 +29,21 @@ export default function Ruleta() {
   useEffect(() => {
     cargarPremios();
   }, []);
+
+  async function obtenerPromocionPrincipal() {
+    const { data, error } = await supabase
+      .from("promociones_ruleta")
+      .select("id")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
 
   async function cargarPremios() {
     setCargando(true);
@@ -103,40 +120,54 @@ export default function Ruleta() {
 
     setGuardando(true);
 
-    const datosPremio = {
-      nombre,
-      color: formulario.color || "#f59e0b",
-      probabilidad,
-      stock,
-      activo: formulario.activo,
-      orden,
-    };
+    try {
+      const promocion = await obtenerPromocionPrincipal();
 
-    const resultado = idEditando
-      ? await supabase
-          .from("promociones_ruleta_premios")
-          .update(datosPremio)
-          .eq("id", idEditando)
-      : await supabase
-          .from("promociones_ruleta_premios")
-          .insert(datosPremio);
+      if (!promocion?.id) {
+        setError("No existe una promoción de ruleta configurada.");
+        setGuardando(false);
+        return;
+      }
 
-    if (resultado.error) {
-      setError(
-        idEditando
-          ? "No se ha podido actualizar el premio."
-          : "No se ha podido guardar el premio."
-      );
-    } else {
-      setMensaje(
-        idEditando
-          ? "Premio actualizado correctamente."
-          : "Premio guardado correctamente."
-      );
+      const datosPremio = {
+        promocion_id: promocion.id,
+        nombre,
+        color: formulario.color || "#f59e0b",
+        probabilidad,
+        stock,
+        activo: formulario.activo,
+        orden,
+      };
 
-      setFormulario(premioVacio);
-      setIdEditando(null);
-      await cargarPremios();
+      const resultado = idEditando
+        ? await supabase
+            .from("promociones_ruleta_premios")
+            .update(datosPremio)
+            .eq("id", idEditando)
+        : await supabase
+            .from("promociones_ruleta_premios")
+            .insert(datosPremio);
+
+      if (resultado.error) {
+        setError(
+          idEditando
+            ? "No se ha podido actualizar el premio."
+            : "No se ha podido guardar el premio."
+        );
+      } else {
+        setMensaje(
+          idEditando
+            ? "Premio actualizado correctamente."
+            : "Premio guardado correctamente."
+        );
+
+        setFormulario(premioVacio);
+        setIdEditando(null);
+        await cargarPremios();
+      }
+    } catch (err) {
+      console.error(err);
+      setError("No se ha podido guardar el premio.");
     }
 
     setGuardando(false);
@@ -201,9 +232,17 @@ export default function Ruleta() {
       <h3 style={titulo}>🎡 Ruleta promocional</h3>
 
       <p style={texto}>
-        Gestiona los premios que aparecerán en la ruleta. Cada premio puede
-        tener probabilidad, stock, color y estado activo.
+        Configura las condiciones de participación, los artículos válidos y los
+        premios que aparecerán en la ruleta.
       </p>
+
+      <RuletaConfiguracion />
+
+      <RuletaArticulos />
+
+      <div style={separador}>
+        <h4 style={bloqueTitulo}>🎁 Premios de la ruleta</h4>
+      </div>
 
       <RuletaFormulario
         formulario={formulario}
@@ -247,6 +286,16 @@ const texto = {
   margin: "0 0 18px",
   color: "#6b7280",
   fontSize: "15px",
+};
+
+const separador = {
+  margin: "18px 0 10px",
+};
+
+const bloqueTitulo = {
+  margin: 0,
+  fontSize: "18px",
+  color: "#111827",
 };
 
 const resumen = {
