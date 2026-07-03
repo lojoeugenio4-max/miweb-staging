@@ -1,20 +1,34 @@
+import { useMemo, useState } from "react";
+
+function normalizar(texto) {
+  return String(texto || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
 export default function RuletaDepartamentos({
   departamentos = [],
   departamentosSeleccionados = [],
   guardandoId = null,
   onCambiarDepartamento,
 }) {
+  const [busqueda, setBusqueda] = useState("");
+
   const seleccionados = new Set(
     departamentosSeleccionados.map((item) => String(item.departamento_id))
   );
 
-  if (!departamentos.length) {
-    return (
-      <div style={aviso}>
-        No hay departamentos disponibles.
-      </div>
+  const departamentosFiltrados = useMemo(() => {
+    const texto = normalizar(busqueda);
+
+    if (!texto) return departamentos;
+
+    return departamentos.filter((departamento) =>
+      normalizar(departamento.nombre).includes(texto)
     );
-  }
+  }, [departamentos, busqueda]);
 
   return (
     <div style={contenedor}>
@@ -23,8 +37,16 @@ export default function RuletaDepartamentos({
         la ruleta. No hace falta marcarlos uno a uno.
       </div>
 
+      <input
+        style={input}
+        type="text"
+        value={busqueda}
+        onChange={(e) => setBusqueda(e.target.value)}
+        placeholder="Buscar departamento..."
+      />
+
       <div style={lista}>
-        {departamentos.map((departamento) => {
+        {departamentosFiltrados.map((departamento) => {
           const seleccionado = seleccionados.has(String(departamento.id));
 
           return (
@@ -42,9 +64,7 @@ export default function RuletaDepartamentos({
                 onChange={() => onCambiarDepartamento(departamento)}
               />
 
-              <span style={nombre}>
-                {departamento.nombre}
-              </span>
+              <span style={nombre}>{departamento.nombre}</span>
             </label>
           );
         })}
@@ -66,6 +86,13 @@ const info = {
   padding: "12px",
   fontSize: "14px",
   fontWeight: "700",
+};
+
+const input = {
+  border: "1px solid #d1d5db",
+  borderRadius: "10px",
+  padding: "10px",
+  fontSize: "14px",
 };
 
 const lista = {
@@ -93,13 +120,4 @@ const filaSeleccionada = {
 const nombre = {
   fontWeight: "800",
   color: "#111827",
-};
-
-const aviso = {
-  background: "#f9fafb",
-  border: "1px dashed #d1d5db",
-  borderRadius: "12px",
-  padding: "14px",
-  color: "#374151",
-  fontSize: "14px",
 };
