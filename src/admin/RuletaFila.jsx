@@ -1,67 +1,73 @@
-import React from "react";
-
-export default function RuletaFila({ premio, onEditar, onEliminar, loading }) {
+export default function RuletaFila({ premio }) {
   return (
-    <tr className="border-b hover:bg-gray-50">
-      <td className="px-4 py-3 font-medium">
-        {premio.nombre}
+    <tr>
+      <td style={td}>{premio.orden}</td>
+
+      <td style={td}>{premio.nombre}</td>
+
+      <td style={td}>
+        <span
+          style={{
+            ...muestraColor,
+            background: premio.color || "#f59e0b",
+          }}
+        />
+        {premio.color}
       </td>
 
-      <td className="px-4 py-3">
-        {premio.codigo || "-"}
+      <td style={td}>
+        {Number(premio.probabilidad || 0)}%
       </td>
 
-      <td className="px-4 py-3">
-        {premio.probabilidad}%
-      </td>
-
-      <td className="px-4 py-3">
-        {premio.stock === null || premio.stock === "" || premio.stock === undefined
+      <td style={td}>
+        {premio.stock === null || premio.stock === undefined
           ? "Ilimitado"
           : premio.stock}
       </td>
 
-      <td className="px-4 py-3">
-        <span
-          className={`px-3 py-1 rounded-full text-xs font-semibold ${
-            premio.activo
-              ? "bg-green-100 text-green-700"
-              : "bg-red-100 text-red-700"
-          }`}
-        >
-          {premio.activo ? "Activo" : "Inactivo"}
-        </span>
-      </td>
-
-      <td className="px-4 py-3">
-        <div
-          className="w-8 h-8 rounded-full border"
-          style={{ backgroundColor: premio.color || "#cccccc" }}
-          title={premio.color}
-        />
-      </td>
-
-      <td className="px-4 py-3 text-right">
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => onEditar(premio)}
-            disabled={loading}
-            className="px-3 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 disabled:opacity-50 text-sm"
-          >
-            Editar
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onEliminar(premio.id)}
-            disabled={loading}
-            className="px-3 py-1 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm"
-          >
-            Eliminar
-          </button>
-        </div>
+      <td style={td}>
+        {premio.activo ? (
+          <span style={activo}>Activo</span>
+        ) : (
+          <span style={inactivo}>Inactivo</span>
+        )}
       </td>
     </tr>
   );
 }
+
+const td = {
+  borderBottom: "1px solid #f3f4f6",
+  padding: "10px",
+  color: "#111827",
+};
+
+const muestraColor = {
+  display: "inline-block",
+  width: "16px",
+  height: "16px",
+  borderRadius: "999px",
+  marginRight: "8px",
+  verticalAlign: "middle",
+  border: "1px solid #d1d5db",
+};
+
+const activo = {
+  display: "inline-block",
+  background: "#dcfce7",
+  color: "#166534",
+  borderRadius: "999px",
+  padding: "4px 9px",
+  fontSize: "12px",
+  fontWeight: "800",
+};
+
+const inactivo = {
+  display: "inline-block",
+  background: "#fee2e2",
+  color: "#991b1b",
+  borderRadius: "999px",
+  padding: "4px 9px",
+  fontSize: "12px",
+  fontWeight: "800",
+};
