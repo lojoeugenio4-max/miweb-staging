@@ -8,9 +8,11 @@ import RuletaTabla from "./RuletaTabla";
 
 const premioVacio = {
   nombre: "",
+  imagen_url: "",
   color: "#f59e0b",
   probabilidad: "",
   stock: "",
+  tipo_sonido: "campana",
   activo: true,
   orden: "",
 };
@@ -86,7 +88,9 @@ export default function Ruleta() {
     setMensaje("");
 
     const nombre = formulario.nombre.trim();
+    const imagen_url = String(formulario.imagen_url || "").trim();
     const probabilidad = Number(formulario.probabilidad);
+    const tipo_sonido = formulario.tipo_sonido || "campana";
 
     const stock =
       formulario.stock === ""
@@ -118,6 +122,11 @@ export default function Ruleta() {
       return;
     }
 
+    if (!["campana", "sirena", "jackpot"].includes(tipo_sonido)) {
+      setError("La celebración seleccionada no es válida.");
+      return;
+    }
+
     setGuardando(true);
 
     try {
@@ -132,9 +141,11 @@ export default function Ruleta() {
       const datosPremio = {
         promocion_id: promocion.id,
         nombre,
+        imagen_url: imagen_url || null,
         color: formulario.color || "#f59e0b",
         probabilidad,
         stock,
+        tipo_sonido,
         activo: formulario.activo,
         orden,
       };
@@ -149,6 +160,7 @@ export default function Ruleta() {
             .insert(datosPremio);
 
       if (resultado.error) {
+        console.error(resultado.error);
         setError(
           idEditando
             ? "No se ha podido actualizar el premio."
@@ -178,9 +190,11 @@ export default function Ruleta() {
 
     setFormulario({
       nombre: premio.nombre || "",
+      imagen_url: premio.imagen_url || premio.foto_url || premio.image_url || "",
       color: premio.color || "#f59e0b",
       probabilidad: premio.probabilidad ?? "",
       stock: premio.stock ?? "",
+      tipo_sonido: premio.tipo_sonido || "campana",
       activo: premio.activo ?? true,
       orden: premio.orden ?? "",
     });
