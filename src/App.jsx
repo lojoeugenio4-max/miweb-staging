@@ -1128,6 +1128,7 @@ export default function App() {
 
   async function guardarEstadisticasPedido(itemsPedido = orderedItems, pedidoId = crearPedidoId()) {
     try {
+
       const movimientos = itemsPedido
         .map((item) => {
           const product = item.product;
