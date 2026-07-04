@@ -22,8 +22,32 @@ export default function RuletaFormulario({
             type="text"
             value={formulario.nombre}
             onChange={(e) => cambiarCampo("nombre", e.target.value)}
-            placeholder="Ej: 10% descuento"
+            placeholder="Ej: Coca-Cola 2L"
           />
+        </label>
+
+        <label style={label}>
+          Foto del premio
+          <input
+            style={input}
+            type="url"
+            value={formulario.imagen_url || ""}
+            onChange={(e) => cambiarCampo("imagen_url", e.target.value)}
+            placeholder="https://..."
+          />
+        </label>
+
+        <label style={label}>
+          Celebración
+          <select
+            style={input}
+            value={formulario.tipo_sonido || "campana"}
+            onChange={(e) => cambiarCampo("tipo_sonido", e.target.value)}
+          >
+            <option value="campana">Campana</option>
+            <option value="sirena">Sirena</option>
+            <option value="jackpot">Jackpot</option>
+          </select>
         </label>
 
         <label style={label}>
@@ -84,6 +108,20 @@ export default function RuletaFormulario({
           Activo
         </label>
       </div>
+
+      {formulario.imagen_url && (
+        <div style={previewBox}>
+          <span style={previewLabel}>Vista previa:</span>
+          <img
+            src={formulario.imagen_url}
+            alt=""
+            style={previewImage}
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+          />
+        </div>
+      )}
 
       {error && <div style={errorStyle}>{error}</div>}
       {mensaje && <div style={okStyle}>{mensaje}</div>}
@@ -166,6 +204,32 @@ const inputColor = {
   height: "39px",
   padding: "4px",
   background: "#ffffff",
+};
+
+const previewBox = {
+  display: "flex",
+  alignItems: "center",
+  gap: "12px",
+  margin: "0 0 14px",
+  padding: "10px",
+  border: "1px solid #e5e7eb",
+  borderRadius: "12px",
+  background: "#ffffff",
+};
+
+const previewLabel = {
+  fontSize: "13px",
+  fontWeight: "800",
+  color: "#374151",
+};
+
+const previewImage = {
+  width: "80px",
+  height: "80px",
+  objectFit: "contain",
+  borderRadius: "10px",
+  background: "#f3f4f6",
+  border: "1px solid #e5e7eb",
 };
 
 const botones = {
