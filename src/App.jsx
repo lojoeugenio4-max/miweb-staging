@@ -10,11 +10,7 @@ import {
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import logoLojo from "./assets/logo-lojo.jpg";
-import RuletaModal from "./components/RuletaModal";
-import {
-  pedidoCumplePromocionRuleta,
-  obtenerResumenPromocionRuleta,
-} from "./utils/promocionRuleta";
+import { pedidoCumplePromocionRuleta } from "./utils/promocionRuleta";
 import {
   construirTextoPedidoWhatsApp,
   abrirPedidoEnWhatsApp,
@@ -244,12 +240,10 @@ export default function App() {
   );
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
 
-  const [mostrarRuleta, setMostrarRuleta] = useState(false);
   const [premiosRuleta, setPremiosRuleta] = useState([]);
   const [configuracionRuleta, setConfiguracionRuleta] = useState(null);
   const [articulosRuleta, setArticulosRuleta] = useState([]);
   const [departamentosRuleta, setDepartamentosRuleta] = useState([]);
-  const [pedidoPendienteRuleta, setPedidoPendienteRuleta] = useState(null);
 
   const t = translations[language];
 
@@ -1126,13 +1120,14 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "auto" });
   };
 
-  async function guardarEstadisticasPedido(itemsPedido = orderedItems) {
-    try {
-      const pedidoId =
-        typeof crypto !== "undefined" && crypto.randomUUID
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  function crearPedidoId() {
+    return typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
 
+  async function guardarEstadisticasPedido(itemsPedido = orderedItems, pedidoId = crearPedidoId()) {
+    try {
       const movimientos = itemsPedido
         .map((item) => {
           const product = item.product;
@@ -1183,23 +1178,44 @@ export default function App() {
     setPushCerrado(false);
     setMostrarVolverPush(false);
     setHeaderCollapsed(false);
-    setMostrarRuleta(false);
-    setPedidoPendienteRuleta(null);
   }
 
-  function enviarPedidoFinal({ itemsPedido, customerNamePedido, notesPedido, premio = null }) {
+  async function crearParticipacionPromocion({ promocionId, pedidoId, customerNamePedido }) {
+    const { data, error } = await supabase.rpc("create_promotion_participation", {
+      p_promotion_id: promocionId,
+      p_order_id: pedidoId,
+      p_customer_phone: null,
+      p_customer_name: customerNamePedido || null,
+      p_expires_at: null,
+      p_created_by: "miweb-staging",
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  function enviarPedidoFinal({
+    itemsPedido,
+    customerNamePedido,
+    notesPedido,
+    participacionRuleta = null,
+    pedidoId = crearPedidoId(),
+  }) {
     const texto = construirTextoPedidoWhatsApp({
       t,
       itemsPedido,
       customerNamePedido,
       notesPedido,
-      premio,
+      participacionRuleta,
     });
 
     limpiarPedidoDespuesEnvio();
 
     // Guardamos estadísticas en segundo plano, sin bloquear WhatsApp.
-    guardarEstadisticasPedido(itemsPedido);
+    guardarEstadisticasPedido(itemsPedido, pedidoId);
 
     // Abrir en la misma pestaña es lo más fiable en móviles.
     abrirPedidoEnWhatsApp({
@@ -1208,7 +1224,7 @@ export default function App() {
     });
   }
 
-  const sendByWhatsApp = () => {
+  const sendByWhatsApp = async () => {
     if (!orderedItems.length) {
       alert(t.alertEmpty);
       return;
@@ -1219,6 +1235,7 @@ export default function App() {
     const itemsPedido = [...orderedItems];
     const customerNamePedido = customerName.trim();
     const notesPedido = notes.trim();
+    const pedidoId = crearPedidoId();
 
     const codigosPermitidos = articulosRuleta.map((item) =>
       String(item.codigo_articulo || "").trim()
@@ -1228,14 +1245,7 @@ export default function App() {
       String(item.departamento_id || "").trim()
     );
 
-    const resumenPromocion = obtenerResumenPromocionRuleta({
-      itemsPedido,
-      codigosPermitidos,
-      departamentosPermitidos,
-      cajasMinimas: configuracionRuleta?.cajas_minimas || 0,
-    });
-
-    const puedeJugarRuleta =
+    const cumplePromocionRuleta =
       configuracionRuleta &&
       premiosRuleta.length > 0 &&
       (codigosPermitidos.length > 0 || departamentosPermitidos.length > 0) &&
@@ -1246,35 +1256,30 @@ export default function App() {
         cajasMinimas: configuracionRuleta.cajas_minimas,
       });
 
-    if (puedeJugarRuleta) {
-      setPedidoPendienteRuleta({
-        itemsPedido,
-        customerNamePedido,
-        notesPedido,
-        resumenPromocion,
-      });
-      setShowOrderSummary(false);
-      setMostrarRuleta(true);
-      return;
+    let participacionRuleta = null;
+
+    if (cumplePromocionRuleta) {
+      try {
+        participacionRuleta = await crearParticipacionPromocion({
+          promocionId: configuracionRuleta.id,
+          pedidoId,
+          customerNamePedido,
+        });
+      } catch (error) {
+        console.error("Error creando participación de ruleta:", error);
+        alert("No se ha podido generar el código de ruleta. Inténtalo de nuevo.");
+        return;
+      }
     }
 
     enviarPedidoFinal({
       itemsPedido,
       customerNamePedido,
       notesPedido,
+      participacionRuleta,
+      pedidoId,
     });
   };
-
-  function finalizarPedidoConPremio(premio) {
-    if (!pedidoPendienteRuleta) return;
-
-    enviarPedidoFinal({
-      itemsPedido: pedidoPendienteRuleta.itemsPedido,
-      customerNamePedido: pedidoPendienteRuleta.customerNamePedido,
-      notesPedido: pedidoPendienteRuleta.notesPedido,
-      premio,
-    });
-  }
 
   const pushItems = Array.isArray(pushOferta?.articulos)
     ? pushOferta.articulos
@@ -1293,15 +1298,6 @@ export default function App() {
 
   return (
     <div style={styles.page}>
-      {mostrarRuleta && pedidoPendienteRuleta && (
-        <RuletaModal
-          premios={premiosRuleta}
-          resumenPromocion={pedidoPendienteRuleta.resumenPromocion}
-          mensajeCliente={configuracionRuleta?.mensaje_cliente}
-          onPremioGanado={finalizarPedidoConPremio}
-        />
-      )}
-
       {pushOferta && pushItems.length > 0 && !pushCerrado && (
         <div style={styles.pushOverlay}>
           <button
