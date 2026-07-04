@@ -1,24 +1,5 @@
 import { useMemo } from "react";
 
-function elegirPremio(premios) {
-  const activos = premios.filter((premio) => premio.activo !== false);
-  if (!activos.length) return null;
-
-  const total = activos.reduce(
-    (sum, premio) => sum + Number(premio.probabilidad || premio.peso || 1),
-    0
-  );
-
-  let random = Math.random() * total;
-
-  for (const premio of activos) {
-    random -= Number(premio.probabilidad || premio.peso || 1);
-    if (random <= 0) return premio;
-  }
-
-  return activos[activos.length - 1];
-}
-
 export default function StoreWheel({ premios, girando, premioFinal, onGirar }) {
   const segmentos = useMemo(() => {
     const lista = premios.length ? premios : [{ nombre: "Sin premios" }];
@@ -61,7 +42,7 @@ export default function StoreWheel({ premios, girando, premioFinal, onGirar }) {
       {!premioFinal && (
         <button
           type="button"
-          onClick={() => onGirar(elegirPremio(premios))}
+          onClick={onGirar}
           disabled={girando || premios.length === 0}
           style={styles.button}
         >
