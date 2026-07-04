@@ -79,8 +79,29 @@ function playSirena() {
   }
 }
 
+function extraerCodigoDesdeTexto(value) {
+  const raw = String(value || "").trim();
+
+  if (!raw) return "";
+
+  try {
+    const parsed = new URL(raw);
+    const codeFromUrl =
+      parsed.searchParams.get("code") ||
+      parsed.searchParams.get("codigo") ||
+      parsed.searchParams.get("c");
+
+    if (codeFromUrl) return codeFromUrl;
+  } catch {}
+
+  const match = raw.match(/[A-Z]{1,6}-[A-Z0-9]{4,20}/i);
+  if (match?.[0]) return match[0];
+
+  return raw;
+}
+
 function normalizarCodigo(value) {
-  return String(value || "")
+  return String(extraerCodigoDesdeTexto(value) || "")
     .trim()
     .toUpperCase()
     .replace(/\s+/g, "");
@@ -111,6 +132,23 @@ export default function StorePage() {
   useEffect(() => {
     inputRef.current?.focus();
   }, [estado]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const codeFromUrl =
+      params.get("code") ||
+      params.get("codigo") ||
+      params.get("c");
+
+    if (!codeFromUrl) return;
+
+    const code = normalizarCodigo(codeFromUrl);
+
+    if (!code) return;
+
+    setCodigo(code);
+    validarCodigo(code);
+  }, []);
 
   useEffect(() => {
     return () => stopSpinSound();
