@@ -25,6 +25,7 @@ export default function RuletaTabla({
               <th style={th}>Color</th>
               <th style={th}>Probabilidad</th>
               <th style={th}>Stock</th>
+              <th style={th}>Celebración</th>
               <th style={th}>Estado</th>
               <th style={th}>Acciones</th>
             </tr>
