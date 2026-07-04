@@ -10,6 +10,17 @@ function normalizarCodigo(value) {
     .replace(/\s+/g, "");
 }
 
+function getPrizeImageUrl(premio) {
+  return (
+    premio?.imagen_url ||
+    premio?.foto_url ||
+    premio?.image_url ||
+    premio?.foto ||
+    premio?.imagen ||
+    ""
+  );
+}
+
 export default function StorePage() {
   const inputRef = useRef(null);
 
@@ -104,32 +115,43 @@ export default function StorePage() {
     setEstado("ready");
   }
 
-  async function girar(premio) {
-    if (!entrada || !premio || girando) return;
+  async function girar() {
+    if (!entrada || girando) return;
 
     setGirando(true);
     setPremioFinal(null);
+    setMensaje("");
 
-    window.setTimeout(async () => {
-      const { data, error } = await supabase.rpc("use_promotion_participation", {
-        p_code: entrada.code,
-        p_prize_id: premio.id,
-        p_used_by: "tienda",
-      });
+    const { data, error } = await supabase.rpc("play_promotion_participation", {
+      p_code: entrada.code,
+      p_used_by: "tienda",
+    });
 
+    if (error) {
+      console.error(error);
       setGirando(false);
+      setMensaje(error.message || "No se pudo consumir el código.");
+      setEstado("error");
+      return;
+    }
 
-      if (error) {
-        console.error(error);
-        setMensaje(error.message || "No se pudo consumir el código.");
-        setEstado("error");
-        return;
-      }
+    const result = Array.isArray(data) ? data[0] : data;
+    const entry = result?.entry || result?.entrada || result?.participation;
+    const prize = result?.prize || result?.premio;
 
-      setEntrada(data);
-      setPremioFinal(premio);
+    if (!entry || !prize) {
+      setGirando(false);
+      setMensaje("La respuesta del servidor no incluye premio.");
+      setEstado("error");
+      return;
+    }
+
+    window.setTimeout(() => {
+      setEntrada(entry);
+      setPremioFinal(prize);
+      setGirando(false);
       setEstado("result");
-    }, 3900);
+    }, 4200);
   }
 
   function reset() {
@@ -151,8 +173,25 @@ export default function StorePage() {
     validarCodigo();
   }
 
+  const premioImagen = getPrizeImageUrl(premioFinal);
+
   return (
     <main style={styles.page}>
+      <style>
+        {`
+          @keyframes lojoLightPulse {
+            from { opacity: .35; transform: scale(.75); }
+            to { opacity: 1; transform: scale(1.25); }
+          }
+
+          @keyframes lojoPrizePop {
+            0% { transform: scale(.7); opacity: 0; }
+            55% { transform: scale(1.08); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+          }
+        `}
+      </style>
+
       <section style={styles.header}>
         <div>
           <div style={styles.brand}>CASH LOJO</div>
@@ -249,11 +288,34 @@ export default function StorePage() {
             />
 
             {premioFinal && (
-              <div style={styles.resultBox}>
-                <div style={styles.resultIcon}>🎉</div>
-                <h2>HAS GANADO</h2>
-                <strong>{premioFinal.nombre}</strong>
+              <div
+                style={{
+                  ...styles.resultBox,
+                  ...(premioFinal.tipo_sonido === "jackpot" ||
+                  premioFinal.tipo_sonido === "sirena"
+                    ? styles.resultBoxJackpot
+                    : {}),
+                }}
+              >
+                <div style={styles.resultIcon}>
+                  {premioFinal.tipo_sonido === "jackpot" ||
+                  premioFinal.tipo_sonido === "sirena"
+                    ? "🚨🎉🚨"
+                    : "🎉"}
+                </div>
+
+                <h2 style={styles.resultTitle}>
+                  {premioFinal.tipo_sonido === "jackpot" ? "¡¡¡ JACKPOT !!!" : "HAS GANADO"}
+                </h2>
+
+                {premioImagen && (
+                  <img src={premioImagen} alt="" style={styles.prizeImage} />
+                )}
+
+                <strong style={styles.prizeName}>{premioFinal.nombre}</strong>
+
                 {premioFinal.codigo && <p>Código premio: {premioFinal.codigo}</p>}
+
                 <button type="button" onClick={reset} style={styles.nextButton}>
                   SIGUIENTE CLIENTE
                 </button>
@@ -413,16 +475,44 @@ const styles = {
     gap: 24,
   },
   resultBox: {
-    background: "rgba(255,255,255,.97)",
+    background: "rgba(255,255,255,.98)",
     color: "#0f172a",
     borderRadius: 30,
     padding: "30px 46px",
     textAlign: "center",
     boxShadow: "0 24px 80px rgba(0,0,0,.42)",
     minWidth: 520,
+    animation: "lojoPrizePop .55s ease-out",
+  },
+  resultBoxJackpot: {
+    background:
+      "radial-gradient(circle at top, #fef3c7 0%, #facc15 40%, #dc2626 100%)",
+    color: "#111827",
+    boxShadow:
+      "0 0 80px rgba(250,204,21,.75), 0 24px 100px rgba(220,38,38,.55)",
   },
   resultIcon: {
     fontSize: 70,
+  },
+  resultTitle: {
+    margin: "8px 0 18px",
+    fontSize: 42,
+    fontWeight: 1000,
+  },
+  prizeImage: {
+    width: "min(420px, 70vw)",
+    maxHeight: 320,
+    objectFit: "contain",
+    borderRadius: 24,
+    background: "#ffffff",
+    padding: 12,
+    boxShadow: "0 20px 60px rgba(0,0,0,.25)",
+    marginBottom: 18,
+  },
+  prizeName: {
+    display: "block",
+    fontSize: 38,
+    fontWeight: 1000,
   },
   nextButton: {
     marginTop: 24,
