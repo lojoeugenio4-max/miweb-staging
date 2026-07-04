@@ -41,7 +41,12 @@ export default function RuletaFila({ premio, onEditar, onEliminar }) {
             <div style={sinImagen}>Sin foto</div>
           )}
 
-          <strong>{premio.nombre}</strong>
+          <div>
+            <strong>{premio.nombre}</strong>
+            {premio.articulo_id && (
+              <div style={detalle}>Artículo ID: {premio.articulo_id}</div>
+            )}
+          </div>
         </div>
       </td>
 
@@ -109,12 +114,12 @@ const premioBox = {
   display: "flex",
   alignItems: "center",
   gap: "10px",
-  minWidth: "220px",
+  minWidth: "240px",
 };
 
 const miniatura = {
-  width: "46px",
-  height: "46px",
+  width: "50px",
+  height: "50px",
   borderRadius: "10px",
   objectFit: "contain",
   background: "#f3f4f6",
@@ -122,8 +127,8 @@ const miniatura = {
 };
 
 const sinImagen = {
-  width: "46px",
-  height: "46px",
+  width: "50px",
+  height: "50px",
   borderRadius: "10px",
   display: "flex",
   alignItems: "center",
@@ -134,6 +139,12 @@ const sinImagen = {
   fontSize: "10px",
   fontWeight: "800",
   textAlign: "center",
+};
+
+const detalle = {
+  marginTop: "3px",
+  color: "#6b7280",
+  fontSize: "12px",
 };
 
 const muestraColor = {
