@@ -9,6 +9,7 @@ import {
   X,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
+import StorePage from "./pages/StorePage";
 import logoLojo from "./assets/logo-lojo.jpg";
 import { pedidoCumplePromocionRuleta } from "./utils/promocionRuleta";
 import {
@@ -197,6 +198,14 @@ function getTodayISO() {
 }
 
 export default function App() {
+  const isStoreMode =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("store") === "1";
+
+  if (isStoreMode) {
+    return <StorePage />;
+  }
+
   const rowRefs = useRef({});
   const departmentDropdownRef = useRef(null);
   const stickyCardRef = useRef(null);
@@ -1128,7 +1137,6 @@ export default function App() {
 
   async function guardarEstadisticasPedido(itemsPedido = orderedItems, pedidoId = crearPedidoId()) {
     try {
-
       const movimientos = itemsPedido
         .map((item) => {
           const product = item.product;
