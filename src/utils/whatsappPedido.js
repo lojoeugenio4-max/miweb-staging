@@ -1,28 +1,10 @@
-function getBaseUrl() {
-  if (typeof window === "undefined") return "";
-  return window.location.origin;
-}
-
-function construirUrlRuleta(codigoRuleta) {
-  const baseUrl = getBaseUrl();
-  if (!baseUrl || !codigoRuleta) return "";
-
-  const params = new URLSearchParams({
-    store: "1",
-    code: codigoRuleta,
-  });
-
-  return `${baseUrl}/?${params.toString()}`;
-}
-
 function construirUrlQr(codigoRuleta) {
-  const urlRuleta = construirUrlRuleta(codigoRuleta);
-  if (!urlRuleta) return "";
+  if (!codigoRuleta) return "";
 
   const params = new URLSearchParams({
     size: "360",
     margin: "2",
-    text: urlRuleta,
+    text: codigoRuleta,
   });
 
   return `https://quickchart.io/qr?${params.toString()}`;
@@ -103,7 +85,6 @@ export function construirTextoPedidoWhatsApp({
     null;
 
   if (codigoRuleta) {
-    const urlRuleta = construirUrlRuleta(codigoRuleta);
     const urlQr = construirUrlQr(codigoRuleta);
 
     lines.push("🎁 *PARTICIPACIÓN CONSEGUIDA*");
@@ -112,18 +93,13 @@ export function construirTextoPedidoWhatsApp({
     lines.push("");
 
     if (urlQr) {
-      lines.push("📷 *QR para escanear en caja:*");
+      lines.push("📷 *QR para presentar en caja:*");
       lines.push(urlQr);
       lines.push("");
     }
 
-    if (urlRuleta) {
-      lines.push("Enlace directo:");
-      lines.push(urlRuleta);
-      lines.push("");
-    }
-
-    lines.push("Presenta el QR o el código manual en caja para girar la ruleta.");
+    lines.push("Presenta este QR o el código manual en caja.");
+    lines.push("La ruleta solo se juega en tienda.");
     lines.push("");
   } else if (premio) {
     lines.push("🎁 *PREMIO RULETA:*");
