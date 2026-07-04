@@ -1,3 +1,33 @@
+function getBaseUrl() {
+  if (typeof window === "undefined") return "";
+  return window.location.origin;
+}
+
+function construirUrlRuleta(codigoRuleta) {
+  const baseUrl = getBaseUrl();
+  if (!baseUrl || !codigoRuleta) return "";
+
+  const params = new URLSearchParams({
+    store: "1",
+    code: codigoRuleta,
+  });
+
+  return `${baseUrl}/?${params.toString()}`;
+}
+
+function construirUrlQr(codigoRuleta) {
+  const urlRuleta = construirUrlRuleta(codigoRuleta);
+  if (!urlRuleta) return "";
+
+  const params = new URLSearchParams({
+    size: "360",
+    margin: "2",
+    text: urlRuleta,
+  });
+
+  return `https://quickchart.io/qr?${params.toString()}`;
+}
+
 export function construirTextoPedidoWhatsApp({
   t,
   itemsPedido,
@@ -73,11 +103,27 @@ export function construirTextoPedidoWhatsApp({
     null;
 
   if (codigoRuleta) {
+    const urlRuleta = construirUrlRuleta(codigoRuleta);
+    const urlQr = construirUrlQr(codigoRuleta);
+
     lines.push("🎁 *PARTICIPACIÓN CONSEGUIDA*");
     lines.push("");
-    lines.push(`Código: *${codigoRuleta}*`);
+    lines.push(`Código manual: *${codigoRuleta}*`);
     lines.push("");
-    lines.push("Presenta este código en caja para girar la ruleta.");
+
+    if (urlQr) {
+      lines.push("📷 *QR para escanear en caja:*");
+      lines.push(urlQr);
+      lines.push("");
+    }
+
+    if (urlRuleta) {
+      lines.push("Enlace directo:");
+      lines.push(urlRuleta);
+      lines.push("");
+    }
+
+    lines.push("Presenta el QR o el código manual en caja para girar la ruleta.");
     lines.push("");
   } else if (premio) {
     lines.push("🎁 *PREMIO RULETA:*");
