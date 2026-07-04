@@ -6,8 +6,18 @@ import RuletaArticulos from "./RuletaArticulos";
 import RuletaFormulario from "./RuletaFormulario";
 import RuletaTabla from "./RuletaTabla";
 
+const PRODUCTOS_PUBLIC_URL =
+  "https://bohlxagrtpjvqrgkonlo.supabase.co/storage/v1/object/public/productos";
+
+function getPublicPhotoUrl(fileName) {
+  if (!fileName) return "";
+  if (String(fileName).startsWith("http")) return fileName;
+  return `${PRODUCTOS_PUBLIC_URL}/${fileName}`;
+}
+
 const premioVacio = {
   nombre: "",
+  articulo_id: "",
   imagen_url: "",
   color: "#f59e0b",
   probabilidad: "",
@@ -19,6 +29,7 @@ const premioVacio = {
 
 export default function Ruleta() {
   const [premios, setPremios] = useState([]);
+  const [articulosPremio, setArticulosPremio] = useState([]);
   const [formulario, setFormulario] = useState(premioVacio);
   const [idEditando, setIdEditando] = useState(null);
 
@@ -30,6 +41,7 @@ export default function Ruleta() {
 
   useEffect(() => {
     cargarPremios();
+    cargarArticulosPremio();
   }, []);
 
   async function obtenerPromocionPrincipal() {
@@ -40,11 +52,39 @@ export default function Ruleta() {
       .limit(1)
       .maybeSingle();
 
+    if (error) throw error;
+    return data;
+  }
+
+  async function cargarArticulosPremio() {
+    const { data, error } = await supabase
+      .from("articulos")
+      .select(`
+        id,
+        codigo,
+        nombre,
+        foto,
+        activo,
+        departamentos (
+          nombre
+        )
+      `)
+      .eq("activo", true)
+      .order("nombre", { ascending: true });
+
     if (error) {
-      throw error;
+      console.error("Error cargando artículos para premio:", error);
+      setArticulosPremio([]);
+      return;
     }
 
-    return data;
+    setArticulosPremio(
+      (data || []).map((articulo) => ({
+        ...articulo,
+        foto_url: getPublicPhotoUrl(articulo.foto),
+        departamento_nombre: articulo.departamentos?.nombre || "",
+      }))
+    );
   }
 
   async function cargarPremios() {
@@ -68,6 +108,21 @@ export default function Ruleta() {
   }
 
   function cambiarCampo(campo, valor) {
+    if (campo === "articulo_id") {
+      const articuloSeleccionado = articulosPremio.find(
+        (articulo) => String(articulo.id) === String(valor)
+      );
+
+      setFormulario((actual) => ({
+        ...actual,
+        articulo_id: valor,
+        nombre: articuloSeleccionado?.nombre || actual.nombre,
+        imagen_url: articuloSeleccionado?.foto_url || "",
+      }));
+
+      return;
+    }
+
     setFormulario((actual) => ({
       ...actual,
       [campo]: valor,
@@ -87,6 +142,7 @@ export default function Ruleta() {
     setError("");
     setMensaje("");
 
+    const articuloId = formulario.articulo_id ? Number(formulario.articulo_id) : null;
     const nombre = formulario.nombre.trim();
     const imagen_url = String(formulario.imagen_url || "").trim();
     const probabilidad = Number(formulario.probabilidad);
@@ -101,6 +157,11 @@ export default function Ruleta() {
       formulario.orden === ""
         ? premios.length + 1
         : Number.parseInt(formulario.orden, 10);
+
+    if (!articuloId) {
+      setError("Selecciona el artículo que se entregará como premio.");
+      return;
+    }
 
     if (!nombre) {
       setError("El nombre del premio es obligatorio.");
@@ -140,6 +201,7 @@ export default function Ruleta() {
 
       const datosPremio = {
         promocion_id: promocion.id,
+        articulo_id: articuloId,
         nombre,
         imagen_url: imagen_url || null,
         color: formulario.color || "#f59e0b",
@@ -190,6 +252,7 @@ export default function Ruleta() {
 
     setFormulario({
       nombre: premio.nombre || "",
+      articulo_id: premio.articulo_id ? String(premio.articulo_id) : "",
       imagen_url: premio.imagen_url || premio.foto_url || premio.image_url || "",
       color: premio.color || "#f59e0b",
       probabilidad: premio.probabilidad ?? "",
@@ -260,6 +323,7 @@ export default function Ruleta() {
 
       <RuletaFormulario
         formulario={formulario}
+        articulosPremio={articulosPremio}
         cambiarCampo={cambiarCampo}
         guardarPremio={guardarPremio}
         guardando={guardando}
