@@ -25,18 +25,6 @@ export default function StoreWheel({ premios = [], girando, premioFinal, onGirar
       <div style={styles.pointer}>▼</div>
 
       <div style={styles.wheelFrame}>
-        <div style={styles.lights}>
-          {Array.from({ length: 28 }, (_, index) => (
-            <span
-              key={index}
-              style={{
-                ...styles.light,
-                animationDelay: `${index * 0.06}s`,
-              }}
-            />
-          ))}
-        </div>
-
         <div
           style={{
             ...styles.wheel,
@@ -52,7 +40,7 @@ export default function StoreWheel({ premios = [], girando, premioFinal, onGirar
               key={index}
               style={{
                 ...styles.segmentIcon,
-                transform: `rotate(${segmento.start + (segmento.end - segmento.start) / 2}deg) translateY(-42%)`,
+                transform: `rotate(${segmento.start + (segmento.end - segmento.start) / 2}deg) translateY(calc(var(--wheel-size) * -0.29))`,
               }}
             >
               <span
@@ -89,30 +77,32 @@ export default function StoreWheel({ premios = [], girando, premioFinal, onGirar
 
 const styles = {
   wrap: {
+    "--wheel-size": "min(50vh, 42vw, 430px)",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 18,
+    gap: "clamp(8px, 1.5vh, 15px)",
   },
   machineTop: {
     color: "#facc15",
-    fontSize: "clamp(26px, 4vw, 48px)",
+    fontSize: "clamp(20px, 3vw, 34px)",
     fontWeight: 1000,
     letterSpacing: "0.04em",
     textShadow: "0 6px 20px rgba(0,0,0,.75)",
+    lineHeight: 1,
   },
   pointer: {
     color: "#ffffff",
-    fontSize: 50,
+    fontSize: "clamp(28px, 5vh, 42px)",
     lineHeight: 1,
     textShadow: "0 4px 14px rgba(0,0,0,.8)",
-    marginBottom: -22,
+    marginBottom: "clamp(-18px, -2vh, -10px)",
     zIndex: 5,
   },
   wheelFrame: {
     position: "relative",
-    width: "min(62vh, 600px)",
-    height: "min(62vh, 600px)",
+    width: "var(--wheel-size)",
+    height: "var(--wheel-size)",
     borderRadius: "50%",
     display: "flex",
     alignItems: "center",
@@ -120,34 +110,16 @@ const styles = {
     background:
       "radial-gradient(circle, #ffffff 0%, #facc15 46%, #92400e 72%, #111827 100%)",
     boxShadow:
-      "0 35px 110px rgba(0,0,0,.65), 0 0 50px rgba(250,204,21,.55)",
-  },
-  lights: {
-    position: "absolute",
-    inset: 0,
-    borderRadius: "50%",
-  },
-  light: {
-    position: "absolute",
-    left: "50%",
-    top: "50%",
-    width: 14,
-    height: 14,
-    marginLeft: -7,
-    marginTop: -7,
-    borderRadius: "50%",
-    background: "#fff7ed",
-    boxShadow: "0 0 18px #facc15",
-    transformOrigin: "7px 7px",
-    animation: "lojoLightPulse 0.9s infinite alternate",
+      "0 24px 70px rgba(0,0,0,.55), 0 0 38px rgba(250,204,21,.45)",
+    flexShrink: 0,
   },
   wheel: {
-    width: "calc(100% - 58px)",
-    height: "calc(100% - 58px)",
+    width: "calc(100% - clamp(38px, 6vh, 56px))",
+    height: "calc(100% - clamp(38px, 6vh, 56px))",
     borderRadius: "50%",
-    border: "16px solid #ffffff",
+    border: "clamp(8px, 1.8vh, 14px) solid #ffffff",
     boxShadow:
-      "inset 0 0 0 8px rgba(0,0,0,.24), 0 24px 70px rgba(0,0,0,.45)",
+      "inset 0 0 0 7px rgba(0,0,0,.24), 0 18px 50px rgba(0,0,0,.42)",
     position: "relative",
     overflow: "hidden",
   },
@@ -155,18 +127,18 @@ const styles = {
     position: "absolute",
     left: "50%",
     top: "50%",
-    width: 72,
-    height: 72,
-    marginLeft: -36,
-    marginTop: -36,
+    width: 54,
+    height: 54,
+    marginLeft: -27,
+    marginTop: -27,
     display: "flex",
     alignItems: "flex-start",
     justifyContent: "center",
-    fontSize: 36,
+    fontSize: "clamp(22px, 4vh, 34px)",
     fontWeight: 1000,
     color: "#ffffff",
     textShadow: "0 3px 10px rgba(0,0,0,.65)",
-    transformOrigin: "36px 36px",
+    transformOrigin: "27px 27px",
   },
   center: {
     position: "absolute",
@@ -178,20 +150,20 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     fontWeight: 1000,
-    fontSize: "clamp(28px, 4vw, 42px)",
-    border: "8px solid white",
+    fontSize: "clamp(20px, 3vw, 34px)",
+    border: "clamp(5px, 1vh, 8px) solid white",
     boxShadow: "0 10px 30px rgba(0,0,0,.45)",
   },
   button: {
     border: "none",
     borderRadius: 999,
-    padding: "24px 50px",
+    padding: "clamp(14px, 2vh, 20px) clamp(28px, 5vw, 46px)",
     background:
       "linear-gradient(135deg, #22c55e 0%, #16a34a 45%, #15803d 100%)",
     color: "#ffffff",
-    fontSize: "clamp(22px, 3vw, 34px)",
+    fontSize: "clamp(18px, 2.7vw, 30px)",
     fontWeight: 1000,
-    cursor: "pointer",
-    boxShadow: "0 18px 40px rgba(34,197,94,.35)",
+    boxShadow: "0 16px 34px rgba(34,197,94,.32)",
+    flexShrink: 0,
   },
 };
