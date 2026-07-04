@@ -1,14 +1,27 @@
 import { useMemo } from "react";
+import logoLojo from "../assets/logo-lojo.jpg";
+
+const COLORS = [
+  "#ef4444",
+  "#f97316",
+  "#facc15",
+  "#65a30d",
+  "#059669",
+  "#0ea5e9",
+  "#2563eb",
+  "#7c3aed",
+  "#c026d3",
+  "#db2777",
+];
 
 export default function StoreWheel({ premios = [], girando, premioFinal, onGirar }) {
   const segmentos = useMemo(() => {
-    const lista = premios.length ? premios : Array.from({ length: 12 }, (_, index) => ({ id: index }));
-    const grados = 360 / lista.length;
-    const colores = ["#facc15", "#ef4444", "#111827", "#f97316"];
+    const base = premios.length >= 8 ? premios : Array.from({ length: 10 }, (_, index) => premios[index % Math.max(premios.length, 1)] || { id: index });
+    const grados = 360 / base.length;
 
-    return lista.map((premio, index) => ({
+    return base.map((premio, index) => ({
       premio,
-      color: colores[index % colores.length],
+      color: COLORS[index % COLORS.length],
       start: index * grados,
       end: index * grados + grados,
       icono: ["?", "★", "🎁", "♦"][index % 4],
@@ -21,10 +34,28 @@ export default function StoreWheel({ premios = [], girando, premioFinal, onGirar
 
   return (
     <div style={styles.wrap}>
-      <div style={styles.machineTop}>🎰 CASH LOJO 🎰</div>
-      <div style={styles.pointer}>▼</div>
+      <div style={styles.pointer}>
+        <div style={styles.pointerDot} />
+      </div>
 
-      <div style={styles.wheelFrame}>
+      <div style={styles.wheelOuter}>
+        <div style={styles.bulbs}>
+          {Array.from({ length: 32 }, (_, index) => {
+            const angle = (360 / 32) * index;
+
+            return (
+              <span
+                key={index}
+                style={{
+                  ...styles.bulb,
+                  transform: `rotate(${angle}deg) translateY(calc(var(--wheel-size) / -2 + 14px))`,
+                  animationDelay: `${index * 0.035}s`,
+                }}
+              />
+            );
+          })}
+        </div>
+
         <div
           style={{
             ...styles.wheel,
@@ -40,7 +71,7 @@ export default function StoreWheel({ premios = [], girando, premioFinal, onGirar
               key={index}
               style={{
                 ...styles.segmentIcon,
-                transform: `rotate(${segmento.start + (segmento.end - segmento.start) / 2}deg) translateY(calc(var(--wheel-size) * -0.29))`,
+                transform: `rotate(${segmento.start + (segmento.end - segmento.start) / 2}deg) translateY(calc(var(--wheel-size) * -0.28))`,
               }}
             >
               <span
@@ -53,7 +84,9 @@ export default function StoreWheel({ premios = [], girando, premioFinal, onGirar
             </div>
           ))}
 
-          <div style={styles.center}>LOJO</div>
+          <div style={styles.center}>
+            <img src={logoLojo} alt="Lojo" style={styles.logo} />
+          </div>
         </div>
       </div>
 
@@ -77,29 +110,35 @@ export default function StoreWheel({ premios = [], girando, premioFinal, onGirar
 
 const styles = {
   wrap: {
-    "--wheel-size": "min(50vh, 42vw, 430px)",
+    "--wheel-size": "min(61vh, 45vw, 650px)",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: "clamp(8px, 1.5vh, 15px)",
-  },
-  machineTop: {
-    color: "#facc15",
-    fontSize: "clamp(20px, 3vw, 34px)",
-    fontWeight: 1000,
-    letterSpacing: "0.04em",
-    textShadow: "0 6px 20px rgba(0,0,0,.75)",
-    lineHeight: 1,
+    gap: "clamp(10px, 1.6vh, 18px)",
   },
   pointer: {
-    color: "#ffffff",
-    fontSize: "clamp(28px, 5vh, 42px)",
-    lineHeight: 1,
-    textShadow: "0 4px 14px rgba(0,0,0,.8)",
-    marginBottom: "clamp(-18px, -2vh, -10px)",
-    zIndex: 5,
+    position: "relative",
+    zIndex: 10,
+    width: "clamp(54px, 8vh, 82px)",
+    height: "clamp(78px, 11vh, 118px)",
+    marginBottom: "clamp(-76px, -9vh, -54px)",
+    background: "linear-gradient(180deg, #ef4444, #991b1b)",
+    clipPath: "polygon(50% 100%, 10% 28%, 50% 0, 90% 28%)",
+    filter: "drop-shadow(0 6px 10px rgba(0,0,0,.65))",
+    border: "4px solid #facc15",
   },
-  wheelFrame: {
+  pointerDot: {
+    position: "absolute",
+    top: "18%",
+    left: "50%",
+    transform: "translateX(-50%)",
+    width: "clamp(18px, 3vh, 30px)",
+    height: "clamp(18px, 3vh, 30px)",
+    borderRadius: "50%",
+    background: "radial-gradient(circle, #fff7ed, #facc15 70%)",
+    boxShadow: "0 0 20px rgba(250,204,21,.9)",
+  },
+  wheelOuter: {
     position: "relative",
     width: "var(--wheel-size)",
     height: "var(--wheel-size)",
@@ -108,18 +147,36 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     background:
-      "radial-gradient(circle, #ffffff 0%, #facc15 46%, #92400e 72%, #111827 100%)",
+      "radial-gradient(circle, #fff7ed 0%, #facc15 38%, #b45309 68%, #451a03 100%)",
     boxShadow:
-      "0 24px 70px rgba(0,0,0,.55), 0 0 38px rgba(250,204,21,.45)",
+      "0 30px 100px rgba(0,0,0,.75), 0 0 65px rgba(250,204,21,.6)",
     flexShrink: 0,
   },
-  wheel: {
-    width: "calc(100% - clamp(38px, 6vh, 56px))",
-    height: "calc(100% - clamp(38px, 6vh, 56px))",
+  bulbs: {
+    position: "absolute",
+    inset: 0,
     borderRadius: "50%",
-    border: "clamp(8px, 1.8vh, 14px) solid #ffffff",
+  },
+  bulb: {
+    position: "absolute",
+    left: "50%",
+    top: "50%",
+    width: "clamp(13px, 2.1vh, 22px)",
+    height: "clamp(13px, 2.1vh, 22px)",
+    marginLeft: "-10px",
+    marginTop: "-10px",
+    borderRadius: "50%",
+    background: "radial-gradient(circle, #ffffff 0%, #fde68a 42%, #f59e0b 100%)",
+    boxShadow: "0 0 18px rgba(250,204,21,.95), 0 0 34px rgba(250,204,21,.55)",
+    animation: "lojoBulbPulse .78s infinite alternate",
+  },
+  wheel: {
+    width: "calc(100% - clamp(58px, 8vh, 86px))",
+    height: "calc(100% - clamp(58px, 8vh, 86px))",
+    borderRadius: "50%",
+    border: "clamp(6px, 1vh, 10px) solid rgba(255,255,255,.88)",
     boxShadow:
-      "inset 0 0 0 7px rgba(0,0,0,.24), 0 18px 50px rgba(0,0,0,.42)",
+      "inset 0 0 0 3px rgba(0,0,0,.28), inset 0 0 40px rgba(0,0,0,.35), 0 18px 55px rgba(0,0,0,.52)",
     position: "relative",
     overflow: "hidden",
   },
@@ -127,43 +184,46 @@ const styles = {
     position: "absolute",
     left: "50%",
     top: "50%",
-    width: 54,
-    height: 54,
-    marginLeft: -27,
-    marginTop: -27,
+    width: 68,
+    height: 68,
+    marginLeft: -34,
+    marginTop: -34,
     display: "flex",
     alignItems: "flex-start",
     justifyContent: "center",
-    fontSize: "clamp(22px, 4vh, 34px)",
+    fontSize: "clamp(24px, 4.5vh, 42px)",
     fontWeight: 1000,
     color: "#ffffff",
-    textShadow: "0 3px 10px rgba(0,0,0,.65)",
-    transformOrigin: "27px 27px",
+    textShadow: "0 4px 12px rgba(0,0,0,.75)",
+    transformOrigin: "34px 34px",
   },
   center: {
     position: "absolute",
-    inset: "34%",
+    inset: "33%",
     borderRadius: "50%",
-    background: "radial-gradient(circle, #172554 0%, #0b1185 70%, #020617 100%)",
-    color: "#ffffff",
+    background: "#ffffff",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontWeight: 1000,
-    fontSize: "clamp(20px, 3vw, 34px)",
-    border: "clamp(5px, 1vh, 8px) solid white",
-    boxShadow: "0 10px 30px rgba(0,0,0,.45)",
+    border: "clamp(7px, 1.2vh, 12px) solid #facc15",
+    boxShadow: "0 10px 30px rgba(0,0,0,.55)",
+    overflow: "hidden",
+  },
+  logo: {
+    width: "78%",
+    height: "78%",
+    objectFit: "contain",
   },
   button: {
     border: "none",
     borderRadius: 999,
-    padding: "clamp(14px, 2vh, 20px) clamp(28px, 5vw, 46px)",
-    background:
-      "linear-gradient(135deg, #22c55e 0%, #16a34a 45%, #15803d 100%)",
+    padding: "clamp(14px, 2vh, 22px) clamp(34px, 6vw, 60px)",
+    background: "linear-gradient(180deg, #fb7185 0%, #ef4444 45%, #b91c1c 100%)",
     color: "#ffffff",
-    fontSize: "clamp(18px, 2.7vw, 30px)",
+    fontSize: "clamp(20px, 3vw, 34px)",
     fontWeight: 1000,
-    boxShadow: "0 16px 34px rgba(34,197,94,.32)",
+    boxShadow: "0 18px 38px rgba(239,68,68,.42), inset 0 2px 0 rgba(255,255,255,.25)",
     flexShrink: 0,
+    letterSpacing: ".02em",
   },
 };
