@@ -1,5 +1,6 @@
 export default function RuletaFormulario({
   formulario,
+  articulosPremio,
   cambiarCampo,
   guardarPremio,
   guardando,
@@ -15,25 +16,35 @@ export default function RuletaFormulario({
       </h4>
 
       <div style={gridFormulario}>
+        <label style={labelGrande}>
+          Artículo que se entrega como premio
+          <select
+            style={input}
+            value={formulario.articulo_id || ""}
+            onChange={(e) => cambiarCampo("articulo_id", e.target.value)}
+          >
+            <option value="">Seleccionar artículo...</option>
+
+            {articulosPremio.map((articulo) => (
+              <option key={articulo.id} value={articulo.id}>
+                {articulo.codigo ? `${articulo.codigo} · ` : ""}
+                {articulo.nombre}
+                {articulo.departamento_nombre
+                  ? ` · ${articulo.departamento_nombre}`
+                  : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <label style={label}>
-          Nombre del premio
+          Nombre que verá el cliente
           <input
             style={input}
             type="text"
             value={formulario.nombre}
             onChange={(e) => cambiarCampo("nombre", e.target.value)}
             placeholder="Ej: Coca-Cola 2L"
-          />
-        </label>
-
-        <label style={label}>
-          Foto del premio
-          <input
-            style={input}
-            type="url"
-            value={formulario.imagen_url || ""}
-            onChange={(e) => cambiarCampo("imagen_url", e.target.value)}
-            placeholder="https://..."
           />
         </label>
 
@@ -111,7 +122,7 @@ export default function RuletaFormulario({
 
       {formulario.imagen_url && (
         <div style={previewBox}>
-          <span style={previewLabel}>Vista previa:</span>
+          <span style={previewLabel}>Foto del artículo:</span>
           <img
             src={formulario.imagen_url}
             alt=""
@@ -180,6 +191,11 @@ const label = {
   color: "#374151",
 };
 
+const labelGrande = {
+  ...label,
+  gridColumn: "1 / -1",
+};
+
 const checkLabel = {
   display: "flex",
   alignItems: "center",
@@ -224,8 +240,8 @@ const previewLabel = {
 };
 
 const previewImage = {
-  width: "80px",
-  height: "80px",
+  width: "86px",
+  height: "86px",
   objectFit: "contain",
   borderRadius: "10px",
   background: "#f3f4f6",
