@@ -3,6 +3,8 @@ export function construirTextoPedidoWhatsApp({
   itemsPedido,
   customerNamePedido,
   notesPedido,
+  premio = null,
+  participacionRuleta = null,
   codigoParticipacion = null,
 }) {
   const lines = [];
@@ -64,12 +66,27 @@ export function construirTextoPedidoWhatsApp({
     lines.push("");
   }
 
-  if (codigoParticipacion) {
+  const codigoRuleta =
+    codigoParticipacion ||
+    participacionRuleta?.code ||
+    participacionRuleta?.codigo ||
+    null;
+
+  if (codigoRuleta) {
     lines.push("🎁 *PARTICIPACIÓN CONSEGUIDA*");
     lines.push("");
-    lines.push(`Código: *${codigoParticipacion}*`);
+    lines.push(`Código: *${codigoRuleta}*`);
     lines.push("");
     lines.push("Presenta este código en caja para girar la ruleta.");
+    lines.push("");
+  } else if (premio) {
+    lines.push("🎁 *PREMIO RULETA:*");
+    lines.push(`*${premio.nombre}*`);
+
+    if (premio.codigo) {
+      lines.push(`Código: ${premio.codigo}`);
+    }
+
     lines.push("");
   }
 
