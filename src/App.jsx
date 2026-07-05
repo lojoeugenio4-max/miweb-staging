@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import StorePage from "./pages/StorePage";
+import DisplayPage from "./pages/DisplayPage";
 import logoLojo from "./assets/logo-lojo.jpg";
 import { pedidoCumplePromocionRuleta } from "./utils/promocionRuleta";
 import {
@@ -198,9 +199,17 @@ function getTodayISO() {
 }
 
 export default function App() {
-  const isStoreMode =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("store") === "1";
+  const searchParams =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search)
+      : null;
+
+  const isStoreMode = searchParams?.get("store") === "1";
+  const isDisplayMode = searchParams?.get("display") === "1";
+
+  if (isDisplayMode) {
+    return <DisplayPage />;
+  }
 
   if (isStoreMode) {
     return <StorePage />;
