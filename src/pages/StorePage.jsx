@@ -3,6 +3,29 @@ import { CheckCircle, RotateCcw, Search, XCircle } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import StoreWheel from "../components/StoreWheel";
 
+const DISPLAY_EVENT_KEY = "lojo-ruleta-display-event";
+
+function enviarEventoDisplay(type, payload = {}) {
+  if (typeof window === "undefined") return;
+
+  const event = {
+    type,
+    payload,
+    createdAt: Date.now(),
+  };
+
+  try {
+    localStorage.setItem(DISPLAY_EVENT_KEY, JSON.stringify(event));
+  } catch {}
+
+  try {
+    const channel = new BroadcastChannel("lojo-ruleta-display");
+    channel.postMessage(event);
+    channel.close();
+  } catch {}
+}
+
+
 let audioContext = null;
 let giroInterval = null;
 
@@ -79,29 +102,8 @@ function playSirena() {
   }
 }
 
-function extraerCodigoDesdeTexto(value) {
-  const raw = String(value || "").trim();
-
-  if (!raw) return "";
-
-  try {
-    const parsed = new URL(raw);
-    const codeFromUrl =
-      parsed.searchParams.get("code") ||
-      parsed.searchParams.get("codigo") ||
-      parsed.searchParams.get("c");
-
-    if (codeFromUrl) return codeFromUrl;
-  } catch {}
-
-  const match = raw.match(/[A-Z]{1,6}-[A-Z0-9]{4,20}/i);
-  if (match?.[0]) return match[0];
-
-  return raw;
-}
-
 function normalizarCodigo(value) {
-  return String(extraerCodigoDesdeTexto(value) || "")
+  return String(value || "")
     .trim()
     .toUpperCase()
     .replace(/\s+/g, "");
@@ -134,23 +136,7 @@ export default function StorePage() {
   }, [estado]);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const codeFromUrl =
-      params.get("code") ||
-      params.get("codigo") ||
-      params.get("c");
-
-    if (!codeFromUrl) return;
-
-    const code = normalizarCodigo(codeFromUrl);
-
-    if (!code) return;
-
-    setCodigo(code);
-    validarCodigo(code);
-  }, []);
-
-  useEffect(() => {
+    enviarEventoDisplay("waiting");
     return () => stopSpinSound();
   }, []);
 
@@ -231,6 +217,11 @@ export default function StorePage() {
     setEntrada(data);
     setPremios(premiosData);
     setEstado("ready");
+
+    enviarEventoDisplay("ready", {
+      entrada: data,
+      premios: premiosData,
+    });
   }
 
   async function girar() {
@@ -244,6 +235,11 @@ export default function StorePage() {
     setPremioFinal(null);
     setMensaje("");
     startSpinSound();
+
+    enviarEventoDisplay("spin", {
+      entrada,
+      premios,
+    });
 
     const { data, error } = await supabase.rpc("play_promotion_participation", {
       p_code: entrada.code,
@@ -279,6 +275,12 @@ export default function StorePage() {
       setGirando(false);
       setEstado("result");
 
+      enviarEventoDisplay("result", {
+        entrada: entry,
+        premios,
+        premio: prize,
+      });
+
       if (prize.tipo_sonido === "sirena" || prize.tipo_sonido === "jackpot") {
         playSirena();
       } else {
@@ -296,6 +298,7 @@ export default function StorePage() {
     setMensaje("");
     setGirando(false);
     setPremioFinal(null);
+    enviarEventoDisplay("waiting");
 
     window.setTimeout(() => {
       inputRef.current?.focus();
