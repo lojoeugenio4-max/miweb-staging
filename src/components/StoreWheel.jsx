@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import logoLojo from "../assets/logo-lojo.jpg";
 
 const COLORS = [
@@ -14,178 +14,57 @@ const COLORS = [
   "#db2777",
 ];
 
-const ICONOS = ["?", "★", "🎁", "♦"];
-const VUELTAS_EXTRA = 18;
-const GIRO_MS = 11800;
-
-function normalizarGrados(grados) {
-  return ((grados % 360) + 360) % 360;
-}
-
-function casinoEase(t) {
-  if (t < 0.12) {
-    const p = t / 0.12;
-    return 0.035 * p * p;
-  }
-
-  if (t < 0.5) {
-    const p = (t - 0.12) / 0.38;
-    return 0.035 + 0.39 * p;
-  }
-
-  const p = (t - 0.5) / 0.5;
-  return 0.425 + 0.575 * (1 - Math.pow(1 - p, 4.9));
-}
-
-function crearSegmentos(premios) {
-  const cantidad = Math.max(premios.length, 1);
-  const base =
-    premios.length >= 8
-      ? premios
-      : Array.from(
-          { length: 10 },
-          (_, index) => premios[index % cantidad] || { id: `placeholder-${index}` }
-        );
-
-  const grados = 360 / base.length;
-
-  return base.map((premio, index) => ({
-    premio,
-    color: premio?.color || COLORS[index % COLORS.length],
-    start: index * grados,
-    end: index * grados + grados,
-    center: index * grados + grados / 2,
-    icono: premio?.icono || ICONOS[index % ICONOS.length],
-  }));
-}
-
 export default function StoreWheel({
   premios = [],
   girando,
   premioFinal,
-  premioObjetivo,
   onGirar,
-  onGiroFinalizado,
+  showButton = true,
+  idleLightsActive = false,
 }) {
-  const [rotacion, setRotacion] = useState(0);
-  const [tick, setTick] = useState(0);
-  const [luces, setLuces] = useState(0);
+  const segmentos = useMemo(() => {
+    const base = premios.length >= 8 ? premios : Array.from({ length: 10 }, (_, index) => premios[index % Math.max(premios.length, 1)] || { id: index });
+    const grados = 360 / base.length;
 
-  const rotacionRef = useRef(0);
-  const frameRef = useRef(null);
-  const animacionActivaRef = useRef(false);
-  const ultimoSectorRef = useRef(null);
-  const giroIdRef = useRef(0);
-
-  const segmentos = useMemo(() => crearSegmentos(premios), [premios]);
+    return base.map((premio, index) => ({
+      premio,
+      color: COLORS[index % COLORS.length],
+      start: index * grados,
+      end: index * grados + grados,
+      icono: ["?", "★", "🎁", "♦"][index % 4],
+    }));
+  }, [premios]);
 
   const conic = segmentos
     .map((seg) => `${seg.color} ${seg.start}deg ${seg.end}deg`)
     .join(", ");
 
-  useEffect(() => {
-    return () => {
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
-      animacionActivaRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!girando || !premioObjetivo || !segmentos.length) return;
-    if (animacionActivaRef.current) return;
-
-    animacionActivaRef.current = true;
-    giroIdRef.current += 1;
-    const giroId = giroIdRef.current;
-
-    if (frameRef.current) cancelAnimationFrame(frameRef.current);
-
-    const indiceObjetivo = Math.max(
-      0,
-      segmentos.findIndex((segmento) => segmento.premio?.id === premioObjetivo.id)
-    );
-
-    const segmentoObjetivo = segmentos[indiceObjetivo] || segmentos[0];
-    const inicio = rotacionRef.current;
-    const inicioNormalizado = normalizarGrados(inicio);
-
-    // El puntero está arriba. Para que el centro del sector quede arriba,
-    // rotamos hasta 360 - centroSector, sumando muchas vueltas completas.
-    const destinoBase = 360 - segmentoObjetivo.center;
-    let destino = inicio - inicioNormalizado + VUELTAS_EXTRA * 360 + destinoBase;
-
-    while (destino <= inicio + 360 * 10) {
-      destino += 360;
-    }
-
-    const distancia = destino - inicio;
-    const inicioTiempo = performance.now();
-    ultimoSectorRef.current = null;
-
-    function animar(ahora) {
-      if (giroId !== giroIdRef.current) return;
-
-      const t = Math.min((ahora - inicioTiempo) / GIRO_MS, 1);
-      const eased = casinoEase(t);
-      const nuevaRotacion = inicio + distancia * eased;
-
-      rotacionRef.current = nuevaRotacion;
-      setRotacion(nuevaRotacion);
-
-      const gradosSector = 360 / segmentos.length;
-      const sectorActual = Math.floor(normalizarGrados(nuevaRotacion) / gradosSector);
-
-      if (sectorActual !== ultimoSectorRef.current) {
-        ultimoSectorRef.current = sectorActual;
-        setTick((valor) => valor + 1);
-      }
-
-      setLuces(Math.floor(t * 120));
-
-      if (t < 1) {
-        frameRef.current = requestAnimationFrame(animar);
-        return;
-      }
-
-      rotacionRef.current = destino;
-      setRotacion(destino);
-      animacionActivaRef.current = false;
-      frameRef.current = null;
-
-      if (giroId === giroIdRef.current) {
-        onGiroFinalizado?.();
-      }
-    }
-
-    frameRef.current = requestAnimationFrame(animar);
-  }, [girando, premioObjetivo, segmentos, onGiroFinalizado]);
-
   return (
     <div style={styles.wrap}>
-      <div
-        style={{
-          ...styles.pointer,
-          transform: `rotate(${girando ? (tick % 2 === 0 ? -10 : 10) : 0}deg)`,
-          transition: girando ? "transform 75ms ease-out" : "transform 220ms ease-out",
-        }}
-      >
+      <div style={styles.pointer}>
         <div style={styles.pointerDot} />
       </div>
 
       <div style={styles.wheelOuter}>
-        <div style={styles.bulbs}>
+        <div
+          style={{
+            ...styles.bulbs,
+            animation:
+              idleLightsActive && !girando && !premioFinal
+                ? "lojoIdleBulbsRotate 18s linear infinite"
+                : "none",
+          }}
+        >
           {Array.from({ length: 32 }, (_, index) => {
             const angle = (360 / 32) * index;
-            const encendida = girando ? (index + luces) % 4 === 0 : index % 2 === 0;
 
             return (
               <span
                 key={index}
                 style={{
                   ...styles.bulb,
-                  opacity: encendida ? 1 : 0.42,
-                  filter: encendida ? "brightness(1.45)" : "brightness(.72)",
                   transform: `rotate(${angle}deg) translateY(calc(var(--wheel-size) / -2 + 14px))`,
+                  animationDelay: `${index * 0.035}s`,
                 }}
               />
             );
@@ -196,8 +75,10 @@ export default function StoreWheel({
           style={{
             ...styles.wheel,
             background: `conic-gradient(${conic})`,
-            transform: `rotate(${rotacion}deg)`,
-            transition: "none",
+            transform: girando ? "rotate(4320deg)" : "rotate(0deg)",
+            transition: girando
+             ? "transform 9.2s cubic-bezier(.05,.68,.04,1)"
+          : "none",
           }}
         >
           {segmentos.map((segmento, index) => (
@@ -205,12 +86,12 @@ export default function StoreWheel({
               key={index}
               style={{
                 ...styles.segmentIcon,
-                transform: `rotate(${segmento.center}deg) translateY(calc(var(--wheel-size) * -0.28))`,
+                transform: `rotate(${segmento.start + (segmento.end - segmento.start) / 2}deg) translateY(calc(var(--wheel-size) * -0.28))`,
               }}
             >
               <span
                 style={{
-                  transform: `rotate(-${segmento.center}deg)`,
+                  transform: `rotate(-${segmento.start + (segmento.end - segmento.start) / 2}deg)`,
                 }}
               >
                 {segmento.icono}
@@ -224,7 +105,7 @@ export default function StoreWheel({
         </div>
       </div>
 
-      {!premioFinal && (
+      {showButton && !premioFinal && (
         <button
           type="button"
           onClick={onGirar}
@@ -260,7 +141,6 @@ const styles = {
     clipPath: "polygon(50% 100%, 10% 28%, 50% 0, 90% 28%)",
     filter: "drop-shadow(0 6px 10px rgba(0,0,0,.65))",
     border: "4px solid #facc15",
-    transformOrigin: "50% 22%",
   },
   pointerDot: {
     position: "absolute",
@@ -303,8 +183,7 @@ const styles = {
     borderRadius: "50%",
     background: "radial-gradient(circle, #ffffff 0%, #fde68a 42%, #f59e0b 100%)",
     boxShadow: "0 0 18px rgba(250,204,21,.95), 0 0 34px rgba(250,204,21,.55)",
-    transformOrigin: "50% 50%",
-    transition: "opacity 120ms linear, filter 120ms linear",
+    animation: "lojoBulbPulse .78s infinite alternate",
   },
   wheel: {
     width: "calc(100% - clamp(58px, 8vh, 86px))",
@@ -315,7 +194,6 @@ const styles = {
       "inset 0 0 0 3px rgba(0,0,0,.28), inset 0 0 40px rgba(0,0,0,.35), 0 18px 55px rgba(0,0,0,.52)",
     position: "relative",
     overflow: "hidden",
-    willChange: "transform",
   },
   segmentIcon: {
     position: "absolute",
