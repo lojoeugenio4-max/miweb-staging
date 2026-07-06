@@ -64,9 +64,11 @@ export default function RuletaModal({
 
         {resumenPromocion && (
           <div style={nota}>
-            Por compras superiores a{" "}
-            <strong>{resumenPromocion.cajasMinimas}</strong> cajas participas en
-            la ruleta.
+            Has comprado{" "}
+            <strong>{resumenPromocion.variedadValida}</strong> referencias
+            válidas de{" "}
+            <strong>{resumenPromocion.variedadMinima}</strong> necesarias para
+            participar.
           </div>
         )}
       </div>
