@@ -64,14 +64,14 @@ function DisplayWheel({ premios = [], girando, premioFinal }) {
       <div
         style={{
           ...wheelStyles.wheelOuter,
-          animation: lucesEnReposo ? "lojoIdleHalo 2.8s ease-in-out infinite" : "none",
+          animation: lucesEnReposo ? "lojoIdleHalo 5.5s ease-in-out infinite" : "none",
         }}
       >
         <div
           style={{
             ...wheelStyles.bulbs,
             animation: lucesEnReposo
-              ? "lojoBulbsIdleOrbit 5.5s linear infinite"
+              ? "lojoBulbsIdleOrbit 14s linear infinite"
               : "none",
           }}
         >
@@ -85,7 +85,7 @@ function DisplayWheel({ premios = [], girando, premioFinal }) {
                   ...wheelStyles.bulb,
                   transform: `rotate(${angle}deg) translateY(calc(var(--display-wheel-size) / -2 + 15px))`,
                   animationDelay: lucesEnReposo
-                    ? `${index * -0.075}s`
+                    ? `${index * -0.13}s`
                     : `${index * 0.035}s`,
                 }}
               />
@@ -99,7 +99,7 @@ function DisplayWheel({ premios = [], girando, premioFinal }) {
             background: `conic-gradient(${conic})`,
             animation: girando
               ? "lojoRealSpin 4.2s cubic-bezier(.08,.72,.12,1) forwards"
-              : "lojoSlowWheel 18s linear infinite",
+              : "none",
           }}
         >
           {segmentos.map((segmento, index) => (
@@ -488,7 +488,7 @@ const wheelStyles = {
     borderRadius: "50%",
     background: "radial-gradient(circle, #ffffff 0%, #fde68a 42%, #f59e0b 100%)",
     boxShadow: "0 0 18px rgba(250,204,21,.95), 0 0 34px rgba(250,204,21,.55)",
-    animation: "lojoBulbPulse 2.6s ease-in-out infinite",
+    animation: "lojoBulbPulse 4.8s ease-in-out infinite",
   },
   wheel: {
     width: "calc(100% - clamp(58px, 8vh, 90px))",
