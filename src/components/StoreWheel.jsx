@@ -60,10 +60,10 @@ export default function StoreWheel({ premios = [], girando, premioFinal, onGirar
           style={{
             ...styles.wheel,
             background: `conic-gradient(${conic})`,
-            transform: girando ? "rotate(2880deg)" : "rotate(0deg)",
+            transform: girando ? "rotate(4320deg)" : "rotate(0deg)",
             transition: girando
-              ? "transform 9.2s cubic-bezier(.08,.72,.12,1)"
-              : "none",
+             ? "transform 9.2s cubic-bezier(.05,.68,.04,1)"
+          : "none",
           }}
         >
           {segmentos.map((segmento, index) => (
