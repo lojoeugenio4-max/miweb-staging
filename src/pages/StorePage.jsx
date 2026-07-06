@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle, RotateCcw, Search, XCircle } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import StoreWheel from "../components/StoreWheel";
@@ -130,8 +130,8 @@ export default function StorePage() {
   const [mensaje, setMensaje] = useState("");
   const [girando, setGirando] = useState(false);
   const [premioFinal, setPremioFinal] = useState(null);
-  const [premioObjetivo, setPremioObjetivo] = useState(null);
-  const [entradaResultado, setEntradaResultado] = useState(null);
+  const [premioPendiente, setPremioPendiente] = useState(null);
+  const [entradaPendiente, setEntradaPendiente] = useState(null);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -156,8 +156,8 @@ export default function StorePage() {
     setEntrada(null);
     setPremios([]);
     setPremioFinal(null);
-    setPremioObjetivo(null);
-    setEntradaResultado(null);
+    setPremioPendiente(null);
+    setEntradaPendiente(null);
 
     const { data, error } = await supabase
       .from("promotion_participations")
@@ -237,8 +237,8 @@ export default function StorePage() {
 
     setGirando(true);
     setPremioFinal(null);
-    setPremioObjetivo(null);
-    setEntradaResultado(null);
+    setPremioPendiente(null);
+    setEntradaPendiente(null);
     setMensaje("");
     startSpinSound();
 
@@ -256,8 +256,8 @@ export default function StorePage() {
       stopSpinSound();
       console.error(error);
       setGirando(false);
-      setPremioObjetivo(null);
-      setEntradaResultado(null);
+      setPremioPendiente(null);
+      setEntradaPendiente(null);
       setMensaje(error.message || "No se pudo consumir el código.");
       setEstado("error");
       return;
@@ -270,40 +270,44 @@ export default function StorePage() {
     if (!entry || !prize) {
       stopSpinSound();
       setGirando(false);
-      setPremioObjetivo(null);
-      setEntradaResultado(null);
+      setPremioPendiente(null);
+      setEntradaPendiente(null);
       setMensaje("La respuesta del servidor no incluye premio.");
       setEstado("error");
       return;
     }
 
-    setEntradaResultado(entry);
-    setPremioObjetivo(prize);
+    // La ruleta empieza su animación real cuando recibe este premio objetivo.
+    // El regalo NO se muestra aquí: se muestra al terminar el giro visual.
+    setEntradaPendiente(entry);
+    setPremioPendiente(prize);
   }
 
-  function completarGiro(prize) {
-    const entry = entradaResultado || entrada;
+  const finalizarGiro = useCallback(() => {
+    if (!entradaPendiente || !premioPendiente) return;
 
     stopSpinSound();
-    setEntrada(entry);
-    setPremioFinal(prize);
-    setPremioObjetivo(null);
-    setEntradaResultado(null);
+
+    setEntrada(entradaPendiente);
+    setPremioFinal(premioPendiente);
     setGirando(false);
     setEstado("result");
 
     enviarEventoDisplay("result", {
-      entrada: entry,
+      entrada: entradaPendiente,
       premios,
-      premio: prize,
+      premio: premioPendiente,
     });
 
-    if (prize?.tipo_sonido === "sirena" || prize?.tipo_sonido === "jackpot") {
+    if (premioPendiente.tipo_sonido === "sirena" || premioPendiente.tipo_sonido === "jackpot") {
       playSirena();
     } else {
       playCampana();
     }
-  }
+
+    setEntradaPendiente(null);
+    setPremioPendiente(null);
+  }, [entradaPendiente, premioPendiente, premios]);
 
   function reset() {
     stopSpinSound();
@@ -314,8 +318,8 @@ export default function StorePage() {
     setMensaje("");
     setGirando(false);
     setPremioFinal(null);
-    setPremioObjetivo(null);
-    setEntradaResultado(null);
+    setPremioPendiente(null);
+    setEntradaPendiente(null);
     enviarEventoDisplay("waiting");
 
     window.setTimeout(() => {
@@ -447,9 +451,9 @@ export default function StorePage() {
               premios={premios}
               girando={girando}
               premioFinal={premioFinal}
-              premioObjetivo={premioObjetivo}
+              premioObjetivo={premioPendiente}
               onGirar={girar}
-              onGiroCompletado={completarGiro}
+              onGiroFinalizado={finalizarGiro}
             />
 
             <div style={styles.note}>
