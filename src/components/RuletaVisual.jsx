@@ -6,32 +6,23 @@ import {
   elegirPremio,
 } from "./RuletaHelpers";
 
-const DURACION_GIRO = 14000;
-
-export default function RuletaVisual({
-  premios = [],
-  onPremioGanado,
-  girando: girandoExterno = false,
-}) {
-  const [girando, setGirando] = useState(false);
-  const [rotacion, setRotacion] = useState(0);
-  const rotacionRef = useRef(0);
-
+export default function RuletaVisual({ premios = [], onPremioGanado }) {
   const premiosActivos = useMemo(
     () => premios.filter((p) => p.activo !== false),
     [premios]
   );
 
-  function easeOutCasino(t) {
-    return 1 - Math.pow(1 - t, 6);
-  }
+  const [rotacion, setRotacion] = useState(0);
+  const [girando, setGirando] = useState(false);
+  const [tick, setTick] = useState(0);
+
+  const rotacionRef = useRef(0);
+  const ultimoSectorRef = useRef(null);
 
   function girar() {
-    if (girando || girandoExterno || !premiosActivos.length) return;
+    if (girando || !premiosActivos.length) return;
 
     const premio = elegirPremio(premiosActivos);
-    if (!premio) return;
-
     const indiceGanador = calcularIndicePremio(premiosActivos, premio);
 
     const destino =
@@ -39,32 +30,42 @@ export default function RuletaVisual({
         rotacionActual: rotacionRef.current,
         indiceGanador,
         totalPremios: premiosActivos.length,
-      }) + 360 * 10;
+      }) + 360 * 18;
 
     const inicio = rotacionRef.current;
     const distancia = destino - inicio;
+    const duracion = 15000;
     const inicioTiempo = performance.now();
 
     setGirando(true);
 
     function animar(ahora) {
-      const progreso = Math.min((ahora - inicioTiempo) / DURACION_GIRO, 1);
-      const suavizado = easeOutCasino(progreso);
-      const nuevaRotacion = inicio + distancia * suavizado;
+      const t = Math.min((ahora - inicioTiempo) / duracion, 1);
+
+      // Frenada casino: rápido al inicio, lentísimo al final
+      const ease = 1 - Math.pow(1 - t, 4.8);
+      const nuevaRotacion = inicio + distancia * ease;
 
       rotacionRef.current = nuevaRotacion;
       setRotacion(nuevaRotacion);
 
-      if (progreso < 1) {
+      // Movimiento del freno / pestaña al pasar sectores
+      const gradosSector = 360 / premiosActivos.length;
+      const sectorActual = Math.floor((nuevaRotacion % 360) / gradosSector);
+
+      if (sectorActual !== ultimoSectorRef.current) {
+        ultimoSectorRef.current = sectorActual;
+        setTick((v) => v + 1);
+      }
+
+      if (t < 1) {
         requestAnimationFrame(animar);
       } else {
-        rotacionRef.current = destino;
-        setRotacion(destino);
         setGirando(false);
 
         setTimeout(() => {
           onPremioGanado?.(premio);
-        }, 700);
+        }, 900);
       }
     }
 
@@ -77,6 +78,7 @@ export default function RuletaVisual({
         premios={premiosActivos}
         rotacion={rotacion}
         girando={girando}
+        tick={tick}
       />
 
       <button style={boton} onClick={girar} disabled={girando}>
@@ -90,7 +92,7 @@ const contenedor = {
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
-  gap: 20,
+  gap: 24,
 };
 
 const boton = {
@@ -99,7 +101,7 @@ const boton = {
   background: "#f59e0b",
   color: "#fff",
   fontSize: 22,
-  fontWeight: 700,
-  padding: "16px",
+  fontWeight: 900,
+  padding: "16px 28px",
   cursor: "pointer",
 };
