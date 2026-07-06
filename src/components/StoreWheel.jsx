@@ -62,7 +62,7 @@ export default function StoreWheel({ premios = [], girando, premioFinal, onGirar
             background: `conic-gradient(${conic})`,
             transform: girando ? "rotate(2880deg)" : "rotate(0deg)",
             transition: girando
-              ? "transform 4.2s cubic-bezier(.08,.72,.12,1)"
+              ? "transform 9.2s cubic-bezier(.08,.72,.12,1)"
               : "none",
           }}
         >
