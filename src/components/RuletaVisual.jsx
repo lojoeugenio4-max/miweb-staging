@@ -6,48 +6,51 @@ import {
   elegirPremio,
 } from "./RuletaHelpers";
 
-const DURACION_GIRO = 12000;
+const DURACION_GIRO = 14000;
 
-export default function RuletaVisual({ premios = [], onPremioGanado }) {
+export default function RuletaVisual({
+  premios = [],
+  onPremioGanado,
+  girando: girandoExterno = false,
+}) {
+  const [girando, setGirando] = useState(false);
+  const [rotacion, setRotacion] = useState(0);
+  const rotacionRef = useRef(0);
+
   const premiosActivos = useMemo(
     () => premios.filter((p) => p.activo !== false),
     [premios]
   );
 
-  const [rotacion, setRotacion] = useState(0);
-  const [girando, setGirando] = useState(false);
-  const rotacionRef = useRef(0);
-
   function easeOutCasino(t) {
-    return 1 - Math.pow(1 - t, 5);
+    return 1 - Math.pow(1 - t, 6);
   }
 
   function girar() {
-    if (girando || !premiosActivos.length) return;
+    if (girando || girandoExterno || !premiosActivos.length) return;
 
     const premio = elegirPremio(premiosActivos);
+    if (!premio) return;
+
     const indiceGanador = calcularIndicePremio(premiosActivos, premio);
 
-    const destino = calcularRotacionDestino({
-      rotacionActual: rotacionRef.current,
-      indiceGanador,
-      totalPremios: premiosActivos.length,
-    });
+    const destino =
+      calcularRotacionDestino({
+        rotacionActual: rotacionRef.current,
+        indiceGanador,
+        totalPremios: premiosActivos.length,
+      }) + 360 * 10;
 
     const inicio = rotacionRef.current;
-    const diferencia = destino - inicio;
-    const tiempoInicio = performance.now();
+    const distancia = destino - inicio;
+    const inicioTiempo = performance.now();
 
     setGirando(true);
 
-    function animar(tiempoActual) {
-      const progreso = Math.min(
-        (tiempoActual - tiempoInicio) / DURACION_GIRO,
-        1
-      );
-
+    function animar(ahora) {
+      const progreso = Math.min((ahora - inicioTiempo) / DURACION_GIRO, 1);
       const suavizado = easeOutCasino(progreso);
-      const nuevaRotacion = inicio + diferencia * suavizado;
+      const nuevaRotacion = inicio + distancia * suavizado;
 
       rotacionRef.current = nuevaRotacion;
       setRotacion(nuevaRotacion);
@@ -58,7 +61,10 @@ export default function RuletaVisual({ premios = [], onPremioGanado }) {
         rotacionRef.current = destino;
         setRotacion(destino);
         setGirando(false);
-        onPremioGanado?.(premio);
+
+        setTimeout(() => {
+          onPremioGanado?.(premio);
+        }, 700);
       }
     }
 
@@ -94,6 +100,6 @@ const boton = {
   color: "#fff",
   fontSize: 22,
   fontWeight: 700,
-  padding: "16px 28px",
+  padding: "16px",
   cursor: "pointer",
 };
