@@ -12,7 +12,6 @@ import { supabase } from "./supabaseClient";
 import StorePage from "./pages/StorePage";
 import DisplayPage from "./pages/DisplayPage";
 import logoLojo from "./assets/logo-lojo.jpg";
-import { pedidoCumplePromocionRuleta } from "./utils/promocionRuleta";
 import {
   construirTextoPedidoWhatsApp,
   abrirPedidoEnWhatsApp,
@@ -261,7 +260,6 @@ export default function App() {
   const [premiosRuleta, setPremiosRuleta] = useState([]);
   const [configuracionRuleta, setConfiguracionRuleta] = useState(null);
   const [articulosRuleta, setArticulosRuleta] = useState([]);
-  const [departamentosRuleta, setDepartamentosRuleta] = useState([]);
 
   const t = translations[language];
 
@@ -296,7 +294,6 @@ export default function App() {
       if (!promocion) {
         setConfiguracionRuleta(null);
         setArticulosRuleta([]);
-        setDepartamentosRuleta([]);
         setPremiosRuleta([]);
         return;
       }
@@ -313,18 +310,6 @@ export default function App() {
       }
 
       setArticulosRuleta(articulos || []);
-
-      const { data: departamentosPromo, error: departamentosPromoError } =
-        await supabase
-          .from("promociones_ruleta_departamentos")
-          .select("*")
-          .eq("promocion_id", promocion.id);
-
-      if (departamentosPromoError) {
-        throw departamentosPromoError;
-      }
-
-      setDepartamentosRuleta(departamentosPromo || []);
 
       const { data: premios, error: premiosError } = await supabase
         .from("promociones_ruleta_premios")
@@ -343,7 +328,6 @@ export default function App() {
       console.error("Error cargando configuración de ruleta:", error);
       setConfiguracionRuleta(null);
       setArticulosRuleta([]);
-      setDepartamentosRuleta([]);
       setPremiosRuleta([]);
     }
   }
@@ -1198,6 +1182,55 @@ export default function App() {
     setHeaderCollapsed(false);
   }
 
+  function normalizarCodigoRuleta(codigo) {
+    return String(codigo || "").trim();
+  }
+
+  function obtenerCantidadPedidoArticuloRuleta(item) {
+    return Number(item.boxes || 0) + Number(item.units || 0);
+  }
+
+  function pedidoCumplePromocionRuletaActual({
+    itemsPedido = [],
+    articulosPromocion = [],
+    variedadMinima = 1,
+  }) {
+    const reglasPorCodigo = new Map(
+      articulosPromocion
+        .map((item) => {
+          const codigo = normalizarCodigoRuleta(item.codigo_articulo);
+          if (!codigo) return null;
+
+          return [
+            codigo,
+            Math.max(1, Number(item.cantidad_minima || 1)),
+          ];
+        })
+        .filter(Boolean)
+    );
+
+    if (reglasPorCodigo.size === 0) return false;
+
+    const codigosCumplidos = new Set();
+
+    itemsPedido.forEach((item) => {
+      const codigoArticulo = normalizarCodigoRuleta(
+        item.product.codigo || item.product.idnum || ""
+      );
+
+      if (!reglasPorCodigo.has(codigoArticulo)) return;
+
+      const cantidadPedida = obtenerCantidadPedidoArticuloRuleta(item);
+      const cantidadMinima = reglasPorCodigo.get(codigoArticulo);
+
+      if (cantidadPedida >= cantidadMinima) {
+        codigosCumplidos.add(codigoArticulo);
+      }
+    });
+
+    return codigosCumplidos.size >= Math.max(1, Number(variedadMinima || 1));
+  }
+
   async function crearParticipacionPromocion({ promocionId, pedidoId, customerNamePedido }) {
     const { data, error } = await supabase.rpc("create_promotion_participation", {
       p_promotion_id: promocionId,
@@ -1255,23 +1288,14 @@ export default function App() {
     const notesPedido = notes.trim();
     const pedidoId = crearPedidoId();
 
-    const codigosPermitidos = articulosRuleta.map((item) =>
-      String(item.codigo_articulo || "").trim()
-    );
-
-    const departamentosPermitidos = departamentosRuleta.map((item) =>
-      String(item.departamento_id || "").trim()
-    );
-
     const cumplePromocionRuleta =
       configuracionRuleta &&
       premiosRuleta.length > 0 &&
-      (codigosPermitidos.length > 0 || departamentosPermitidos.length > 0) &&
-      pedidoCumplePromocionRuleta({
+      articulosRuleta.length > 0 &&
+      pedidoCumplePromocionRuletaActual({
         itemsPedido,
-        codigosPermitidos,
-        departamentosPermitidos,
-        cajasMinimas: configuracionRuleta.cajas_minimas,
+        articulosPromocion: articulosRuleta,
+        variedadMinima: configuracionRuleta.variedad_minima,
       });
 
     let participacionRuleta = null;
