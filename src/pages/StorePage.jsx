@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle, RotateCcw, Search, XCircle } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import StoreWheel from "../components/StoreWheel";
@@ -28,8 +28,6 @@ function enviarEventoDisplay(type, payload = {}) {
 
 let audioContext = null;
 let giroInterval = null;
-let giroActivo = false;
-let giroAutoStop = null;
 
 function getAudioContext() {
   if (!audioContext) {
@@ -46,8 +44,7 @@ function beep({ frequency = 440, duration = 120, type = "sine", volume = 0.08 } 
 
     oscillator.type = type;
     oscillator.frequency.value = frequency;
-    gain.gain.setValueAtTime(volume, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration / 1000);
+    gain.gain.value = volume;
 
     oscillator.connect(gain);
     gain.connect(ctx.destination);
@@ -59,38 +56,23 @@ function beep({ frequency = 440, duration = 120, type = "sine", volume = 0.08 } 
 
 function startSpinSound() {
   stopSpinSound();
-  giroActivo = true;
   let step = 0;
 
   giroInterval = window.setInterval(() => {
-    if (!giroActivo) return;
-
     beep({
       frequency: 220 + (step % 8) * 28,
-      duration: 45,
+      duration: 55,
       type: "square",
-      volume: 0.03,
+      volume: 0.035,
     });
     step += 1;
-  }, 68);
-
-  // Seguro anti-bucle: aunque algo falle en la animación, el giro no queda sonando.
-  giroAutoStop = window.setTimeout(() => {
-    stopSpinSound();
-  }, 16000);
+  }, 70);
 }
 
 function stopSpinSound() {
-  giroActivo = false;
-
   if (giroInterval) {
     window.clearInterval(giroInterval);
     giroInterval = null;
-  }
-
-  if (giroAutoStop) {
-    window.clearTimeout(giroAutoStop);
-    giroAutoStop = null;
   }
 }
 
@@ -148,8 +130,6 @@ export default function StorePage() {
   const [mensaje, setMensaje] = useState("");
   const [girando, setGirando] = useState(false);
   const [premioFinal, setPremioFinal] = useState(null);
-  const [premioPendiente, setPremioPendiente] = useState(null);
-  const [entradaPendiente, setEntradaPendiente] = useState(null);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -174,8 +154,6 @@ export default function StorePage() {
     setEntrada(null);
     setPremios([]);
     setPremioFinal(null);
-    setPremioPendiente(null);
-    setEntradaPendiente(null);
 
     const { data, error } = await supabase
       .from("promotion_participations")
@@ -255,8 +233,6 @@ export default function StorePage() {
 
     setGirando(true);
     setPremioFinal(null);
-    setPremioPendiente(null);
-    setEntradaPendiente(null);
     setMensaje("");
     startSpinSound();
 
@@ -274,8 +250,6 @@ export default function StorePage() {
       stopSpinSound();
       console.error(error);
       setGirando(false);
-      setPremioPendiente(null);
-      setEntradaPendiente(null);
       setMensaje(error.message || "No se pudo consumir el código.");
       setEstado("error");
       return;
@@ -288,44 +262,32 @@ export default function StorePage() {
     if (!entry || !prize) {
       stopSpinSound();
       setGirando(false);
-      setPremioPendiente(null);
-      setEntradaPendiente(null);
       setMensaje("La respuesta del servidor no incluye premio.");
       setEstado("error");
       return;
     }
 
-    // La ruleta empieza su animación real cuando recibe este premio objetivo.
-    // El regalo NO se muestra aquí: se muestra al terminar el giro visual.
-    setEntradaPendiente(entry);
-    setPremioPendiente(prize);
+    window.setTimeout(() => {
+      stopSpinSound();
+
+      setEntrada(entry);
+      setPremioFinal(prize);
+      setGirando(false);
+      setEstado("result");
+
+      enviarEventoDisplay("result", {
+        entrada: entry,
+        premios,
+        premio: prize,
+      });
+
+      if (prize.tipo_sonido === "sirena" || prize.tipo_sonido === "jackpot") {
+        playSirena();
+      } else {
+        playCampana();
+      }
+    }, 4200);
   }
-
-  const finalizarGiro = useCallback(() => {
-    if (!entradaPendiente || !premioPendiente) return;
-
-    stopSpinSound();
-
-    setEntrada(entradaPendiente);
-    setPremioFinal(premioPendiente);
-    setGirando(false);
-    setEstado("result");
-
-    enviarEventoDisplay("result", {
-      entrada: entradaPendiente,
-      premios,
-      premio: premioPendiente,
-    });
-
-    if (premioPendiente.tipo_sonido === "sirena" || premioPendiente.tipo_sonido === "jackpot") {
-      playSirena();
-    } else {
-      playCampana();
-    }
-
-    setEntradaPendiente(null);
-    setPremioPendiente(null);
-  }, [entradaPendiente, premioPendiente, premios]);
 
   function reset() {
     stopSpinSound();
@@ -336,8 +298,6 @@ export default function StorePage() {
     setMensaje("");
     setGirando(false);
     setPremioFinal(null);
-    setPremioPendiente(null);
-    setEntradaPendiente(null);
     enviarEventoDisplay("waiting");
 
     window.setTimeout(() => {
@@ -361,6 +321,11 @@ export default function StorePage() {
           @keyframes lojoBulbPulse {
             from { opacity: .55; filter: brightness(.75); }
             to { opacity: 1; filter: brightness(1.35); }
+          }
+
+          @keyframes lojoIdleBulbsRotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
           }
 
           @keyframes lojoPrizePop {
@@ -469,9 +434,7 @@ export default function StorePage() {
               premios={premios}
               girando={girando}
               premioFinal={premioFinal}
-              premioObjetivo={premioPendiente}
               onGirar={girar}
-              onGiroFinalizado={finalizarGiro}
             />
 
             <div style={styles.note}>

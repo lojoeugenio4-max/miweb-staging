@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 import logoLojo from "../assets/logo-lojo.jpg";
+import StoreWheel from "../components/StoreWheel";
 
 const DISPLAY_EVENT_KEY = "lojo-ruleta-display-event";
 
@@ -53,28 +54,14 @@ function DisplayWheel({ premios = [], girando, premioFinal }) {
     .map((seg) => `${seg.color} ${seg.start}deg ${seg.end}deg`)
     .join(", ");
 
-  const lucesEnReposo = !girando && !premioFinal;
-
   return (
     <div style={wheelStyles.wrap}>
       <div style={wheelStyles.pointer}>
         <div style={wheelStyles.pointerDot} />
       </div>
 
-      <div
-        style={{
-          ...wheelStyles.wheelOuter,
-          animation: lucesEnReposo ? "lojoIdleHalo 5.5s ease-in-out infinite" : "none",
-        }}
-      >
-        <div
-          style={{
-            ...wheelStyles.bulbs,
-            animation: lucesEnReposo
-              ? "lojoBulbsIdleOrbit 14s linear infinite"
-              : "none",
-          }}
-        >
+      <div style={wheelStyles.wheelOuter}>
+        <div style={wheelStyles.bulbs}>
           {Array.from({ length: 36 }, (_, index) => {
             const angle = (360 / 36) * index;
 
@@ -84,9 +71,7 @@ function DisplayWheel({ premios = [], girando, premioFinal }) {
                 style={{
                   ...wheelStyles.bulb,
                   transform: `rotate(${angle}deg) translateY(calc(var(--display-wheel-size) / -2 + 15px))`,
-                  animationDelay: lucesEnReposo
-                    ? `${index * -0.13}s`
-                    : `${index * 0.035}s`,
+                  animationDelay: `${index * 0.035}s`,
                 }}
               />
             );
@@ -99,7 +84,7 @@ function DisplayWheel({ premios = [], girando, premioFinal }) {
             background: `conic-gradient(${conic})`,
             animation: girando
               ? "lojoRealSpin 4.2s cubic-bezier(.08,.72,.12,1) forwards"
-              : "none",
+              : "lojoSlowWheel 18s linear infinite",
           }}
         >
           {segmentos.map((segmento, index) => (
@@ -299,36 +284,13 @@ export default function DisplayPage() {
           }
 
           @keyframes lojoBulbPulse {
-            0% {
-              opacity: .42;
-              filter: brightness(.65);
-              box-shadow: 0 0 10px rgba(250,204,21,.55), 0 0 18px rgba(250,204,21,.25);
-            }
-            42% {
-              opacity: .72;
-              filter: brightness(1.05);
-              box-shadow: 0 0 18px rgba(250,204,21,.85), 0 0 32px rgba(250,204,21,.45);
-            }
-            55% {
-              opacity: 1;
-              filter: brightness(1.85);
-              box-shadow: 0 0 24px rgba(255,255,255,.95), 0 0 46px rgba(250,204,21,.9), 0 0 72px rgba(245,158,11,.5);
-            }
-            100% {
-              opacity: .46;
-              filter: brightness(.78);
-              box-shadow: 0 0 12px rgba(250,204,21,.58), 0 0 22px rgba(250,204,21,.28);
-            }
+            from { opacity: .52; filter: brightness(.75); }
+            to { opacity: 1; filter: brightness(1.45); }
           }
 
-          @keyframes lojoBulbsIdleOrbit {
+          @keyframes lojoIdleBulbsRotate {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
-          }
-
-          @keyframes lojoIdleHalo {
-            0%, 100% { box-shadow: 0 30px 100px rgba(0,0,0,.75), 0 0 60px rgba(250,204,21,.5); }
-            50% { box-shadow: 0 30px 100px rgba(0,0,0,.75), 0 0 90px rgba(250,204,21,.85), 0 0 120px rgba(245,158,11,.35); }
           }
 
           @media (max-width: 1200px) {
@@ -366,10 +328,13 @@ export default function DisplayPage() {
 
       <section className="display-stage" style={styles.stage}>
         <div style={styles.wheelWrap}>
-          <DisplayWheel
+          <StoreWheel
             premios={premios}
             girando={girando}
             premioFinal={premioFinal}
+            onGirar={() => {}}
+            showButton={false}
+            idleLightsActive={estado !== "spin" && estado !== "result"}
           />
 
           {estado !== "result" && (
@@ -488,7 +453,7 @@ const wheelStyles = {
     borderRadius: "50%",
     background: "radial-gradient(circle, #ffffff 0%, #fde68a 42%, #f59e0b 100%)",
     boxShadow: "0 0 18px rgba(250,204,21,.95), 0 0 34px rgba(250,204,21,.55)",
-    animation: "lojoBulbPulse 4.8s ease-in-out infinite",
+    animation: "lojoBulbPulse .78s infinite alternate",
   },
   wheel: {
     width: "calc(100% - clamp(58px, 8vh, 90px))",
