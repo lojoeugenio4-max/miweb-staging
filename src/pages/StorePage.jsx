@@ -4,6 +4,7 @@ import { supabase } from "../supabaseClient";
 import StoreWheel from "../components/StoreWheel";
 
 const DISPLAY_EVENT_KEY = "lojo-ruleta-display-event";
+const SPIN_DURATION_MS = 9200;
 
 function enviarEventoDisplay(type, payload = {}) {
   if (typeof window === "undefined") return;
@@ -27,7 +28,7 @@ function enviarEventoDisplay(type, payload = {}) {
 
 
 let audioContext = null;
-let giroInterval = null;
+let giroTimeout = null;
 
 function getAudioContext() {
   if (!audioContext) {
@@ -54,25 +55,41 @@ function beep({ frequency = 440, duration = 120, type = "sine", volume = 0.08 } 
   } catch {}
 }
 
-function startSpinSound() {
+function startSpinSound(duration = SPIN_DURATION_MS) {
   stopSpinSound();
+
+  const start = performance.now();
   let step = 0;
 
-  giroInterval = window.setInterval(() => {
+  function tick() {
+    const elapsed = performance.now() - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const fade = Math.max(0.08, 1 - progress);
+
     beep({
-      frequency: 220 + (step % 8) * 28,
-      duration: 55,
+      frequency: 230 + (step % 6) * 24,
+      duration: Math.max(35, 62 - progress * 28),
       type: "square",
-      volume: 0.035,
+      volume: 0.04 * fade,
     });
+
     step += 1;
-  }, 70);
+
+    if (progress < 1) {
+      const nextDelay = 58 + progress * 230;
+      giroTimeout = window.setTimeout(tick, nextDelay);
+    } else {
+      giroTimeout = null;
+    }
+  }
+
+  tick();
 }
 
 function stopSpinSound() {
-  if (giroInterval) {
-    window.clearInterval(giroInterval);
-    giroInterval = null;
+  if (giroTimeout) {
+    window.clearTimeout(giroTimeout);
+    giroTimeout = null;
   }
 }
 
@@ -234,7 +251,7 @@ export default function StorePage() {
     setGirando(true);
     setPremioFinal(null);
     setMensaje("");
-    startSpinSound();
+    startSpinSound(SPIN_DURATION_MS);
 
     enviarEventoDisplay("spin", {
       entrada,
@@ -286,7 +303,7 @@ export default function StorePage() {
       } else {
         playCampana();
       }
-    }, 4200);
+    }, SPIN_DURATION_MS);
   }
 
   function reset() {
@@ -323,7 +340,7 @@ export default function StorePage() {
             to { opacity: 1; filter: brightness(1.35); }
           }
 
-          @keyframes lojoIdleBulbsRotate {
+          @keyframes lojoIdleLightsRotate {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
           }
@@ -435,6 +452,7 @@ export default function StorePage() {
               girando={girando}
               premioFinal={premioFinal}
               onGirar={girar}
+              duracionGiro={SPIN_DURATION_MS}
             />
 
             <div style={styles.note}>

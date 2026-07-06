@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
-import logoLojo from "../assets/logo-lojo.jpg";
 import StoreWheel from "../components/StoreWheel";
+import logoLojo from "../assets/logo-lojo.jpg";
 
 const DISPLAY_EVENT_KEY = "lojo-ruleta-display-event";
+const SPIN_DURATION_MS = 9200;
 
 const COLORS = [
   "#ef4444",
@@ -273,24 +274,14 @@ export default function DisplayPage() {
             100% { transform: scale(1); opacity: 1; }
           }
 
-          @keyframes lojoSlowWheel {
+          @keyframes lojoIdleLightsRotate {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
-          }
-
-          @keyframes lojoRealSpin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(2880deg); }
           }
 
           @keyframes lojoBulbPulse {
             from { opacity: .52; filter: brightness(.75); }
             to { opacity: 1; filter: brightness(1.45); }
-          }
-
-          @keyframes lojoIdleBulbsRotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
           }
 
           @media (max-width: 1200px) {
@@ -332,9 +323,10 @@ export default function DisplayPage() {
             premios={premios}
             girando={girando}
             premioFinal={premioFinal}
-            onGirar={() => {}}
-            showButton={false}
-            idleLightsActive={estado !== "spin" && estado !== "result"}
+            mostrarBoton={false}
+            lucesReposo={estado !== "spin" && estado !== "result"}
+            modoDisplay
+            duracionGiro={SPIN_DURATION_MS}
           />
 
           {estado !== "result" && (
