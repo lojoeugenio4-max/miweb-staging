@@ -1,123 +1,69 @@
-import { useMemo, useState } from "react";
-import { supabase } from "../supabaseClient";
-import RuletaCanvas from "./RuletaCanvas";
-import {
-  calcularIndicePremio,
-  calcularRotacionDestino,
-  descontarStock,
-  elegirPremio,
-  filtrarPremiosDisponibles,
-} from "./RuletaHelpers";
+import { useMemo } from "react";
 
 export default function RuletaVisual({
   premios = [],
-  onPremioGanado = () => {},
+  onPremioGanado,
+  girando = false,
 }) {
-  const [girando, setGirando] = useState(false);
-  const [rotacion, setRotacion] = useState(0);
-  const [premioGanado, setPremioGanado] = useState(null);
-  const [error, setError] = useState("");
-
-  const premiosDisponibles = useMemo(
-    () => filtrarPremiosDisponibles(premios),
+  const premiosActivos = useMemo(
+    () => premios.filter((p) => p.activo !== false),
     [premios]
   );
 
-  async function girarRuleta() {
+  function girar() {
     if (girando) return;
+    if (!premiosActivos.length) return;
 
-    setError("");
-    setPremioGanado(null);
-
-    if (!premiosDisponibles.length) {
-      setError("No hay premios disponibles para esta promoción.");
-      return;
-    }
-
-    const premioElegido = elegirPremio(premiosDisponibles);
-
-    if (!premioElegido) {
-      setError("No se ha podido elegir un premio.");
-      return;
-    }
-
-    const indiceGanador = calcularIndicePremio(
-      premiosDisponibles,
-      premioElegido
+    const total = premiosActivos.reduce(
+      (t, p) => t + Number(p.probabilidad || 0),
+      0
     );
 
-    if (indiceGanador < 0) {
-      setError("No se ha podido calcular el premio ganador.");
-      return;
-    }
+    let random = Math.random() * total;
 
-    const nuevaRotacion = calcularRotacionDestino({
-      rotacionActual: rotacion,
-      indiceGanador,
-      totalPremios: premiosDisponibles.length,
-    });
+    for (const premio of premiosActivos) {
+      random -= Number(premio.probabilidad || 0);
 
-    setGirando(true);
-    setRotacion(nuevaRotacion);
-
-    window.setTimeout(async () => {
-      try {
-        await descontarStock(supabase, premioElegido);
-
-        setPremioGanado(premioElegido);
-        setGirando(false);
-
-        onPremioGanado(premioElegido);
-      } catch (err) {
-        console.error(err);
-        setGirando(false);
-        setError("El premio ha salido, pero no se ha podido actualizar el stock.");
+      if (random <= 0) {
+        onPremioGanado?.(premio);
+        return;
       }
-    }, 5600);
-  }
+    }
 
-  if (!premiosDisponibles.length) {
-    return (
-      <div style={contenedor}>
-        <p style={texto}>
-          No hay premios disponibles para esta promoción.
-        </p>
-      </div>
-    );
+    onPremioGanado?.(premiosActivos[0]);
   }
 
   return (
     <div style={contenedor}>
-      <RuletaCanvas
-        premios={premiosDisponibles}
-        rotacion={rotacion}
-        girando={girando}
-      />
-
-      <button
-        type="button"
-        style={{
-          ...boton,
-          ...(girando ? botonDesactivado : {}),
-        }}
-        onClick={girarRuleta}
-        disabled={girando}
-      >
-        {girando ? "Girando..." : "Girar ruleta"}
+      <button style={boton} onClick={girar}>
+        🎡 GIRAR RULETA
       </button>
 
-      {error && <div style={errorStyle}>{error}</div>}
+      <div style={lista}>
+        {premiosActivos.map((premio) => (
+          <div
+            key={premio.id}
+            style={{
+              ...premioItem,
+              borderLeft: `10px solid ${premio.color}`,
+            }}
+          >
+            <img
+              src={premio.imagen_url}
+              alt={premio.nombre}
+              style={imagen}
+            />
 
-      {premioGanado && (
-        <div style={resultado}>
-          <div style={resultadoIcono}>🎉</div>
-          <div>
-            Premio conseguido:
-            <br />
-            <strong>{premioGanado.nombre}</strong>
+            <div style={{ flex: 1 }}>
+              <strong>{premio.nombre}</strong>
+
+              <div style={probabilidad}>
+                {premio.probabilidad}% · Stock {premio.stock ?? "∞"}
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
     </div>
   );
 }
@@ -125,56 +71,44 @@ export default function RuletaVisual({
 const contenedor = {
   display: "flex",
   flexDirection: "column",
-  alignItems: "center",
-  gap: "18px",
-  padding: "18px 0",
+  gap: 20,
 };
 
 const boton = {
-  border: "none",
-  background: "#dc2626",
-  color: "#ffffff",
-  borderRadius: "999px",
-  padding: "14px 28px",
-  fontSize: "17px",
-  fontWeight: "900",
+  border: 0,
+  borderRadius: 14,
+  background: "#f59e0b",
+  color: "#fff",
+  fontSize: 22,
+  fontWeight: 700,
+  padding: "16px",
   cursor: "pointer",
-  boxShadow: "0 12px 28px rgba(220,38,38,.35)",
 };
 
-const botonDesactivado = {
-  opacity: 0.65,
-  cursor: "not-allowed",
-};
-
-const resultado = {
+const lista = {
   display: "flex",
+  flexDirection: "column",
+  gap: 12,
+};
+
+const premioItem = {
+  display: "flex",
+  gap: 12,
   alignItems: "center",
-  gap: "12px",
-  background: "#ecfdf5",
-  border: "1px solid #bbf7d0",
-  color: "#166534",
-  borderRadius: "16px",
-  padding: "14px 18px",
-  fontSize: "17px",
-  textAlign: "left",
+  border: "1px solid #e5e7eb",
+  borderRadius: 12,
+  padding: 12,
 };
 
-const resultadoIcono = {
-  fontSize: "34px",
+const imagen = {
+  width: 60,
+  height: 60,
+  objectFit: "cover",
+  borderRadius: 10,
 };
 
-const texto = {
-  color: "#6b7280",
-  fontSize: "15px",
-};
-
-const errorStyle = {
-  background: "#fee2e2",
-  border: "1px solid #fecaca",
-  color: "#991b1b",
-  borderRadius: "12px",
-  padding: "12px 14px",
-  fontSize: "14px",
-  fontWeight: "700",
+const probabilidad = {
+  marginTop: 4,
+  color: "#64748b",
+  fontSize: 13,
 };
