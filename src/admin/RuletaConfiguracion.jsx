@@ -4,7 +4,7 @@ import { supabase } from "../supabaseClient";
 const configuracionVacia = {
   nombre: "Promoción ruleta principal",
   activa: true,
-  cajas_minimas: 6,
+  variedad_minima: 15,
   mensaje_cliente: "Tu pedido participa en la ruleta promocional.",
   fecha_inicio: "",
   fecha_fin: "",
@@ -38,7 +38,7 @@ export default function RuletaConfiguracion() {
       setConfiguracion({
         nombre: data.nombre || "",
         activa: Boolean(data.activa),
-        cajas_minimas: data.cajas_minimas ?? 6,
+        variedad_minima: data.variedad_minima ?? 15,
         mensaje_cliente: data.mensaje_cliente || "",
         fecha_inicio: data.fecha_inicio || "",
         fecha_fin: data.fecha_fin || "",
@@ -62,6 +62,14 @@ export default function RuletaConfiguracion() {
     setMensaje("");
     setError("");
 
+    const variedadMinima = Number.parseInt(configuracion.variedad_minima, 10);
+
+    if (Number.isNaN(variedadMinima) || variedadMinima < 1) {
+      setError("La variedad mínima debe ser un número igual o mayor que 1.");
+      setGuardando(false);
+      return;
+    }
+
     const { data: promocionActual } = await supabase
       .from("promociones_ruleta")
       .select("id")
@@ -72,7 +80,7 @@ export default function RuletaConfiguracion() {
     const datos = {
       nombre: configuracion.nombre,
       activa: configuracion.activa,
-      cajas_minimas: Number(configuracion.cajas_minimas || 0),
+      variedad_minima: variedadMinima,
       mensaje_cliente: configuracion.mensaje_cliente,
       fecha_inicio: configuracion.fecha_inicio || null,
       fecha_fin: configuracion.fecha_fin || null,
@@ -87,6 +95,7 @@ export default function RuletaConfiguracion() {
       : await supabase.from("promociones_ruleta").insert(datos);
 
     if (resultado.error) {
+      console.error(resultado.error);
       setError("No se ha podido guardar la configuración.");
     } else {
       setMensaje("Configuración guardada correctamente.");
@@ -116,14 +125,14 @@ export default function RuletaConfiguracion() {
         </label>
 
         <label style={label}>
-          Cajas mínimas válidas
+          Variedad mínima de artículos
           <input
             style={input}
             type="number"
             min="1"
             step="1"
-            value={configuracion.cajas_minimas}
-            onChange={(e) => cambiarCampo("cajas_minimas", e.target.value)}
+            value={configuracion.variedad_minima}
+            onChange={(e) => cambiarCampo("variedad_minima", e.target.value)}
           />
         </label>
 
@@ -165,6 +174,11 @@ export default function RuletaConfiguracion() {
             rows={3}
           />
         </label>
+      </div>
+
+      <div style={ayuda}>
+        La variedad mínima indica cuántas referencias distintas debe comprar el
+        cliente de la lista configurada para conseguir código de ruleta.
       </div>
 
       {error && <div style={errorStyle}>{error}</div>}
@@ -234,6 +248,17 @@ const input = {
 const textarea = {
   ...input,
   resize: "vertical",
+};
+
+const ayuda = {
+  margin: "0 0 12px",
+  padding: "10px 12px",
+  borderRadius: "10px",
+  background: "#f9fafb",
+  border: "1px solid #e5e7eb",
+  color: "#4b5563",
+  fontSize: "13px",
+  lineHeight: 1.35,
 };
 
 const boton = {
