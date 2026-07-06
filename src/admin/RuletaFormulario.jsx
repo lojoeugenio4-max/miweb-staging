@@ -8,6 +8,14 @@ function normalizar(texto) {
     .trim();
 }
 
+function obtenerDepartamentoId(articulo) {
+  return articulo.departamento_id ?? articulo.departamentos?.id ?? "";
+}
+
+function obtenerDepartamentoNombre(articulo) {
+  return articulo.departamento_nombre || articulo.departamentos?.nombre || "";
+}
+
 export default function RuletaFormulario({
   formulario,
   articulosPremio,
@@ -20,6 +28,27 @@ export default function RuletaFormulario({
   cancelarEdicion,
 }) {
   const [busquedaArticulo, setBusquedaArticulo] = useState("");
+  const [departamentoFiltro, setDepartamentoFiltro] = useState("TODOS");
+
+  const departamentos = useMemo(() => {
+    const mapa = new Map();
+
+    articulosPremio.forEach((articulo) => {
+      const id = obtenerDepartamentoId(articulo);
+      const nombre = obtenerDepartamentoNombre(articulo);
+
+      if (id && nombre && !mapa.has(String(id))) {
+        mapa.set(String(id), {
+          id: String(id),
+          nombre,
+        });
+      }
+    });
+
+    return Array.from(mapa.values()).sort((a, b) =>
+      a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" })
+    );
+  }, [articulosPremio]);
 
   const articuloSeleccionado = useMemo(
     () =>
@@ -31,29 +60,37 @@ export default function RuletaFormulario({
 
   const articulosFiltrados = useMemo(() => {
     const texto = normalizar(busquedaArticulo);
-
-    if (!texto) {
-      return articulosPremio.slice(0, 40);
-    }
-
     const palabras = texto.split(/\s+/).filter(Boolean);
 
     return articulosPremio
       .filter((articulo) => {
+        const departamentoId = obtenerDepartamentoId(articulo);
+        const departamentoNombre = obtenerDepartamentoNombre(articulo);
+
+        const coincideDepartamento =
+          departamentoFiltro === "TODOS" ||
+          String(departamentoId) === String(departamentoFiltro);
+
         const searchable = normalizar(
-          `${articulo.codigo || ""} ${articulo.nombre || ""} ${
-            articulo.departamento_nombre || ""
-          }`
+          `${articulo.codigo || ""} ${articulo.nombre || ""} ${departamentoNombre}`
         );
 
-        return palabras.every((palabra) => searchable.includes(palabra));
+        const coincideBusqueda =
+          palabras.length === 0 ||
+          palabras.every((palabra) => searchable.includes(palabra));
+
+        return coincideDepartamento && coincideBusqueda;
       })
-      .slice(0, 80);
-  }, [articulosPremio, busquedaArticulo]);
+      .slice(0, 120);
+  }, [articulosPremio, busquedaArticulo, departamentoFiltro]);
 
   function seleccionarArticulo(articulo) {
     cambiarCampo("articulo_id", String(articulo.id));
     setBusquedaArticulo("");
+  }
+
+  function limpiarSeleccion() {
+    cambiarCampo("articulo_id", "");
   }
 
   return (
@@ -63,17 +100,36 @@ export default function RuletaFormulario({
       </h4>
 
       <div style={buscadorBox}>
-        <label style={labelGrande}>
-          Buscar artículo que se entrega como premio
-          <input
-            style={inputBusqueda}
-            type="text"
-            value={busquedaArticulo}
-            onChange={(e) => setBusquedaArticulo(e.target.value)}
-            placeholder="Buscar por código, nombre o departamento..."
-            autoComplete="off"
-          />
-        </label>
+        <div style={filtrosPremio}>
+          <label style={label}>
+            Departamento
+            <select
+              style={input}
+              value={departamentoFiltro}
+              onChange={(e) => setDepartamentoFiltro(e.target.value)}
+            >
+              <option value="TODOS">Todos los departamentos</option>
+
+              {departamentos.map((departamento) => (
+                <option key={departamento.id} value={departamento.id}>
+                  {departamento.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label style={labelGrande}>
+            Buscar artículo que se entrega como premio
+            <input
+              style={inputBusqueda}
+              type="text"
+              value={busquedaArticulo}
+              onChange={(e) => setBusquedaArticulo(e.target.value)}
+              placeholder="Buscar por código, nombre o departamento..."
+              autoComplete="off"
+            />
+          </label>
+        </div>
 
         {articuloSeleccionado && (
           <div style={seleccionActual}>
@@ -97,20 +153,20 @@ export default function RuletaFormulario({
                   : ""}
                 {articuloSeleccionado.nombre}
               </strong>
-              {articuloSeleccionado.departamento_nombre && (
-                <small>{articuloSeleccionado.departamento_nombre}</small>
+              {obtenerDepartamentoNombre(articuloSeleccionado) && (
+                <small>{obtenerDepartamentoNombre(articuloSeleccionado)}</small>
               )}
             </div>
 
-            <button
-              type="button"
-              style={quitarArticulo}
-              onClick={() => cambiarCampo("articulo_id", "")}
-            >
+            <button type="button" style={quitarArticulo} onClick={limpiarSeleccion}>
               Quitar
             </button>
           </div>
         )}
+
+        <div style={resultadosResumen}>
+          Mostrando <strong>{articulosFiltrados.length}</strong> artículos
+        </div>
 
         <div style={resultadosBox}>
           {articulosFiltrados.length === 0 ? (
@@ -119,6 +175,7 @@ export default function RuletaFormulario({
             articulosFiltrados.map((articulo) => {
               const seleccionado =
                 String(articulo.id) === String(formulario.articulo_id);
+              const departamentoNombre = obtenerDepartamentoNombre(articulo);
 
               return (
                 <button
@@ -144,9 +201,7 @@ export default function RuletaFormulario({
                       {articulo.nombre}
                     </strong>
 
-                    {articulo.departamento_nombre && (
-                      <small>{articulo.departamento_nombre}</small>
-                    )}
+                    {departamentoNombre && <small>{departamentoNombre}</small>}
                   </div>
                 </button>
               );
@@ -288,6 +343,13 @@ const buscadorBox = {
   marginBottom: "14px",
 };
 
+const filtrosPremio = {
+  display: "grid",
+  gridTemplateColumns: "minmax(190px, 260px) minmax(240px, 1fr)",
+  gap: "12px",
+  marginBottom: "12px",
+};
+
 const gridFormulario = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
@@ -306,7 +368,6 @@ const label = {
 
 const labelGrande = {
   ...label,
-  marginBottom: "10px",
 };
 
 const input = {
@@ -330,6 +391,12 @@ const inputColor = {
   height: "39px",
   padding: "4px",
   background: "#ffffff",
+};
+
+const resultadosResumen = {
+  margin: "0 0 10px",
+  color: "#6b7280",
+  fontSize: "13px",
 };
 
 const resultadosBox = {
