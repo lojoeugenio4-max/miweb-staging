@@ -152,11 +152,9 @@ export default function StoreWheel({
       animacionActivaRef.current = false;
       frameRef.current = null;
 
-      window.setTimeout(() => {
-        if (giroId === giroIdRef.current) {
-          onGiroFinalizado?.();
-        }
-      }, 650);
+      if (giroId === giroIdRef.current) {
+        onGiroFinalizado?.();
+      }
     }
 
     frameRef.current = requestAnimationFrame(animar);
