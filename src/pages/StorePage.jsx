@@ -130,6 +130,8 @@ export default function StorePage() {
   const [mensaje, setMensaje] = useState("");
   const [girando, setGirando] = useState(false);
   const [premioFinal, setPremioFinal] = useState(null);
+  const [premioObjetivo, setPremioObjetivo] = useState(null);
+  const [entradaResultado, setEntradaResultado] = useState(null);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -154,6 +156,8 @@ export default function StorePage() {
     setEntrada(null);
     setPremios([]);
     setPremioFinal(null);
+    setPremioObjetivo(null);
+    setEntradaResultado(null);
 
     const { data, error } = await supabase
       .from("promotion_participations")
@@ -233,6 +237,8 @@ export default function StorePage() {
 
     setGirando(true);
     setPremioFinal(null);
+    setPremioObjetivo(null);
+    setEntradaResultado(null);
     setMensaje("");
     startSpinSound();
 
@@ -250,6 +256,8 @@ export default function StorePage() {
       stopSpinSound();
       console.error(error);
       setGirando(false);
+      setPremioObjetivo(null);
+      setEntradaResultado(null);
       setMensaje(error.message || "No se pudo consumir el código.");
       setEstado("error");
       return;
@@ -262,31 +270,39 @@ export default function StorePage() {
     if (!entry || !prize) {
       stopSpinSound();
       setGirando(false);
+      setPremioObjetivo(null);
+      setEntradaResultado(null);
       setMensaje("La respuesta del servidor no incluye premio.");
       setEstado("error");
       return;
     }
 
-    window.setTimeout(() => {
-      stopSpinSound();
+    setEntradaResultado(entry);
+    setPremioObjetivo(prize);
+  }
 
-      setEntrada(entry);
-      setPremioFinal(prize);
-      setGirando(false);
-      setEstado("result");
+  function completarGiro(prize) {
+    const entry = entradaResultado || entrada;
 
-      enviarEventoDisplay("result", {
-        entrada: entry,
-        premios,
-        premio: prize,
-      });
+    stopSpinSound();
+    setEntrada(entry);
+    setPremioFinal(prize);
+    setPremioObjetivo(null);
+    setEntradaResultado(null);
+    setGirando(false);
+    setEstado("result");
 
-      if (prize.tipo_sonido === "sirena" || prize.tipo_sonido === "jackpot") {
-        playSirena();
-      } else {
-        playCampana();
-      }
-    }, 4200);
+    enviarEventoDisplay("result", {
+      entrada: entry,
+      premios,
+      premio: prize,
+    });
+
+    if (prize?.tipo_sonido === "sirena" || prize?.tipo_sonido === "jackpot") {
+      playSirena();
+    } else {
+      playCampana();
+    }
   }
 
   function reset() {
@@ -298,6 +314,8 @@ export default function StorePage() {
     setMensaje("");
     setGirando(false);
     setPremioFinal(null);
+    setPremioObjetivo(null);
+    setEntradaResultado(null);
     enviarEventoDisplay("waiting");
 
     window.setTimeout(() => {
@@ -429,7 +447,9 @@ export default function StorePage() {
               premios={premios}
               girando={girando}
               premioFinal={premioFinal}
+              premioObjetivo={premioObjetivo}
               onGirar={girar}
+              onGiroCompletado={completarGiro}
             />
 
             <div style={styles.note}>
