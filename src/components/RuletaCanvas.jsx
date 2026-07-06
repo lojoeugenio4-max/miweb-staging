@@ -17,7 +17,7 @@ export default function RuletaCanvas({
           style={{
             ...ruleta,
             transform: `rotate(${rotacion}deg)`,
-            transition: girando
+          transition: "none",
   ? "transform 11.5s cubic-bezier(0.02, 0.72, 0.02, 1)"
   : "none",
             background: crearGradient(premios),
