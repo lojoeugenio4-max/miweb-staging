@@ -1,69 +1,81 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
+import RuletaCanvas from "./RuletaCanvas";
+import {
+  calcularIndicePremio,
+  calcularRotacionDestino,
+  elegirPremio,
+} from "./RuletaHelpers";
 
-export default function RuletaVisual({
-  premios = [],
-  onPremioGanado,
-  girando = false,
-}) {
+const DURACION_GIRO = 12000;
+
+export default function RuletaVisual({ premios = [], onPremioGanado }) {
   const premiosActivos = useMemo(
     () => premios.filter((p) => p.activo !== false),
     [premios]
   );
 
+  const [rotacion, setRotacion] = useState(0);
+  const [girando, setGirando] = useState(false);
+  const rotacionRef = useRef(0);
+
+  function easeOutCasino(t) {
+    return 1 - Math.pow(1 - t, 5);
+  }
+
   function girar() {
-    if (girando) return;
-    if (!premiosActivos.length) return;
+    if (girando || !premiosActivos.length) return;
 
-    const total = premiosActivos.reduce(
-      (t, p) => t + Number(p.probabilidad || 0),
-      0
-    );
+    const premio = elegirPremio(premiosActivos);
+    const indiceGanador = calcularIndicePremio(premiosActivos, premio);
 
-    let random = Math.random() * total;
+    const destino = calcularRotacionDestino({
+      rotacionActual: rotacionRef.current,
+      indiceGanador,
+      totalPremios: premiosActivos.length,
+    });
 
-    for (const premio of premiosActivos) {
-      random -= Number(premio.probabilidad || 0);
+    const inicio = rotacionRef.current;
+    const diferencia = destino - inicio;
+    const tiempoInicio = performance.now();
 
-      if (random <= 0) {
+    setGirando(true);
+
+    function animar(tiempoActual) {
+      const progreso = Math.min(
+        (tiempoActual - tiempoInicio) / DURACION_GIRO,
+        1
+      );
+
+      const suavizado = easeOutCasino(progreso);
+      const nuevaRotacion = inicio + diferencia * suavizado;
+
+      rotacionRef.current = nuevaRotacion;
+      setRotacion(nuevaRotacion);
+
+      if (progreso < 1) {
+        requestAnimationFrame(animar);
+      } else {
+        rotacionRef.current = destino;
+        setRotacion(destino);
+        setGirando(false);
         onPremioGanado?.(premio);
-        return;
       }
     }
 
-    onPremioGanado?.(premiosActivos[0]);
+    requestAnimationFrame(animar);
   }
 
   return (
     <div style={contenedor}>
-      <button style={boton} onClick={girar}>
-        🎡 GIRAR RULETA
+      <RuletaCanvas
+        premios={premiosActivos}
+        rotacion={rotacion}
+        girando={girando}
+      />
+
+      <button style={boton} onClick={girar} disabled={girando}>
+        {girando ? "GIRANDO..." : "GIRAR RULETA"}
       </button>
-
-      <div style={lista}>
-        {premiosActivos.map((premio) => (
-          <div
-            key={premio.id}
-            style={{
-              ...premioItem,
-              borderLeft: `10px solid ${premio.color}`,
-            }}
-          >
-            <img
-              src={premio.imagen_url}
-              alt={premio.nombre}
-              style={imagen}
-            />
-
-            <div style={{ flex: 1 }}>
-              <strong>{premio.nombre}</strong>
-
-              <div style={probabilidad}>
-                {premio.probabilidad}% · Stock {premio.stock ?? "∞"}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
@@ -71,6 +83,7 @@ export default function RuletaVisual({
 const contenedor = {
   display: "flex",
   flexDirection: "column",
+  alignItems: "center",
   gap: 20,
 };
 
@@ -81,34 +94,6 @@ const boton = {
   color: "#fff",
   fontSize: 22,
   fontWeight: 700,
-  padding: "16px",
+  padding: "16px 28px",
   cursor: "pointer",
-};
-
-const lista = {
-  display: "flex",
-  flexDirection: "column",
-  gap: 12,
-};
-
-const premioItem = {
-  display: "flex",
-  gap: 12,
-  alignItems: "center",
-  border: "1px solid #e5e7eb",
-  borderRadius: 12,
-  padding: 12,
-};
-
-const imagen = {
-  width: 60,
-  height: 60,
-  objectFit: "cover",
-  borderRadius: 10,
-};
-
-const probabilidad = {
-  marginTop: 4,
-  color: "#64748b",
-  fontSize: 13,
 };
