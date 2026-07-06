@@ -2,12 +2,19 @@ export default function RuletaCanvas({
   premios = [],
   rotacion = 0,
   girando = false,
+  tick = 0,
 }) {
   if (!premios.length) return null;
 
   return (
     <div style={contenedor}>
-      <div style={puntero}>
+      <div
+        style={{
+          ...puntero,
+          transform: `translateX(-50%) rotate(${tick % 2 === 0 ? -13 : 13}deg)`,
+          transition: "transform 90ms ease-out",
+        }}
+      >
         <div style={punteroCabeza}>●</div>
         <div style={punteroPunta}>▼</div>
       </div>
@@ -17,9 +24,7 @@ export default function RuletaCanvas({
           style={{
             ...ruleta,
             transform: `rotate(${rotacion}deg)`,
-          transition: "none",
-  ? "transform 11.5s cubic-bezier(0.02, 0.72, 0.02, 1)"
-  : "none",
+            transition: "none",
             background: crearGradient(premios),
           }}
         >
@@ -79,6 +84,7 @@ const puntero = {
   left: "50%",
   top: "-18px",
   transform: "translateX(-50%)",
+  transformOrigin: "50% 20px",
   zIndex: 30,
   display: "flex",
   flexDirection: "column",
