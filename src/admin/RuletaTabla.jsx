@@ -1,8 +1,8 @@
 import RuletaFila from "./RuletaFila";
 
 export default function RuletaTabla({
-  premios,
-  cargando,
+  premios = [],
+  cargando = false,
   onEditar,
   onEliminar,
 }) {
@@ -79,6 +79,7 @@ const th = {
   padding: "10px",
   color: "#374151",
   fontSize: "13px",
+  whiteSpace: "nowrap",
 };
 
 const aviso = {
