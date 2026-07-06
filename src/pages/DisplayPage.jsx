@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../supabaseClient";
 import logoLojo from "../assets/logo-lojo.jpg";
 
@@ -28,7 +28,21 @@ function getPrizeImageUrl(premio) {
   );
 }
 
+function normalizarGrados(grados) {
+  return ((grados % 360) + 360) % 360;
+}
+
 function DisplayWheel({ premios = [], girando, premioFinal }) {
+  const [rotacion, setRotacion] = useState(0);
+  const [tick, setTick] = useState(0);
+  const [luces, setLuces] = useState(0);
+
+  const rotacionRef = useRef(0);
+  const velocidadRef = useRef(0);
+  const frameRef = useRef(null);
+  const ultimaVezRef = useRef(null);
+  const ultimoSectorRef = useRef(null);
+
   const segmentos = useMemo(() => {
     const base =
       premios.length >= 8
@@ -42,12 +56,67 @@ function DisplayWheel({ premios = [], girando, premioFinal }) {
 
     return base.map((premio, index) => ({
       premio,
-      color: COLORS[index % COLORS.length],
+      color: premio?.color || COLORS[index % COLORS.length],
       start: index * grados,
       end: index * grados + grados,
-      icono: ["?", "★", "🎁", "♦"][index % 4],
+      center: index * grados + grados / 2,
+      icono: premio?.icono || ["?", "★", "🎁", "♦"][index % 4],
     }));
   }, [premios]);
+
+  useEffect(() => {
+    if (frameRef.current) {
+      cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    }
+
+    ultimaVezRef.current = null;
+    ultimoSectorRef.current = null;
+
+    // CLAVE: en la pantalla display NO usamos una animación CSS fija.
+    // Sigue girando mientras la tienda mande girando=true y se para justo
+    // cuando llega el evento result, que es también cuando se corta el sonido.
+    if (!girando) {
+      velocidadRef.current = 0;
+      return;
+    }
+
+    velocidadRef.current = Math.max(velocidadRef.current, 8);
+
+    function animar(ahora) {
+      if (!ultimaVezRef.current) ultimaVezRef.current = ahora;
+
+      const delta = Math.min((ahora - ultimaVezRef.current) / 16.67, 2);
+      ultimaVezRef.current = ahora;
+
+      // Aceleración suave hasta velocidad de giro de casino.
+      velocidadRef.current += (34 - velocidadRef.current) * 0.045;
+
+      const nuevaRotacion = rotacionRef.current + velocidadRef.current * delta;
+      rotacionRef.current = nuevaRotacion;
+      setRotacion(nuevaRotacion);
+
+      const gradosSector = 360 / Math.max(segmentos.length, 1);
+      const sectorActual = Math.floor(normalizarGrados(nuevaRotacion) / gradosSector);
+
+      if (sectorActual !== ultimoSectorRef.current) {
+        ultimoSectorRef.current = sectorActual;
+        setTick((valor) => valor + 1);
+      }
+
+      setLuces((valor) => valor + 1);
+      frameRef.current = requestAnimationFrame(animar);
+    }
+
+    frameRef.current = requestAnimationFrame(animar);
+
+    return () => {
+      if (frameRef.current) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    };
+  }, [girando, segmentos.length]);
 
   const conic = segmentos
     .map((seg) => `${seg.color} ${seg.start}deg ${seg.end}deg`)
@@ -55,7 +124,13 @@ function DisplayWheel({ premios = [], girando, premioFinal }) {
 
   return (
     <div style={wheelStyles.wrap}>
-      <div style={wheelStyles.pointer}>
+      <div
+        style={{
+          ...wheelStyles.pointer,
+          transform: `rotate(${girando ? (tick % 2 === 0 ? -10 : 10) : 0}deg)`,
+          transition: girando ? "transform 75ms ease-out" : "transform 220ms ease-out",
+        }}
+      >
         <div style={wheelStyles.pointerDot} />
       </div>
 
@@ -63,14 +138,16 @@ function DisplayWheel({ premios = [], girando, premioFinal }) {
         <div style={wheelStyles.bulbs}>
           {Array.from({ length: 36 }, (_, index) => {
             const angle = (360 / 36) * index;
+            const encendida = girando ? (index + luces) % 4 === 0 : index % 2 === 0;
 
             return (
               <span
                 key={index}
                 style={{
                   ...wheelStyles.bulb,
+                  opacity: encendida ? 1 : 0.42,
+                  filter: encendida ? "brightness(1.45)" : "brightness(.72)",
                   transform: `rotate(${angle}deg) translateY(calc(var(--display-wheel-size) / -2 + 15px))`,
-                  animationDelay: `${index * 0.035}s`,
                 }}
               />
             );
@@ -81,9 +158,8 @@ function DisplayWheel({ premios = [], girando, premioFinal }) {
           style={{
             ...wheelStyles.wheel,
             background: `conic-gradient(${conic})`,
-            animation: girando
-              ? "lojoRealSpin 4.2s cubic-bezier(.08,.72,.12,1) forwards"
-              : "lojoSlowWheel 18s linear infinite",
+            transform: `rotate(${rotacion}deg)`,
+            transition: "none",
           }}
         >
           {segmentos.map((segmento, index) => (
@@ -91,12 +167,12 @@ function DisplayWheel({ premios = [], girando, premioFinal }) {
               key={index}
               style={{
                 ...wheelStyles.segmentIcon,
-                transform: `rotate(${segmento.start + (segmento.end - segmento.start) / 2}deg) translateY(calc(var(--display-wheel-size) * -0.28))`,
+                transform: `rotate(${segmento.center}deg) translateY(calc(var(--display-wheel-size) * -0.28))`,
               }}
             >
               <span
                 style={{
-                  transform: `rotate(-${segmento.start + (segmento.end - segmento.start) / 2}deg)`,
+                  transform: `rotate(-${segmento.center}deg)`,
                 }}
               >
                 {segmento.icono}
@@ -272,15 +348,6 @@ export default function DisplayPage() {
             100% { transform: scale(1); opacity: 1; }
           }
 
-          @keyframes lojoSlowWheel {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-
-          @keyframes lojoRealSpin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(2880deg); }
-          }
 
           @keyframes lojoBulbPulse {
             from { opacity: .52; filter: brightness(.75); }
@@ -402,6 +469,7 @@ const wheelStyles = {
     clipPath: "polygon(50% 100%, 10% 28%, 50% 0, 90% 28%)",
     filter: "drop-shadow(0 6px 10px rgba(0,0,0,.65))",
     border: "4px solid #facc15",
+    transformOrigin: "50% 22%",
   },
   pointerDot: {
     position: "absolute",
@@ -444,7 +512,7 @@ const wheelStyles = {
     borderRadius: "50%",
     background: "radial-gradient(circle, #ffffff 0%, #fde68a 42%, #f59e0b 100%)",
     boxShadow: "0 0 18px rgba(250,204,21,.95), 0 0 34px rgba(250,204,21,.55)",
-    animation: "lojoBulbPulse .78s infinite alternate",
+    transition: "opacity 120ms linear, filter 120ms linear",
   },
   wheel: {
     width: "calc(100% - clamp(58px, 8vh, 90px))",
@@ -455,6 +523,7 @@ const wheelStyles = {
       "inset 0 0 0 3px rgba(0,0,0,.28), inset 0 0 40px rgba(0,0,0,.35), 0 18px 55px rgba(0,0,0,.52)",
     position: "relative",
     overflow: "hidden",
+    willChange: "transform",
   },
   segmentIcon: {
     position: "absolute",
