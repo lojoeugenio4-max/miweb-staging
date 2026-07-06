@@ -28,6 +28,7 @@ export default function RuletaArticulos() {
 
   const [cargando, setCargando] = useState(true);
   const [guardandoId, setGuardandoId] = useState(null);
+  const [guardandoLote, setGuardandoLote] = useState(false);
   const [actualizandoId, setActualizandoId] = useState(null);
   const [eliminandoId, setEliminandoId] = useState(null);
 
@@ -46,13 +47,9 @@ export default function RuletaArticulos() {
       .limit(1)
       .maybeSingle();
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
-    if (data) {
-      return data;
-    }
+    if (data) return data;
 
     const { data: nueva, error: crearError } = await supabase
       .from("promociones_ruleta")
@@ -60,9 +57,7 @@ export default function RuletaArticulos() {
       .select("*")
       .single();
 
-    if (crearError) {
-      throw crearError;
-    }
+    if (crearError) throw crearError;
 
     return nueva;
   }
@@ -152,6 +147,13 @@ export default function RuletaArticulos() {
     });
   }, [articulos, busqueda, departamentoFiltro]);
 
+  const articulosFiltradosNoSeleccionados = useMemo(() => {
+    return articulosFiltrados.filter((articulo) => {
+      const codigo = String(articulo.codigo || "").trim();
+      return codigo && !codigosSeleccionados.has(codigo);
+    });
+  }, [articulosFiltrados, codigosSeleccionados]);
+
   async function agregarArticulo(articulo) {
     if (!promocion) return;
 
@@ -200,6 +202,57 @@ export default function RuletaArticulos() {
     }
 
     setGuardandoId(null);
+  }
+
+  async function agregarArticulosFiltrados() {
+    if (!promocion || guardandoLote) return;
+
+    const articulosParaInsertar = articulosFiltradosNoSeleccionados.map((articulo) => ({
+      promocion_id: promocion.id,
+      articulo_id: articulo.id,
+      codigo_articulo: String(articulo.codigo || "").trim(),
+      nombre_articulo: articulo.nombre || "",
+      cantidad_minima: 1,
+    }));
+
+    if (articulosParaInsertar.length === 0) {
+      setMensaje("No hay artículos nuevos para añadir con estos filtros.");
+      return;
+    }
+
+    const confirmar = window.confirm(
+      `¿Añadir ${articulosParaInsertar.length} artículos filtrados a la promoción?`
+    );
+
+    if (!confirmar) return;
+
+    setError("");
+    setMensaje("");
+    setGuardandoLote(true);
+
+    const { data, error } = await supabase
+      .from("promociones_ruleta_articulos")
+      .insert(articulosParaInsertar)
+      .select("*");
+
+    if (error) {
+      console.error(error);
+      setError("No se han podido añadir todos los artículos filtrados.");
+    } else {
+      setArticulosSeleccionados((actual) =>
+        [...actual, ...(data || [])].sort((a, b) =>
+          String(a.nombre_articulo || "").localeCompare(
+            String(b.nombre_articulo || ""),
+            "es",
+            { sensitivity: "base" }
+          )
+        )
+      );
+
+      setMensaje(`${data?.length || 0} artículos añadidos correctamente.`);
+    }
+
+    setGuardandoLote(false);
   }
 
   async function cambiarCantidadMinima(item, valor) {
@@ -320,6 +373,30 @@ export default function RuletaArticulos() {
           </label>
         </div>
 
+        <div style={accionesFiltro}>
+          <div style={contadorFiltro}>
+            {articulosFiltradosNoSeleccionados.length} artículos nuevos con estos filtros
+          </div>
+
+          <button
+            type="button"
+            style={{
+              ...botonAgregarTodos,
+              ...(articulosFiltradosNoSeleccionados.length === 0 || guardandoLote
+                ? botonDeshabilitado
+                : {}),
+            }}
+            disabled={articulosFiltradosNoSeleccionados.length === 0 || guardandoLote}
+            onClick={agregarArticulosFiltrados}
+          >
+            {guardandoLote
+              ? "Añadiendo..."
+              : departamentoFiltro === "TODOS" && !busqueda.trim()
+                ? "Añadir todos"
+                : "Añadir todos los filtrados"}
+          </button>
+        </div>
+
         <div style={resultados}>
           {articulosFiltrados.length === 0 ? (
             <div style={vacio}>No hay artículos con esos filtros.</div>
@@ -353,7 +430,7 @@ export default function RuletaArticulos() {
                       ...botonAgregar,
                       ...(seleccionado ? botonAgregado : {}),
                     }}
-                    disabled={seleccionado || guardandoId === articulo.id}
+                    disabled={seleccionado || guardandoId === articulo.id || guardandoLote}
                     onClick={() => agregarArticulo(articulo)}
                   >
                     {seleccionado
@@ -512,6 +589,37 @@ const input = {
   padding: "10px",
   fontSize: "14px",
   background: "#ffffff",
+};
+
+const accionesFiltro = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "10px",
+  marginBottom: "12px",
+  flexWrap: "wrap",
+};
+
+const contadorFiltro = {
+  color: "#6b7280",
+  fontSize: "13px",
+  fontWeight: "700",
+};
+
+const botonAgregarTodos = {
+  border: "none",
+  borderRadius: "10px",
+  background: "#2563eb",
+  color: "#ffffff",
+  padding: "10px 14px",
+  fontSize: "13px",
+  fontWeight: "900",
+  cursor: "pointer",
+};
+
+const botonDeshabilitado = {
+  opacity: 0.55,
+  cursor: "not-allowed",
 };
 
 const resultados = {
