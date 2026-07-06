@@ -6,6 +6,9 @@ export default function ModalRuletaPedido({
   onPremioGanado,
   onCerrar,
 }) {
+  const variedadValida = Number(resumenPromocion?.variedadValida || 0);
+  const variedadMinima = Number(resumenPromocion?.variedadMinima || 0);
+
   return (
     <div style={overlay}>
       <div style={panel}>
@@ -16,14 +19,11 @@ export default function ModalRuletaPedido({
         <h2 style={titulo}>🎡 ¡Tu pedido participa en la ruleta!</h2>
 
         <p style={texto}>
-          Has comprado <strong>{resumenPromocion.cajasValidas}</strong> cajas
-          válidas para esta promoción.
+          Has comprado <strong>{variedadValida}</strong> referencias válidas de{" "}
+          <strong>{variedadMinima}</strong> necesarias para esta promoción.
         </p>
 
-        <RuletaVisual
-          premios={premios}
-          onPremioGanado={onPremioGanado}
-        />
+        <RuletaVisual premios={premios} onPremioGanado={onPremioGanado} />
       </div>
     </div>
   );
