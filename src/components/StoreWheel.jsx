@@ -41,7 +41,24 @@ export default function StoreWheel({
 
   return (
     <div style={styles.wrap}>
-      <div style={styles.pointer}>
+      <style>
+        {`
+          @keyframes lojoPointerAlive {
+            0% { transform: rotate(0deg); }
+            22% { transform: rotate(9deg); }
+            46% { transform: rotate(-7deg); }
+            70% { transform: rotate(5deg); }
+            100% { transform: rotate(0deg); }
+          }
+        `}
+      </style>
+
+      <div
+        style={{
+          ...styles.pointer,
+          animation: girando ? "lojoPointerAlive .22s ease-in-out infinite" : "none",
+        }}
+      >
         <div style={styles.pointerDot} />
       </div>
 
@@ -134,6 +151,7 @@ const styles = {
   pointer: {
     position: "relative",
     zIndex: 10,
+    transformOrigin: "50% 18%",
     width: "clamp(54px, 8vh, 82px)",
     height: "clamp(78px, 11vh, 118px)",
     marginBottom: "clamp(-76px, -9vh, -54px)",
