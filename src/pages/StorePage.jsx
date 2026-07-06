@@ -28,6 +28,8 @@ function enviarEventoDisplay(type, payload = {}) {
 
 let audioContext = null;
 let giroInterval = null;
+let giroActivo = false;
+let giroAutoStop = null;
 
 function getAudioContext() {
   if (!audioContext) {
@@ -44,7 +46,8 @@ function beep({ frequency = 440, duration = 120, type = "sine", volume = 0.08 } 
 
     oscillator.type = type;
     oscillator.frequency.value = frequency;
-    gain.gain.value = volume;
+    gain.gain.setValueAtTime(volume, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration / 1000);
 
     oscillator.connect(gain);
     gain.connect(ctx.destination);
@@ -56,23 +59,38 @@ function beep({ frequency = 440, duration = 120, type = "sine", volume = 0.08 } 
 
 function startSpinSound() {
   stopSpinSound();
+  giroActivo = true;
   let step = 0;
 
   giroInterval = window.setInterval(() => {
+    if (!giroActivo) return;
+
     beep({
       frequency: 220 + (step % 8) * 28,
-      duration: 55,
+      duration: 45,
       type: "square",
-      volume: 0.035,
+      volume: 0.03,
     });
     step += 1;
-  }, 70);
+  }, 68);
+
+  // Seguro anti-bucle: aunque algo falle en la animación, el giro no queda sonando.
+  giroAutoStop = window.setTimeout(() => {
+    stopSpinSound();
+  }, 16000);
 }
 
 function stopSpinSound() {
+  giroActivo = false;
+
   if (giroInterval) {
     window.clearInterval(giroInterval);
     giroInterval = null;
+  }
+
+  if (giroAutoStop) {
+    window.clearTimeout(giroAutoStop);
+    giroAutoStop = null;
   }
 }
 
