@@ -83,7 +83,7 @@ export function calcularRotacionDestino({
   const gradosSector = 360 / totalPremios;
   const centroSector = indiceGanador * gradosSector + gradosSector / 2;
 
-  return rotacionActual + 360 * 8 + (360 - centroSector);
+ return rotacionActual + 360 * 18 + (360 - centroSector);
 }
 
 export async function descontarStock(supabase, premio) {
