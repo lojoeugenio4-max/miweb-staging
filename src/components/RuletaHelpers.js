@@ -83,7 +83,18 @@ export function calcularRotacionDestino({
   const gradosSector = 360 / totalPremios;
   const centroSector = indiceGanador * gradosSector + gradosSector / 2;
 
- return rotacionActual + 360 * 18 + (360 - centroSector);
+  // Rotación actual normalizada (0-360)
+  const rotacionNormalizada = ((rotacionActual % 360) + 360) % 360;
+
+  // Número de vueltas completas antes de llegar al premio
+  const vueltasExtra = 26;
+
+  return (
+    rotacionActual -
+    rotacionNormalizada +
+    vueltasExtra * 360 +
+    (360 - centroSector)
+  );
 }
 
 export async function descontarStock(supabase, premio) {
