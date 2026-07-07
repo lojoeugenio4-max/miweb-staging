@@ -18,6 +18,7 @@ export function construirTextoPedidoWhatsApp({
   premio = null,
   participacionRuleta = null,
   codigoParticipacion = null,
+  tiradasRuleta = 0,
 }) {
   const lines = [];
 
@@ -87,8 +88,11 @@ export function construirTextoPedidoWhatsApp({
   if (codigoRuleta) {
     const urlQr = construirUrlQr(codigoRuleta);
 
+    const numeroTiradas = Math.max(1, Number(tiradasRuleta || participacionRuleta?.tiradas_ruleta || participacionRuleta?.tiradas_totales || participacionRuleta?.spins_total || 1));
+
     lines.push("🎁 *PARTICIPACIÓN CONSEGUIDA*");
     lines.push("");
+    lines.push(`Tiradas de ruleta: *${numeroTiradas}*`);
     lines.push(`Código manual: *${codigoRuleta}*`);
     lines.push("");
 
