@@ -201,6 +201,48 @@ function getTodayISO() {
   return `${year}-${month}-${day}`;
 }
 
+function MiniRuletaPromocion({ premios = [] }) {
+  return (
+    <div style={styles.ruletaPromoBadge} aria-label="Promoción ruleta">
+      <div style={styles.ruletaPromoWheelWrap}>
+        <div
+          style={{
+            ...styles.ruletaPromoWheel,
+            background: crearGradientRuletaPromo(premios),
+          }}
+        >
+          <div style={styles.ruletaPromoWheelShine} />
+          <div style={styles.ruletaPromoWheelCenter} />
+        </div>
+        <div style={styles.ruletaPromoPointer} />
+      </div>
+    </div>
+  );
+}
+
+function crearGradientRuletaPromo(premios = []) {
+  const colores = premios.length
+    ? premios.map((premio, index) => premio.color || coloresRuletaPromo[index % coloresRuletaPromo.length])
+    : coloresRuletaPromo;
+  const grados = 360 / colores.length;
+
+  return `conic-gradient(${colores
+    .map((color, index) => `${color} ${index * grados}deg ${(index + 1) * grados}deg`)
+    .join(", ")})`;
+}
+
+const coloresRuletaPromo = [
+  "#ef4444",
+  "#f97316",
+  "#facc15",
+  "#22c55e",
+  "#14b8a6",
+  "#0ea5e9",
+  "#2563eb",
+  "#7c3aed",
+  "#db2777",
+];
+
 export default function App() {
   const searchParams =
     typeof window !== "undefined"
@@ -1713,13 +1755,7 @@ export default function App() {
                           </div>
 
                           {product.participaRuleta && (
-                            <div style={styles.ruletaPromoBadge}>
-                              <strong style={styles.ruletaPromoTitle}>
-                                🎡 PROMOCIÓN RULETA
-                              </strong>
-                              <span style={styles.ruletaPromoText}>Participa en la</span>
-                              <span style={styles.ruletaPromoText}>promoción</span>
-                            </div>
+                            <MiniRuletaPromocion premios={premiosRuleta} />
                           )}
                         </div>
 
@@ -2426,32 +2462,64 @@ const styles = {
   },
 
   ruletaPromoBadge: {
-    border: "1px solid #a855f7",
-    background: "#faf5ff",
-    color: "#6b21a8",
-    borderRadius: "8px",
-    padding: "4px 8px",
-    minWidth: "150px",
-    maxWidth: "170px",
+    width: "54px",
+    height: "54px",
+    minWidth: "54px",
     boxSizing: "border-box",
     display: "flex",
-    flexDirection: "column",
-    gap: "1px",
-    lineHeight: 1.05,
-    boxShadow: "0 1px 4px rgba(107,33,168,0.14)",
+    alignItems: "center",
+    justifyContent: "center",
     flexShrink: 0,
   },
 
-  ruletaPromoTitle: {
-    fontSize: "10px",
-    fontWeight: "1000",
-    letterSpacing: "0.01em",
-    whiteSpace: "nowrap",
+  ruletaPromoWheelWrap: {
+    position: "relative",
+    width: "46px",
+    height: "46px",
   },
 
-  ruletaPromoText: {
-    fontSize: "10px",
-    fontWeight: "800",
+  ruletaPromoWheel: {
+    position: "absolute",
+    inset: "3px",
+    borderRadius: "50%",
+    border: "3px solid #f59e0b",
+    boxShadow:
+      "0 0 0 2px #78350f, inset 0 0 8px rgba(0,0,0,.3), 0 2px 7px rgba(0,0,0,.18)",
+    overflow: "hidden",
+  },
+
+  ruletaPromoWheelShine: {
+    position: "absolute",
+    inset: 0,
+    borderRadius: "50%",
+    background:
+      "radial-gradient(circle at 35% 30%, rgba(255,255,255,.45), transparent 28%, rgba(0,0,0,.14) 78%)",
+  },
+
+  ruletaPromoWheelCenter: {
+    position: "absolute",
+    left: "50%",
+    top: "50%",
+    width: "14px",
+    height: "14px",
+    transform: "translate(-50%, -50%)",
+    borderRadius: "50%",
+    background: "linear-gradient(180deg, #fde68a, #f59e0b)",
+    border: "2px solid #78350f",
+    boxShadow: "0 0 0 1px rgba(255,255,255,.6)",
+  },
+
+  ruletaPromoPointer: {
+    position: "absolute",
+    left: "50%",
+    top: "-1px",
+    width: 0,
+    height: 0,
+    transform: "translateX(-50%)",
+    borderLeft: "6px solid transparent",
+    borderRight: "6px solid transparent",
+    borderTop: "12px solid #dc2626",
+    filter: "drop-shadow(0 1px 1px rgba(0,0,0,.35))",
   },
 
   productName: {
