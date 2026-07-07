@@ -138,6 +138,65 @@ function getPrizeImageUrl(premio) {
   );
 }
 
+
+function seleccionarPremioRuleta(premios = []) {
+  const activos = (premios || []).filter(Boolean);
+  if (!activos.length) return null;
+
+  const pesos = activos.map((premio) => {
+    const peso = Number(
+      premio.probabilidad ??
+        premio.peso ??
+        premio.weight ??
+        premio.porcentaje ??
+        1
+    );
+
+    return Number.isFinite(peso) && peso > 0 ? peso : 1;
+  });
+
+  const total = pesos.reduce((acc, peso) => acc + peso, 0);
+  let cursor = Math.random() * total;
+
+  for (let index = 0; index < activos.length; index += 1) {
+    cursor -= pesos[index];
+    if (cursor <= 0) return activos[index];
+  }
+
+  return activos[activos.length - 1];
+}
+
+async function actualizarSaldoTiradas(entry, usadas, total) {
+  if (!entry?.code) return null;
+
+  const quedan = Math.max(0, Number(total || 0) - Number(usadas || 0));
+  const updatePayload = {
+    status: quedan > 0 ? "pending" : "played",
+    tiradas_usadas: usadas,
+    spins_used: usadas,
+    tiradas_totales: total,
+    spins_total: total,
+  };
+
+  if (quedan <= 0) {
+    updatePayload.played_at = new Date().toISOString();
+  }
+
+  const { data, error } = await supabase
+    .from("promotion_participations")
+    .update(updatePayload)
+    .eq("code", entry.code)
+    .select("*")
+    .maybeSingle();
+
+  if (error) {
+    console.warn("No se pudo actualizar el saldo de tiradas:", error);
+    return null;
+  }
+
+  return data;
+}
+
 function obtenerTiradasTotalesEntrada(entrada) {
   return Math.max(
     1,
@@ -313,28 +372,42 @@ export default function StorePage() {
       premios,
     });
 
-    const { data, error } = await supabase.rpc("play_promotion_participation", {
-      p_code: entrada.code,
-      p_used_by: "tienda",
-    });
+    const tiradasUsadasAntes = obtenerTiradasUsadasEntrada(entrada);
+    const tiradasTotalesAntes = obtenerTiradasTotalesEntrada(entrada);
+    const esPrimeraTirada = tiradasUsadasAntes === 0;
 
-    if (error) {
-      stopSpinSound();
-      console.error(error);
-      setGirando(false);
-      setMensaje(error.message || "No se pudo consumir el código.");
-      setEstado("error");
-      return;
+    let entryServer = entrada;
+    let prize = null;
+
+    if (esPrimeraTirada) {
+      const { data, error } = await supabase.rpc("play_promotion_participation", {
+        p_code: entrada.code,
+        p_used_by: "tienda",
+      });
+
+      if (error) {
+        stopSpinSound();
+        console.error(error);
+        setGirando(false);
+        setMensaje(error.message || "No se pudo consumir el código.");
+        setEstado("error");
+        return;
+      }
+
+      const result = Array.isArray(data) ? data[0] : data;
+      entryServer = result?.entry || result?.entrada || result?.participation || entrada;
+      prize = result?.prize || result?.premio;
+    } else {
+      // La función de Supabase original consume el QR en el primer giro.
+      // Para las tiradas extra usamos el saldo guardado y elegimos el premio aquí,
+      // actualizando después tiradas_usadas hasta agotar el QR.
+      prize = seleccionarPremioRuleta(premios);
     }
-
-    const result = Array.isArray(data) ? data[0] : data;
-    const entryServer = result?.entry || result?.entrada || result?.participation;
-    const prize = result?.prize || result?.premio;
 
     if (!entryServer || !prize) {
       stopSpinSound();
       setGirando(false);
-      setMensaje("La respuesta del servidor no incluye premio.");
+      setMensaje("La respuesta no incluye premio.");
       setEstado("error");
       return;
     }
@@ -342,32 +415,40 @@ export default function StorePage() {
     window.setTimeout(() => {
       stopSpinSound();
 
-      const entry = mezclarTiradasEntrada(entryServer, entrada);
-      const quedan = obtenerTiradasRestantesEntrada(entry);
+      const entryCalculada = mezclarTiradasEntrada(entryServer, entrada);
+      const total = Math.max(tiradasTotalesAntes, obtenerTiradasTotalesEntrada(entryCalculada));
+      const usadas = Math.min(total, tiradasUsadasAntes + 1);
+      const quedan = Math.max(0, total - usadas);
 
-      setEntrada(entry);
+      const entryActualizada = {
+        ...entryCalculada,
+        tiradas_totales: total,
+        spins_total: total,
+        tiradas_usadas: usadas,
+        spins_used: usadas,
+        status: quedan > 0 ? "pending" : "played",
+      };
+
+      setEntrada(entryActualizada);
       setPremioFinal(prize);
       setGirando(false);
       setEstado("result");
 
-      if (quedan > 0) {
-        supabase
-          .from("promotion_participations")
-          .update({
-            status: "pending",
-            tiradas_usadas: obtenerTiradasUsadasEntrada(entry),
-            spins_used: obtenerTiradasUsadasEntrada(entry),
-          })
-          .eq("code", entry.code)
-          .then(({ error: updateError }) => {
-            if (updateError) {
-              console.warn("No se pudieron actualizar las tiradas restantes:", updateError);
-            }
-          });
-      }
+      actualizarSaldoTiradas(entryActualizada, usadas, total).then((entryBd) => {
+        if (entryBd) {
+          setEntrada((actual) => ({
+            ...actual,
+            ...entryBd,
+            tiradas_totales: total,
+            spins_total: total,
+            tiradas_usadas: usadas,
+            spins_used: usadas,
+          }));
+        }
+      });
 
       enviarEventoDisplay("result", {
-        entrada: entry,
+        entrada: entryActualizada,
         premios,
         premio: prize,
       });
