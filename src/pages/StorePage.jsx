@@ -123,6 +123,7 @@ function normalizarCodigo(value) {
   return String(value || "")
     .trim()
     .toUpperCase()
+    .replace(/[’‘`´']/g, "-")
     .replace(/\s+/g, "");
 }
 
