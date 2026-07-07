@@ -205,7 +205,7 @@ function MiniRuletaPromocion() {
   return (
     <div style={styles.ruletaPromoBadge} aria-label="Ruleta">
       <img
-        src="/ruleta-promo.webp"
+        src="/productos/Ruleta.webp"
         alt="Ruleta"
         style={styles.ruletaPromoImage}
       />
