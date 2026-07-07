@@ -166,20 +166,30 @@ function seleccionarPremioRuleta(premios = []) {
   return activos[activos.length - 1];
 }
 
-async function actualizarSaldoTiradas(entry, usadas, total) {
+async function actualizarSaldoTiradas(entry, usadas, total, premio = null) {
   if (!entry?.code) return null;
 
-  const quedan = Math.max(0, Number(total || 0) - Number(usadas || 0));
+  const usadasSeguras = Math.max(0, Number(usadas || 0));
+  const totalSeguro = Math.max(1, Number(total || 1));
+  const quedan = Math.max(0, totalSeguro - usadasSeguras);
+
+  // IMPORTANTE:
+  // En Supabase solo hemos añadido spins_total y spins_used.
+  // No enviamos campos tiradas_* porque no existen en la tabla y harían fallar el update.
   const updatePayload = {
     status: quedan > 0 ? "pending" : "played",
-    tiradas_usadas: usadas,
-    spins_used: usadas,
-    tiradas_totales: total,
-    spins_total: total,
+    spins_used: usadasSeguras,
+    spins_total: totalSeguro,
   };
+
+  if (premio?.id) {
+    updatePayload.prize_id = premio.id;
+  }
 
   if (quedan <= 0) {
     updatePayload.played_at = new Date().toISOString();
+  } else {
+    updatePayload.played_at = null;
   }
 
   const { data, error } = await supabase
@@ -374,35 +384,19 @@ export default function StorePage() {
 
     const tiradasUsadasAntes = obtenerTiradasUsadasEntrada(entrada);
     const tiradasTotalesAntes = obtenerTiradasTotalesEntrada(entrada);
-    const esPrimeraTirada = tiradasUsadasAntes === 0;
 
-    let entryServer = entrada;
-    let prize = null;
-
-    if (esPrimeraTirada) {
-      const { data, error } = await supabase.rpc("play_promotion_participation", {
-        p_code: entrada.code,
-        p_used_by: "tienda",
-      });
-
-      if (error) {
-        stopSpinSound();
-        console.error(error);
-        setGirando(false);
-        setMensaje(error.message || "No se pudo consumir el código.");
-        setEstado("error");
-        return;
-      }
-
-      const result = Array.isArray(data) ? data[0] : data;
-      entryServer = result?.entry || result?.entrada || result?.participation || entrada;
-      prize = result?.prize || result?.premio;
-    } else {
-      // La función de Supabase original consume el QR en el primer giro.
-      // Para las tiradas extra usamos el saldo guardado y elegimos el premio aquí,
-      // actualizando después tiradas_usadas hasta agotar el QR.
-      prize = seleccionarPremioRuleta(premios);
+    if (tiradasUsadasAntes >= tiradasTotalesAntes) {
+      stopSpinSound();
+      setGirando(false);
+      setMensaje("Este código ya no tiene tiradas disponibles.");
+      setEstado("used");
+      return;
     }
+
+    // No usamos la RPC antigua play_promotion_participation porque marca el QR
+    // como played en el primer giro. Ahora cada giro consume solo 1 saldo.
+    const entryServer = entrada;
+    const prize = seleccionarPremioRuleta(premios);
 
     if (!entryServer || !prize) {
       stopSpinSound();
@@ -434,7 +428,7 @@ export default function StorePage() {
       setGirando(false);
       setEstado("result");
 
-      actualizarSaldoTiradas(entryActualizada, usadas, total).then((entryBd) => {
+      actualizarSaldoTiradas(entryActualizada, usadas, total, prize).then((entryBd) => {
         if (entryBd) {
           setEntrada((actual) => ({
             ...actual,
