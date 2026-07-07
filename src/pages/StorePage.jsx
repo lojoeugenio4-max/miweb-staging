@@ -166,24 +166,24 @@ function seleccionarPremioRuleta(premios = []) {
   return activos[activos.length - 1];
 }
 
-async function actualizarSaldoTiradas(entry, usadas, total, premio = null) {
+async function actualizarSaldoTiradas(entry, usadas, total, prize = null) {
   if (!entry?.code) return null;
 
-  const usadasSeguras = Math.max(0, Number(usadas || 0));
-  const totalSeguro = Math.max(1, Number(total || 1));
-  const quedan = Math.max(0, totalSeguro - usadasSeguras);
+  const spinsTotal = Math.max(1, Number(total || 1));
+  const spinsUsed = Math.min(spinsTotal, Math.max(0, Number(usadas || 0)));
+  const quedan = Math.max(0, spinsTotal - spinsUsed);
 
   // IMPORTANTE:
-  // En Supabase solo hemos añadido spins_total y spins_used.
-  // No enviamos campos tiradas_* porque no existen en la tabla y harían fallar el update.
+  // No llamamos a la RPC play_promotion_participation porque consume el QR en el primer giro.
+  // El QR solo pasa a played cuando ya no quedan tiradas.
   const updatePayload = {
     status: quedan > 0 ? "pending" : "played",
-    spins_used: usadasSeguras,
-    spins_total: totalSeguro,
+    spins_used: spinsUsed,
+    spins_total: spinsTotal,
   };
 
-  if (premio?.id) {
-    updatePayload.prize_id = premio.id;
+  if (prize?.id) {
+    updatePayload.prize_id = prize.id;
   }
 
   if (quedan <= 0) {
@@ -208,29 +208,13 @@ async function actualizarSaldoTiradas(entry, usadas, total, premio = null) {
 }
 
 function obtenerTiradasTotalesEntrada(entrada) {
-  return Math.max(
-    1,
-    Number(
-      entrada?.tiradas_totales ??
-        entrada?.spins_total ??
-        entrada?.total_spins ??
-        entrada?.tiradas_ruleta ??
-        1
-    )
-  );
+  const total = Number(entrada?.spins_total ?? 1);
+  return Number.isFinite(total) && total > 0 ? total : 1;
 }
 
 function obtenerTiradasUsadasEntrada(entrada) {
-  const usadas = Number(
-    entrada?.tiradas_usadas ??
-      entrada?.spins_used ??
-      entrada?.used_spins ??
-      entrada?.tiradas_consumidas ??
-      0
-  );
-
-  if (Number.isFinite(usadas) && usadas > 0) return usadas;
-  return entrada?.status === "played" ? 1 : 0;
+  const usadas = Number(entrada?.spins_used ?? 0);
+  return Number.isFinite(usadas) && usadas > 0 ? usadas : 0;
 }
 
 function obtenerTiradasRestantesEntrada(entrada) {
@@ -238,27 +222,6 @@ function obtenerTiradasRestantesEntrada(entrada) {
     0,
     obtenerTiradasTotalesEntrada(entrada) - obtenerTiradasUsadasEntrada(entrada)
   );
-}
-
-function mezclarTiradasEntrada(entradaNueva, entradaAnterior) {
-  const total = Math.max(
-    obtenerTiradasTotalesEntrada(entradaNueva),
-    obtenerTiradasTotalesEntrada(entradaAnterior)
-  );
-  const usadas = Math.max(
-    obtenerTiradasUsadasEntrada(entradaNueva),
-    obtenerTiradasUsadasEntrada(entradaAnterior) + 1
-  );
-  const quedan = Math.max(0, total - usadas);
-
-  return {
-    ...entradaNueva,
-    tiradas_totales: total,
-    spins_total: total,
-    tiradas_usadas: usadas,
-    spins_used: usadas,
-    status: quedan > 0 ? "pending" : entradaNueva?.status || "played",
-  };
 }
 
 export default function StorePage() {
@@ -384,8 +347,9 @@ export default function StorePage() {
 
     const tiradasUsadasAntes = obtenerTiradasUsadasEntrada(entrada);
     const tiradasTotalesAntes = obtenerTiradasTotalesEntrada(entrada);
+    const tiradasRestantesAntes = Math.max(0, tiradasTotalesAntes - tiradasUsadasAntes);
 
-    if (tiradasUsadasAntes >= tiradasTotalesAntes) {
+    if (tiradasRestantesAntes <= 0) {
       stopSpinSound();
       setGirando(false);
       setMensaje("Este código ya no tiene tiradas disponibles.");
@@ -393,15 +357,12 @@ export default function StorePage() {
       return;
     }
 
-    // No usamos la RPC antigua play_promotion_participation porque marca el QR
-    // como played en el primer giro. Ahora cada giro consume solo 1 saldo.
-    const entryServer = entrada;
     const prize = seleccionarPremioRuleta(premios);
 
-    if (!entryServer || !prize) {
+    if (!prize) {
       stopSpinSound();
       setGirando(false);
-      setMensaje("La respuesta no incluye premio.");
+      setMensaje("No se pudo seleccionar premio.");
       setEstado("error");
       return;
     }
@@ -409,18 +370,17 @@ export default function StorePage() {
     window.setTimeout(() => {
       stopSpinSound();
 
-      const entryCalculada = mezclarTiradasEntrada(entryServer, entrada);
-      const total = Math.max(tiradasTotalesAntes, obtenerTiradasTotalesEntrada(entryCalculada));
+      const total = tiradasTotalesAntes;
       const usadas = Math.min(total, tiradasUsadasAntes + 1);
       const quedan = Math.max(0, total - usadas);
 
       const entryActualizada = {
-        ...entryCalculada,
-        tiradas_totales: total,
+        ...entrada,
         spins_total: total,
-        tiradas_usadas: usadas,
         spins_used: usadas,
         status: quedan > 0 ? "pending" : "played",
+        played_at: quedan > 0 ? null : new Date().toISOString(),
+        prize_id: prize?.id ?? entrada?.prize_id ?? null,
       };
 
       setEntrada(entryActualizada);
@@ -433,10 +393,9 @@ export default function StorePage() {
           setEntrada((actual) => ({
             ...actual,
             ...entryBd,
-            tiradas_totales: total,
             spins_total: total,
-            tiradas_usadas: usadas,
             spins_used: usadas,
+            status: quedan > 0 ? "pending" : "played",
           }));
         }
       });
