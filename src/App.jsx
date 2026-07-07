@@ -1736,9 +1736,11 @@ export default function App() {
                           </button>
 
                           {product.participaRuleta && (
-                            <span style={styles.ruletaProductBadge}>
-                              🎡 RULETA
-                            </span>
+                            <div style={styles.ruletaProductBadge}>
+                              <div>🎡 RULETA</div>
+                              <div style={styles.ruletaProductBadgeSub}>Participa en la</div>
+                              <div style={styles.ruletaProductBadgeSub}>promoción</div>
+                            </div>
                           )}
                         </div>
 
