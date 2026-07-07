@@ -34,12 +34,34 @@ export default function RuletaQR({
       return;
     }
 
-    if (data.utilizado) {
-      onError?.("Este código ya ha sido utilizado.");
+    const tiradasTotales = Math.max(
+      1,
+      Number(
+        data.tiradas_totales ??
+          data.spins_total ??
+          data.total_spins ??
+          data.tiradas_ruleta ??
+          1
+      )
+    );
+    const tiradasUsadas = Number(
+      data.tiradas_usadas ??
+        data.spins_used ??
+        data.used_spins ??
+        data.tiradas_consumidas ??
+        (data.utilizado ? 1 : 0)
+    );
+
+    if (data.utilizado && tiradasUsadas >= tiradasTotales) {
+      onError?.("Este código ya ha agotado todas sus tiradas.");
       return;
     }
 
-    onValidado?.(data);
+    onValidado?.({
+      ...data,
+      tiradas_totales: tiradasTotales,
+      tiradas_usadas: Math.max(0, tiradasUsadas),
+    });
   }
 
   return (
