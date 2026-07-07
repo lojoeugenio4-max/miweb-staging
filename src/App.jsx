@@ -146,6 +146,10 @@ function normalizeText(text) {
     .trim();
 }
 
+function normalizePromoValue(value) {
+  return normalizeText(value).replace(/[^a-z0-9ñ]/gi, "");
+}
+
 function productMatchesSearch(product, searchText) {
   const normalizedProduct = normalizeText(
     `${product.codigo || ""} ${product.nombre || ""} ${product.offerText || ""}`
@@ -260,6 +264,7 @@ export default function App() {
   const [premiosRuleta, setPremiosRuleta] = useState([]);
   const [configuracionRuleta, setConfiguracionRuleta] = useState(null);
   const [articulosRuleta, setArticulosRuleta] = useState([]);
+  const [departamentosRuleta, setDepartamentosRuleta] = useState([]);
 
   const t = translations[language];
 
@@ -294,6 +299,7 @@ export default function App() {
       if (!promocion) {
         setConfiguracionRuleta(null);
         setArticulosRuleta([]);
+        setDepartamentosRuleta([]);
         setPremiosRuleta([]);
         return;
       }
@@ -310,6 +316,18 @@ export default function App() {
       }
 
       setArticulosRuleta(articulos || []);
+
+      const { data: departamentosPromo, error: departamentosPromoError } =
+        await supabase
+          .from("promociones_ruleta_departamentos")
+          .select("departamento_id")
+          .eq("promocion_id", promocion.id);
+
+      if (departamentosPromoError) {
+        throw departamentosPromoError;
+      }
+
+      setDepartamentosRuleta(departamentosPromo || []);
 
       const { data: premios, error: premiosError } = await supabase
         .from("promociones_ruleta_premios")
@@ -328,6 +346,7 @@ export default function App() {
       console.error("Error cargando configuración de ruleta:", error);
       setConfiguracionRuleta(null);
       setArticulosRuleta([]);
+      setDepartamentosRuleta([]);
       setPremiosRuleta([]);
     }
   }
@@ -733,12 +752,53 @@ export default function App() {
       )
     );
 
+  const codigosRuleta = useMemo(() => {
+    return new Set(
+      articulosRuleta
+        .map((item) => normalizePromoValue(item.codigo_articulo))
+        .filter(Boolean)
+    );
+  }, [articulosRuleta]);
+
+  const idsArticulosRuleta = useMemo(() => {
+    return new Set(
+      articulosRuleta
+        .map((item) => normalizePromoValue(item.articulo_id))
+        .filter(Boolean)
+    );
+  }, [articulosRuleta]);
+
+  const nombresArticulosRuleta = useMemo(() => {
+    return new Set(
+      articulosRuleta
+        .map((item) => normalizePromoValue(item.nombre_articulo))
+        .filter(Boolean)
+    );
+  }, [articulosRuleta]);
+
+  const idsDepartamentosRuleta = useMemo(() => {
+    return new Set(
+      departamentosRuleta
+        .map((item) => normalizePromoValue(item.departamento_id))
+        .filter(Boolean)
+    );
+  }, [departamentosRuleta]);
+
   const productos = useMemo(() => {
     return ordenarProductos(
       articulos
         .filter((articulo) => articulo.activo)
         .map((articulo) => {
         const oferta = getActiveOffer(articulo.ofertas);
+        const articuloId = normalizePromoValue(articulo.id);
+        const codigoArticulo = normalizePromoValue(articulo.codigo);
+        const nombreArticulo = normalizePromoValue(articulo.nombre);
+        const departamentoId = normalizePromoValue(articulo.departamento_id);
+        const participaRuleta =
+          idsArticulosRuleta.has(articuloId) ||
+          codigosRuleta.has(codigoArticulo) ||
+          nombresArticulosRuleta.has(nombreArticulo) ||
+          idsDepartamentosRuleta.has(departamentoId);
 
         return {
           id: String(articulo.id),
@@ -756,10 +816,17 @@ export default function App() {
           department: String(articulo.departamentos?.nombre || "").trim(),
           offerText: oferta?.texto || "",
           ofertas: articulo.ofertas || [],
+          participaRuleta,
         };
       })
     );
-  }, [articulos]);
+  }, [
+    articulos,
+    codigosRuleta,
+    idsArticulosRuleta,
+    nombresArticulosRuleta,
+    idsDepartamentosRuleta,
+  ]);
 
   const productosVisibles = useMemo(
     () => productos.filter((product) => !product.oculto),
@@ -1626,7 +1693,7 @@ export default function App() {
 
                       <div style={styles.productContent}>
                         <div style={styles.productTop}>
-                          <div>
+                          <div style={styles.productTitleBlock}>
                             <h3 style={styles.productName}>
                               {product.codigo ? `${product.codigo} · ` : ""}
                               {product.name}
@@ -1644,6 +1711,16 @@ export default function App() {
                               )}
                             </div>
                           </div>
+
+                          {product.participaRuleta && (
+                            <div style={styles.ruletaPromoBadge}>
+                              <strong style={styles.ruletaPromoTitle}>
+                                🎡 PROMOCIÓN RULETA
+                              </strong>
+                              <span style={styles.ruletaPromoText}>Participa en la</span>
+                              <span style={styles.ruletaPromoText}>promoción</span>
+                            </div>
+                          )}
                         </div>
 
                         <div style={styles.quantityGrid}>
@@ -2339,7 +2416,42 @@ const styles = {
   productTop: {
     display: "flex",
     justifyContent: "space-between",
+    alignItems: "flex-start",
     gap: "8px",
+  },
+
+  productTitleBlock: {
+    minWidth: 0,
+    flex: 1,
+  },
+
+  ruletaPromoBadge: {
+    border: "1px solid #a855f7",
+    background: "#faf5ff",
+    color: "#6b21a8",
+    borderRadius: "8px",
+    padding: "4px 8px",
+    minWidth: "150px",
+    maxWidth: "170px",
+    boxSizing: "border-box",
+    display: "flex",
+    flexDirection: "column",
+    gap: "1px",
+    lineHeight: 1.05,
+    boxShadow: "0 1px 4px rgba(107,33,168,0.14)",
+    flexShrink: 0,
+  },
+
+  ruletaPromoTitle: {
+    fontSize: "10px",
+    fontWeight: "1000",
+    letterSpacing: "0.01em",
+    whiteSpace: "nowrap",
+  },
+
+  ruletaPromoText: {
+    fontSize: "10px",
+    fontWeight: "800",
   },
 
   productName: {
