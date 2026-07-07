@@ -216,18 +216,19 @@ function obtenerCantidadMinimaRuletaArticulo(item) {
   );
 }
 
-function MiniRuletaPromocion({ cantidadMinima = 1 }) {
+function MiniRuletaPromocion({ cantidadMinima = 1, permiteUnidades = true }) {
   const minimo = Math.max(1, Number(cantidadMinima || 1));
+  const unidadMinima = permiteUnidades ? "ud." : "cajas";
 
   return (
-    <div style={styles.ruletaPromoBadge} aria-label={`Ruleta, mínimo ${minimo} unidades`}>
+    <div style={styles.ruletaPromoBadge} aria-label={`Ruleta, mínimo ${minimo} ${unidadMinima}`}>
       <img
         src="/productos/Ruleta.webp"
         alt="Ruleta"
         style={styles.ruletaPromoImage}
       />
       <span style={styles.ruletaPromoText}>Ruleta</span>
-      <span style={styles.ruletaPromoMinimo}>Mín. {minimo} ud.</span>
+      <span style={styles.ruletaPromoMinimo}>Mín. {minimo} {unidadMinima}</span>
     </div>
   );
 }
@@ -845,12 +846,10 @@ export default function App() {
         const articuloId = normalizePromoValue(articulo.id);
         const codigoArticulo = normalizePromoValue(articulo.codigo);
         const nombreArticulo = normalizePromoValue(articulo.nombre);
-        const departamentoId = normalizePromoValue(articulo.departamento_id);
         const participaRuleta =
           idsArticulosRuleta.has(articuloId) ||
           codigosRuleta.has(codigoArticulo) ||
-          nombresArticulosRuleta.has(nombreArticulo) ||
-          idsDepartamentosRuleta.has(departamentoId);
+          nombresArticulosRuleta.has(nombreArticulo);
         const cantidadMinimaRuleta =
           cantidadesMinimasRuletaPorArticulo.get(articuloId) ||
           cantidadesMinimasRuletaPorArticulo.get(codigoArticulo) ||
@@ -883,7 +882,6 @@ export default function App() {
     codigosRuleta,
     idsArticulosRuleta,
     nombresArticulosRuleta,
-    idsDepartamentosRuleta,
     cantidadesMinimasRuletaPorArticulo,
   ]);
 
@@ -1826,6 +1824,7 @@ export default function App() {
                           {product.participaRuleta && (
                             <MiniRuletaPromocion
                               cantidadMinima={product.cantidadMinimaRuleta}
+                              permiteUnidades={product.permite_unidades}
                             />
                           )}
                         </div>
