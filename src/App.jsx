@@ -201,18 +201,33 @@ function getTodayISO() {
   return `${year}-${month}-${day}`;
 }
 
-function MiniRuletaPromocion({ variedadMinima = 0 }) {
+function obtenerCantidadMinimaRuletaArticulo(item) {
+  return Math.max(
+    1,
+    Number(
+      item?.cantidad_minima ??
+        item?.unidades_minimas ??
+        item?.unidades_minima ??
+        item?.minimo_unidades ??
+        item?.cantidad_minima_articulo ??
+        item?.cantidadMinima ??
+        1
+    )
+  );
+}
+
+function MiniRuletaPromocion({ cantidadMinima = 1 }) {
+  const minimo = Math.max(1, Number(cantidadMinima || 1));
+
   return (
-    <div style={styles.ruletaPromoBadge} aria-label="Ruleta">
+    <div style={styles.ruletaPromoBadge} aria-label={`Ruleta, mínimo ${minimo} unidades`}>
       <img
         src="/productos/Ruleta.webp"
         alt="Ruleta"
         style={styles.ruletaPromoImage}
       />
       <span style={styles.ruletaPromoText}>Ruleta</span>
-      {Number(variedadMinima) > 1 && (
-        <span style={styles.ruletaPromoMinimo}>Mín. {variedadMinima}</span>
-      )}
+      <span style={styles.ruletaPromoMinimo}>Mín. {minimo} ud.</span>
     </div>
   );
 }
@@ -804,7 +819,7 @@ export default function App() {
     const reglas = new Map();
 
     articulosRuleta.forEach((item) => {
-      const cantidadMinima = Math.max(1, Number(item.cantidad_minima || 1));
+      const cantidadMinima = obtenerCantidadMinimaRuletaArticulo(item);
       const claves = [
         item.articulo_id,
         item.codigo_articulo,
@@ -1080,7 +1095,7 @@ export default function App() {
           const codigo = normalizarCodigoRuleta(item.codigo_articulo);
           if (!codigo) return null;
 
-          return [codigo, Math.max(1, Number(item.cantidad_minima || 1))];
+          return [codigo, obtenerCantidadMinimaRuletaArticulo(item)];
         })
         .filter(Boolean)
     );
@@ -1368,7 +1383,7 @@ export default function App() {
 
           return [
             codigo,
-            Math.max(1, Number(item.cantidad_minima || 1)),
+            obtenerCantidadMinimaRuletaArticulo(item),
           ];
         })
         .filter(Boolean)
@@ -1810,7 +1825,7 @@ export default function App() {
 
                           {product.participaRuleta && (
                             <MiniRuletaPromocion
-                              variedadMinima={product.cantidadMinimaRuleta}
+                              cantidadMinima={product.cantidadMinimaRuleta}
                             />
                           )}
                         </div>
