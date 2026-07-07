@@ -201,7 +201,7 @@ function getTodayISO() {
   return `${year}-${month}-${day}`;
 }
 
-function MiniRuletaPromocion() {
+function MiniRuletaPromocion({ variedadMinima = 0 }) {
   return (
     <div style={styles.ruletaPromoBadge} aria-label="Ruleta">
       <img
@@ -210,6 +210,9 @@ function MiniRuletaPromocion() {
         style={styles.ruletaPromoImage}
       />
       <span style={styles.ruletaPromoText}>Ruleta</span>
+      {Number(variedadMinima) > 1 && (
+        <span style={styles.ruletaPromoMinimo}>Mín. {variedadMinima}</span>
+      )}
     </div>
   );
 }
@@ -1033,6 +1036,64 @@ export default function App() {
     (item) => item.boxes > 0 || item.units > 0
   ).length;
 
+  const obtenerResumenPedidoRuleta = (itemsPedido = []) => {
+    if (!configuracionRuleta || articulosRuleta.length === 0) {
+      return null;
+    }
+
+    const variedadMinima = Math.max(
+      1,
+      Number(configuracionRuleta.variedad_minima || 1)
+    );
+
+    const reglasPorCodigo = new Map(
+      articulosRuleta
+        .map((item) => {
+          const codigo = normalizarCodigoRuleta(item.codigo_articulo);
+          if (!codigo) return null;
+
+          return [codigo, Math.max(1, Number(item.cantidad_minima || 1))];
+        })
+        .filter(Boolean)
+    );
+
+    const codigosValidos = new Set();
+
+    itemsPedido.forEach((item) => {
+      if (!item?.product?.participaRuleta) return;
+
+      const codigoArticulo = normalizarCodigoRuleta(
+        item.product.codigo || item.product.idnum || item.product.id || ""
+      );
+      const cantidadPedida = obtenerCantidadPedidoArticuloRuleta(item);
+      const cantidadMinima = reglasPorCodigo.get(codigoArticulo) || 1;
+
+      if (cantidadPedida >= cantidadMinima) {
+        codigosValidos.add(codigoArticulo || item.product.id);
+      }
+    });
+
+    const variedadActual = codigosValidos.size;
+    const variedadRestante = Math.max(0, variedadMinima - variedadActual);
+
+    return {
+      cumple: variedadActual >= variedadMinima,
+      variedadActual,
+      variedadMinima,
+      variedadRestante,
+    };
+  };
+
+  const resumenRuletaPedido = useMemo(
+    () => obtenerResumenPedidoRuleta(orderedItems),
+    [orderedItems, configuracionRuleta, articulosRuleta]
+  );
+
+  const variedadMinimaRuleta = Math.max(
+    1,
+    Number(configuracionRuleta?.variedad_minima || 1)
+  );
+
   const updateQuantity = (productId, field, value) => {
     const product = productos.find((item) => item.id === productId);
 
@@ -1368,15 +1429,13 @@ export default function App() {
     const notesPedido = notes.trim();
     const pedidoId = crearPedidoId();
 
+    const resumenRuletaPedidoEnvio = obtenerResumenPedidoRuleta(itemsPedido);
+
     const cumplePromocionRuleta =
       configuracionRuleta &&
       premiosRuleta.length > 0 &&
       articulosRuleta.length > 0 &&
-      pedidoCumplePromocionRuletaActual({
-        itemsPedido,
-        articulosPromocion: articulosRuleta,
-        variedadMinima: configuracionRuleta.variedad_minima,
-      });
+      resumenRuletaPedidoEnvio?.cumple;
 
     let participacionRuleta = null;
 
@@ -1726,7 +1785,7 @@ export default function App() {
                           </div>
 
                           {product.participaRuleta && (
-                            <MiniRuletaPromocion />
+                            <MiniRuletaPromocion variedadMinima={variedadMinimaRuleta} />
                           )}
                         </div>
 
@@ -1856,6 +1915,31 @@ export default function App() {
               placeholder={t.optional}
               style={styles.summaryCustomerInput}
             />
+
+            {resumenRuletaPedido && orderedItems.length > 0 && (
+              <div
+                style={
+                  resumenRuletaPedido.cumple
+                    ? styles.ruletaSummaryOk
+                    : styles.ruletaSummaryPending
+                }
+              >
+                <div style={styles.ruletaSummaryTitle}>Promoción Ruleta</div>
+                <div style={styles.ruletaSummaryText}>
+                  Llevas {resumenRuletaPedido.variedadActual} de {resumenRuletaPedido.variedadMinima} artículos de ruleta.
+                </div>
+                {!resumenRuletaPedido.cumple && (
+                  <div style={styles.ruletaSummaryMissing}>
+                    Te faltan {resumenRuletaPedido.variedadRestante} artículos diferentes de ruleta para participar.
+                  </div>
+                )}
+                {resumenRuletaPedido.cumple && (
+                  <div style={styles.ruletaSummaryMissing}>
+                    Pedido mínimo de ruleta conseguido.
+                  </div>
+                )}
+              </div>
+            )}
 
             {orderedItems.length === 0 ? (
               <p style={styles.emptyBox}>{t.noItemsWithQuantity}</p>
@@ -2460,6 +2544,15 @@ const styles = {
     textAlign: "center",
   },
 
+  ruletaPromoMinimo: {
+    fontSize: "7px",
+    lineHeight: "7px",
+    fontWeight: "900",
+    color: "#0b1185",
+    textAlign: "center",
+    whiteSpace: "nowrap",
+  },
+
   productName: {
     margin: 0,
     fontSize: "12px",
@@ -2710,6 +2803,43 @@ const styles = {
   summaryItem: {
     borderBottom: "1px solid #e5e7eb",
     padding: "10px 0",
+  },
+
+  ruletaSummaryPending: {
+    border: "1px solid #fecaca",
+    background: "#fff1f2",
+    color: "#991b1b",
+    borderRadius: "14px",
+    padding: "12px",
+    marginBottom: "12px",
+  },
+
+  ruletaSummaryOk: {
+    border: "1px solid #bbf7d0",
+    background: "#f0fdf4",
+    color: "#166534",
+    borderRadius: "14px",
+    padding: "12px",
+    marginBottom: "12px",
+  },
+
+  ruletaSummaryTitle: {
+    fontSize: "15px",
+    fontWeight: "1000",
+    marginBottom: "4px",
+  },
+
+  ruletaSummaryText: {
+    fontSize: "14px",
+    fontWeight: "800",
+    lineHeight: "1.25",
+  },
+
+  ruletaSummaryMissing: {
+    fontSize: "13px",
+    fontWeight: "700",
+    lineHeight: "1.25",
+    marginTop: "5px",
   },
 
   summaryNotes: {
