@@ -1,21 +1,32 @@
 import { useState } from "react";
 
+function normalizarCodigoRuleta(valor) {
+  return String(valor || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[’‘`´']/g, "-")
+    .replace(/\s+/g, "");
+}
+
 export default function RuletaCodigoManual({
   onValidar,
   cargando = false,
 }) {
   const [codigo, setCodigo] = useState("");
 
+  function cambiarCodigo(evento) {
+    setCodigo(normalizarCodigoRuleta(evento.target.value));
+  }
+
   function enviar(evento) {
     evento.preventDefault();
 
-    const valor = codigo
-  .trim()
-  .toUpperCase()
-  .replace(/'/g, "-")
-  .replace(/\s+/g, "");
+    const valor = normalizarCodigoRuleta(codigo);
 
-onValidar?.(valor);
+    if (!valor) return;
+
+    setCodigo(valor);
+    onValidar?.(valor);
   }
 
   return (
@@ -27,7 +38,7 @@ onValidar?.(valor);
       <div style={fila}>
         <input
           value={codigo}
-          onChange={(evento) => setCodigo(evento.target.value)}
+          onChange={cambiarCodigo}
           placeholder="Introduce el código"
           style={input}
           disabled={cargando}
