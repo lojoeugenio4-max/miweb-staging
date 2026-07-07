@@ -263,6 +263,22 @@ export default function App() {
 
   const t = translations[language];
 
+  const codigosRuleta = useMemo(() => {
+    return new Set(
+      articulosRuleta
+        .map((articulo) => String(articulo.codigo_articulo || "").trim())
+        .filter(Boolean)
+    );
+  }, [articulosRuleta]);
+
+  const idsRuleta = useMemo(() => {
+    return new Set(
+      articulosRuleta
+        .map((articulo) => String(articulo.articulo_id || "").trim())
+        .filter(Boolean)
+    );
+  }, [articulosRuleta]);
+
   useEffect(() => {
     localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
   }, [language]);
@@ -756,10 +772,13 @@ export default function App() {
           department: String(articulo.departamentos?.nombre || "").trim(),
           offerText: oferta?.texto || "",
           ofertas: articulo.ofertas || [],
+          participaRuleta:
+            codigosRuleta.has(String(articulo.codigo || "").trim()) ||
+            idsRuleta.has(String(articulo.id || "").trim()),
         };
       })
     );
-  }, [articulos]);
+  }, [articulos, codigosRuleta, idsRuleta]);
 
   const productosVisibles = useMemo(
     () => productos.filter((product) => !product.oculto),
@@ -1715,6 +1734,12 @@ export default function App() {
                           >
                             Aceptar
                           </button>
+
+                          {product.participaRuleta && (
+                            <span style={styles.ruletaProductBadge}>
+                              🎡 RULETA
+                            </span>
+                          )}
                         </div>
 
                         {!product.permite_unidades && soloCajasAviso === product.id && (
@@ -2464,6 +2489,24 @@ const styles = {
     cursor: "pointer",
     padding: 0,
     boxSizing: "border-box",
+    flexShrink: 0,
+  },
+
+  ruletaProductBadge: {
+    height: "24px",
+    minHeight: "24px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "999px",
+    background: "#f59e0b",
+    color: "#111827",
+    padding: "0 8px",
+    fontSize: "10px",
+    fontWeight: "1000",
+    lineHeight: 1,
+    whiteSpace: "nowrap",
+    boxShadow: "0 2px 6px rgba(0,0,0,.18)",
     flexShrink: 0,
   },
 
