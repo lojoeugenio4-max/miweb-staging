@@ -800,6 +800,27 @@ export default function App() {
     );
   }, [departamentosRuleta]);
 
+  const cantidadesMinimasRuletaPorArticulo = useMemo(() => {
+    const reglas = new Map();
+
+    articulosRuleta.forEach((item) => {
+      const cantidadMinima = Math.max(1, Number(item.cantidad_minima || 1));
+      const claves = [
+        item.articulo_id,
+        item.codigo_articulo,
+        item.nombre_articulo,
+      ]
+        .map((valor) => normalizePromoValue(valor))
+        .filter(Boolean);
+
+      claves.forEach((clave) => {
+        reglas.set(clave, cantidadMinima);
+      });
+    });
+
+    return reglas;
+  }, [articulosRuleta]);
+
   const productos = useMemo(() => {
     return ordenarProductos(
       articulos
@@ -815,6 +836,11 @@ export default function App() {
           codigosRuleta.has(codigoArticulo) ||
           nombresArticulosRuleta.has(nombreArticulo) ||
           idsDepartamentosRuleta.has(departamentoId);
+        const cantidadMinimaRuleta =
+          cantidadesMinimasRuletaPorArticulo.get(articuloId) ||
+          cantidadesMinimasRuletaPorArticulo.get(codigoArticulo) ||
+          cantidadesMinimasRuletaPorArticulo.get(nombreArticulo) ||
+          1;
 
         return {
           id: String(articulo.id),
@@ -833,6 +859,7 @@ export default function App() {
           offerText: oferta?.texto || "",
           ofertas: articulo.ofertas || [],
           participaRuleta,
+          cantidadMinimaRuleta,
         };
       })
     );
@@ -842,6 +869,7 @@ export default function App() {
     idsArticulosRuleta,
     nombresArticulosRuleta,
     idsDepartamentosRuleta,
+    cantidadesMinimasRuletaPorArticulo,
   ]);
 
   const productosVisibles = useMemo(
@@ -1089,10 +1117,6 @@ export default function App() {
     [orderedItems, configuracionRuleta, articulosRuleta]
   );
 
-  const variedadMinimaRuleta = Math.max(
-    1,
-    Number(configuracionRuleta?.variedad_minima || 1)
-  );
 
   const updateQuantity = (productId, field, value) => {
     const product = productos.find((item) => item.id === productId);
@@ -1785,7 +1809,9 @@ export default function App() {
                           </div>
 
                           {product.participaRuleta && (
-                            <MiniRuletaPromocion variedadMinima={variedadMinimaRuleta} />
+                            <MiniRuletaPromocion
+                              variedadMinima={product.cantidadMinimaRuleta}
+                            />
                           )}
                         </div>
 
