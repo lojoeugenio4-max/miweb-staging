@@ -1115,13 +1115,22 @@ export default function App() {
     });
 
     const variedadActual = codigosValidos.size;
+    const tiradasConseguidas = Math.floor(variedadActual / variedadMinima);
+    const variedadParaSiguienteTirada = variedadActual % variedadMinima;
     const variedadRestante = Math.max(0, variedadMinima - variedadActual);
+    const variedadRestanteSiguienteTirada =
+      variedadParaSiguienteTirada === 0
+        ? variedadMinima
+        : variedadMinima - variedadParaSiguienteTirada;
 
     return {
-      cumple: variedadActual >= variedadMinima,
+      cumple: tiradasConseguidas > 0,
       variedadActual,
       variedadMinima,
       variedadRestante,
+      tiradasConseguidas,
+      variedadParaSiguienteTirada,
+      variedadRestanteSiguienteTirada,
     };
   };
 
@@ -1409,7 +1418,13 @@ export default function App() {
     return codigosCumplidos.size >= Math.max(1, Number(variedadMinima || 1));
   }
 
-  async function crearParticipacionPromocion({ promocionId, pedidoId, customerNamePedido }) {
+  async function crearParticipacionPromocion({
+    promocionId,
+    pedidoId,
+    customerNamePedido,
+    tiradasRuleta = 1,
+  }) {
+    const tiradas = Math.max(1, Number(tiradasRuleta || 1));
     const { data, error } = await supabase.rpc("create_promotion_participation", {
       p_promotion_id: promocionId,
       p_order_id: pedidoId,
@@ -1423,7 +1438,39 @@ export default function App() {
       throw error;
     }
 
-    return data;
+    const participacion = Array.isArray(data) ? data[0] : data;
+    const participacionId = participacion?.id || participacion?.participation_id || null;
+    const participacionCode = participacion?.code || participacion?.codigo || null;
+
+    // Si la tabla ya tiene campos para varias tiradas, los dejamos guardados.
+    // Si todavía no existen en Supabase, no bloqueamos el envío del pedido.
+    if (tiradas > 1 && (participacionId || participacionCode)) {
+      try {
+        let query = supabase
+          .from("promotion_participations")
+          .update({
+            spins_total: tiradas,
+            spins_used: 0,
+            tiradas_totales: tiradas,
+            tiradas_usadas: 0,
+          });
+
+        query = participacionId
+          ? query.eq("id", participacionId)
+          : query.eq("code", participacionCode);
+
+        await query;
+      } catch (errorUpdate) {
+        console.warn("No se pudieron guardar las tiradas extra de ruleta:", errorUpdate);
+      }
+    }
+
+    return {
+      ...participacion,
+      tiradas_ruleta: tiradas,
+      tiradas_totales: tiradas,
+      spins_total: tiradas,
+    };
   }
 
   function enviarPedidoFinal({
@@ -1432,6 +1479,7 @@ export default function App() {
     notesPedido,
     participacionRuleta = null,
     pedidoId = crearPedidoId(),
+    resumenRuletaPedidoEnvio = null,
   }) {
     const texto = construirTextoPedidoWhatsApp({
       t,
@@ -1439,6 +1487,7 @@ export default function App() {
       customerNamePedido,
       notesPedido,
       participacionRuleta,
+      tiradasRuleta: resumenRuletaPedidoEnvio?.tiradasConseguidas || 0,
     });
 
     limpiarPedidoDespuesEnvio();
@@ -1482,6 +1531,7 @@ export default function App() {
           promocionId: configuracionRuleta.id,
           pedidoId,
           customerNamePedido,
+          tiradasRuleta: resumenRuletaPedidoEnvio?.tiradasConseguidas || 1,
         });
       } catch (error) {
         console.error("Error creando participación de ruleta:", error);
@@ -1496,6 +1546,7 @@ export default function App() {
       notesPedido,
       participacionRuleta,
       pedidoId,
+      resumenRuletaPedidoEnvio,
     });
   };
 
@@ -1966,16 +2017,19 @@ export default function App() {
               >
                 <div style={styles.ruletaSummaryTitle}>Promoción Ruleta</div>
                 <div style={styles.ruletaSummaryText}>
-                  Llevas {resumenRuletaPedido.variedadActual} de {resumenRuletaPedido.variedadMinima} artículos de ruleta.
+                  Llevas {resumenRuletaPedido.variedadActual} artículos válidos de ruleta.
+                </div>
+                <div style={styles.ruletaSummaryText}>
+                  Tiradas conseguidas: {resumenRuletaPedido.tiradasConseguidas}
                 </div>
                 {!resumenRuletaPedido.cumple && (
                   <div style={styles.ruletaSummaryMissing}>
-                    Te faltan {resumenRuletaPedido.variedadRestante} artículos diferentes de ruleta para participar.
+                    Te faltan {resumenRuletaPedido.variedadRestante} artículos diferentes de ruleta para conseguir 1 tirada.
                   </div>
                 )}
                 {resumenRuletaPedido.cumple && (
                   <div style={styles.ruletaSummaryMissing}>
-                    Pedido mínimo de ruleta conseguido.
+                    Ya tienes {resumenRuletaPedido.tiradasConseguidas} {resumenRuletaPedido.tiradasConseguidas === 1 ? "tirada" : "tiradas"}. Te faltan {resumenRuletaPedido.variedadRestanteSiguienteTirada} artículos diferentes más para la siguiente.
                   </div>
                 )}
               </div>
