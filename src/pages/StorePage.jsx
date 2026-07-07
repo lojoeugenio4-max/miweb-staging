@@ -138,6 +138,60 @@ function getPrizeImageUrl(premio) {
   );
 }
 
+function obtenerTiradasTotalesEntrada(entrada) {
+  return Math.max(
+    1,
+    Number(
+      entrada?.tiradas_totales ??
+        entrada?.spins_total ??
+        entrada?.total_spins ??
+        entrada?.tiradas_ruleta ??
+        1
+    )
+  );
+}
+
+function obtenerTiradasUsadasEntrada(entrada) {
+  const usadas = Number(
+    entrada?.tiradas_usadas ??
+      entrada?.spins_used ??
+      entrada?.used_spins ??
+      entrada?.tiradas_consumidas ??
+      0
+  );
+
+  if (Number.isFinite(usadas) && usadas > 0) return usadas;
+  return entrada?.status === "played" ? 1 : 0;
+}
+
+function obtenerTiradasRestantesEntrada(entrada) {
+  return Math.max(
+    0,
+    obtenerTiradasTotalesEntrada(entrada) - obtenerTiradasUsadasEntrada(entrada)
+  );
+}
+
+function mezclarTiradasEntrada(entradaNueva, entradaAnterior) {
+  const total = Math.max(
+    obtenerTiradasTotalesEntrada(entradaNueva),
+    obtenerTiradasTotalesEntrada(entradaAnterior)
+  );
+  const usadas = Math.max(
+    obtenerTiradasUsadasEntrada(entradaNueva),
+    obtenerTiradasUsadasEntrada(entradaAnterior) + 1
+  );
+  const quedan = Math.max(0, total - usadas);
+
+  return {
+    ...entradaNueva,
+    tiradas_totales: total,
+    spins_total: total,
+    tiradas_usadas: usadas,
+    spins_used: usadas,
+    status: quedan > 0 ? "pending" : entradaNueva?.status || "played",
+  };
+}
+
 export default function StorePage() {
   const inputRef = useRef(null);
 
@@ -192,7 +246,7 @@ export default function StorePage() {
       return;
     }
 
-    if (data.status !== "pending") {
+    if (data.status !== "pending" && obtenerTiradasRestantesEntrada(data) <= 0) {
       setEntrada(data);
       setMensaje(
         data.status === "played"
@@ -274,10 +328,10 @@ export default function StorePage() {
     }
 
     const result = Array.isArray(data) ? data[0] : data;
-    const entry = result?.entry || result?.entrada || result?.participation;
+    const entryServer = result?.entry || result?.entrada || result?.participation;
     const prize = result?.prize || result?.premio;
 
-    if (!entry || !prize) {
+    if (!entryServer || !prize) {
       stopSpinSound();
       setGirando(false);
       setMensaje("La respuesta del servidor no incluye premio.");
@@ -288,10 +342,29 @@ export default function StorePage() {
     window.setTimeout(() => {
       stopSpinSound();
 
+      const entry = mezclarTiradasEntrada(entryServer, entrada);
+      const quedan = obtenerTiradasRestantesEntrada(entry);
+
       setEntrada(entry);
       setPremioFinal(prize);
       setGirando(false);
       setEstado("result");
+
+      if (quedan > 0) {
+        supabase
+          .from("promotion_participations")
+          .update({
+            status: "pending",
+            tiradas_usadas: obtenerTiradasUsadasEntrada(entry),
+            spins_used: obtenerTiradasUsadasEntrada(entry),
+          })
+          .eq("code", entry.code)
+          .then(({ error: updateError }) => {
+            if (updateError) {
+              console.warn("No se pudieron actualizar las tiradas restantes:", updateError);
+            }
+          });
+      }
 
       enviarEventoDisplay("result", {
         entrada: entry,
@@ -305,6 +378,21 @@ export default function StorePage() {
         playCampana();
       }
     }, SPIN_DURATION_MS);
+  }
+
+  function prepararSiguienteTirada() {
+    if (!entrada || obtenerTiradasRestantesEntrada(entrada) <= 0) {
+      reset();
+      return;
+    }
+
+    setPremioFinal(null);
+    setMensaje("");
+    setEstado("ready");
+    enviarEventoDisplay("ready", {
+      entrada,
+      premios,
+    });
   }
 
   function reset() {
@@ -329,6 +417,9 @@ export default function StorePage() {
   }
 
   const premioImagen = getPrizeImageUrl(premioFinal);
+  const tiradasTotales = obtenerTiradasTotalesEntrada(entrada);
+  const tiradasUsadas = obtenerTiradasUsadasEntrada(entrada);
+  const tiradasRestantes = obtenerTiradasRestantesEntrada(entrada);
   const esJackpot =
     premioFinal?.tipo_sonido === "jackpot" || premioFinal?.tipo_sonido === "sirena";
 
@@ -461,6 +552,11 @@ export default function StorePage() {
               <span>
                 Código <strong>{entrada.code}</strong> · Cliente{" "}
                 <strong>{entrada.customer_name || "sin nombre"}</strong>
+                {tiradasTotales > 1 && (
+                  <>
+                    {" "}· Tiradas <strong>{tiradasUsadas}/{tiradasTotales}</strong>
+                  </>
+                )}
               </span>
             </div>
           </div>
@@ -492,9 +588,15 @@ export default function StorePage() {
                 <div style={styles.hasGanado}>HAS GANADO</div>
                 <strong style={styles.prizeName}>{premioFinal.nombre}</strong>
 
-                <button type="button" onClick={reset} style={styles.nextButton}>
-                  CONTINUAR ›
-                </button>
+                {tiradasRestantes > 0 ? (
+                  <button type="button" onClick={prepararSiguienteTirada} style={styles.nextButton}>
+                    SIGUIENTE TIRADA ({tiradasRestantes}) ›
+                  </button>
+                ) : (
+                  <button type="button" onClick={reset} style={styles.nextButton}>
+                    CONTINUAR ›
+                  </button>
+                )}
               </div>
             )}
           </div>
