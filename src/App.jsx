@@ -1451,15 +1451,16 @@ export default function App() {
           .update({
             spins_total: tiradas,
             spins_used: 0,
-            tiradas_totales: tiradas,
-            tiradas_usadas: 0,
+            status: "pending",
+            played_at: null,
           });
 
         query = participacionId
           ? query.eq("id", participacionId)
           : query.eq("code", participacionCode);
 
-        await query;
+        const { error: updateError } = await query;
+        if (updateError) throw updateError;
       } catch (errorUpdate) {
         console.warn("No se pudieron guardar las tiradas extra de ruleta:", errorUpdate);
       }
