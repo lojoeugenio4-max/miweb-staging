@@ -9,11 +9,13 @@ export default function RuletaCodigoManual({
   function enviar(evento) {
     evento.preventDefault();
 
-    const valor = codigo.trim();
+    const valor = codigo
+  .trim()
+  .toUpperCase()
+  .replace(/'/g, "-")
+  .replace(/\s+/g, "");
 
-    if (!valor) return;
-
-    onValidar?.(valor);
+onValidar?.(valor);
   }
 
   return (
