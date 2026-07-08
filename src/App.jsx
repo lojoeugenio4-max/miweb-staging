@@ -2612,23 +2612,25 @@ const styles = {
   },
 
   ruletaPromoBadge: {
-    width: "88px",
+    width: "96px",
+    minWidth: "96px",
     height: "72px",
-    minWidth: "88px",
     boxSizing: "border-box",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: "1px",
+    gap: "2px",
     flexShrink: 0,
+    overflow: "visible",
   },
 
   ruletaPromoImage: {
-    width: "42px",
-    height: "42px",
+    width: "38px",
+    height: "38px",
     objectFit: "contain",
     display: "block",
+    flexShrink: 0,
   },
 
   ruletaPromoText: {
@@ -2646,6 +2648,8 @@ const styles = {
     color: "#0b1185",
     textAlign: "center",
     whiteSpace: "nowrap",
+    width: "100%",
+    overflow: "visible",
   },
 
   productName: {
