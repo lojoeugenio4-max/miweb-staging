@@ -1106,10 +1106,9 @@ export default function App() {
       const codigoArticulo = normalizarCodigoRuleta(
         item.product.codigo || item.product.idnum || item.product.id || ""
       );
-      const cantidadPedida = obtenerCantidadPedidoArticuloRuleta(item);
       const cantidadMinima = reglasPorCodigo.get(codigoArticulo) || 1;
 
-      if (cantidadPedida >= cantidadMinima) {
+      if (articuloPedidoCumpleCantidadMinimaRuleta(item, cantidadMinima)) {
         codigosValidos.add(codigoArticulo || item.product.id);
       }
     });
@@ -1377,6 +1376,23 @@ export default function App() {
     return Number(item.boxes || 0) + Number(item.units || 0);
   }
 
+  function articuloPedidoCumpleCantidadMinimaRuleta(item, cantidadMinima = 1) {
+    const minimo = Math.max(1, Number(cantidadMinima || 1));
+    const cajasPedidas = Number(item?.boxes || 0);
+    const unidadesPedidas = Number(item?.units || 0);
+    const permiteUnidades = Boolean(item?.product?.permite_unidades);
+
+    // Si el artículo permite pedir por unidades, el mínimo de la promoción
+    // está expresado en unidades. En ese caso, cualquier caja pedida cumple
+    // siempre, porque 1 caja es más que pedir unidades sueltas.
+    if (permiteUnidades) {
+      return cajasPedidas > 0 || unidadesPedidas >= minimo;
+    }
+
+    // Si el artículo no permite unidades, el mínimo se evalúa en cajas.
+    return cajasPedidas >= minimo;
+  }
+
   function pedidoCumplePromocionRuletaActual({
     itemsPedido = [],
     articulosPromocion = [],
@@ -1407,10 +1423,9 @@ export default function App() {
 
       if (!reglasPorCodigo.has(codigoArticulo)) return;
 
-      const cantidadPedida = obtenerCantidadPedidoArticuloRuleta(item);
       const cantidadMinima = reglasPorCodigo.get(codigoArticulo);
 
-      if (cantidadPedida >= cantidadMinima) {
+      if (articuloPedidoCumpleCantidadMinimaRuleta(item, cantidadMinima)) {
         codigosCumplidos.add(codigoArticulo);
       }
     });
