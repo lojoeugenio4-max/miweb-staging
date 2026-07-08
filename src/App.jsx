@@ -2612,9 +2612,9 @@ const styles = {
   },
 
   ruletaPromoBadge: {
-    width: "54px",
-    height: "54px",
-    minWidth: "54px",
+    width: "88px",
+    height: "72px",
+    minWidth: "88px",
     boxSizing: "border-box",
     display: "flex",
     flexDirection: "column",
@@ -2640,8 +2640,8 @@ const styles = {
   },
 
   ruletaPromoMinimo: {
-    fontSize: "7px",
-    lineHeight: "7px",
+    fontSize: "14px",
+    lineHeight: "14px",
     fontWeight: "900",
     color: "#0b1185",
     textAlign: "center",
