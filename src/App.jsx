@@ -202,18 +202,18 @@ function getTodayISO() {
 }
 
 function obtenerCantidadMinimaRuletaArticulo(item) {
-  return Math.max(
-    1,
-    Number(
-      item?.cantidad_minima ??
-        item?.unidades_minimas ??
-        item?.unidades_minima ??
-        item?.minimo_unidades ??
-        item?.cantidad_minima_articulo ??
-        item?.cantidadMinima ??
-        1
-    )
-  );
+  const candidatos = [
+    item?.cantidad_minima,
+    item?.unidades_minimas,
+    item?.unidades_minima,
+    item?.minimo_unidades,
+    item?.cantidad_minima_articulo,
+    item?.cantidadMinima,
+  ]
+    .map((valor) => Number(String(valor ?? "").replace(",", ".")))
+    .filter((valor) => Number.isFinite(valor) && valor > 0);
+
+  return Math.max(1, ...candidatos);
 }
 
 function MiniRuletaPromocion({ cantidadMinima = 1, permiteUnidades = true }) {
