@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
+import { supabaseStorage } from "../supabaseStorageClient";
 import FormArticulo from "./FormArticulo";
 import TablaArticulos from "./TablaArticulos";
 
@@ -208,7 +209,7 @@ export default function Articulos() {
         // Nombre único para evitar que se siga viendo la foto antigua por caché
         nombreFoto = `${codigoLimpio}_${Date.now()}.${extension}`;
 
-        const { error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabaseStorage.storage
           .from("productos")
           .upload(nombreFoto, foto, { upsert: true });
 
@@ -218,6 +219,7 @@ export default function Articulos() {
           setGuardando(false);
           return;
         }
+
       }
 
       const datosArticulo = {
@@ -383,7 +385,7 @@ export default function Articulos() {
     }
 
     if (articulo.foto) {
-      const { error: errorFoto } = await supabase.storage
+      const { error: errorFoto } = await supabaseStorage.storage
         .from("productos")
         .remove([articulo.foto]);
 

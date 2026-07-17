@@ -95,15 +95,89 @@ function nombreMes(mesISO) {
   });
 }
 
+
+function construirTextoPedido(pedido) {
+  const fecha = pedido.created_at
+    ? new Date(pedido.created_at).toLocaleString("es-ES")
+    : "Fecha no disponible";
+  const cliente = pedido.customer_name ? `Cliente: ${pedido.customer_name}\n` : "";
+  const telefono = pedido.customer_phone ? `Teléfono: ${pedido.customer_phone}\n` : "";
+  const lineas = pedido.lineas.map((linea) => {
+    const cantidades = [];
+    if (Number(linea.cajas || 0) > 0) cantidades.push(`${formatearNumero(linea.cajas)} cajas`);
+    if (Number(linea.unidades || 0) > 0) cantidades.push(`${formatearNumero(linea.unidades)} unidades`);
+    const ruleta = linea.ruleta?.incluido
+      ? linea.ruleta.cumple
+        ? " · 🎡 válido para ruleta"
+        : ` · 🎡 promoción (mínimo ${formatearNumero(linea.ruleta.cantidadMinima)} ${linea.ruleta.permiteUnidades ? "uds." : "cajas"})`
+      : "";
+    return `• ${linea.nombre_articulo || "Artículo sin nombre"} (${linea.codigo_articulo || "sin código"}): ${cantidades.join(" · ") || "sin cantidad"}${ruleta}`;
+  });
+
+  return [
+    `PEDIDO ${pedido.pedido_id}`,
+    `Fecha: ${fecha}`,
+    cliente.trimEnd(),
+    telefono.trimEnd(),
+    "",
+    ...lineas,
+    "",
+    `Artículos distintos: ${formatearNumero(pedido.articulosDistintos)}`,
+    `Líneas: ${formatearNumero(pedido.totalLineas)}`,
+    `Total cajas: ${formatearNumero(pedido.totalCajas)}`,
+    `Total unidades: ${formatearNumero(pedido.totalUnidades)}`,
+  ].filter((linea, indice, lista) => linea !== "" || lista[indice - 1] !== "").join("\n");
+}
+
+function escaparHtml(valor) {
+  return String(valor ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function telefonoWhatsApp(telefono) {
+  const digitos = String(telefono || "").replace(/\D/g, "");
+  if (!digitos) return "";
+  if (digitos.length === 9 && /^[6789]/.test(digitos)) return `34${digitos}`;
+  return digitos;
+}
+
+function normalizarCodigoRuleta(valor) {
+  // La tienda concede la ruleta usando exclusivamente codigo_articulo.
+  // No se cruzan nombres, departamentos ni ofertas.
+  return String(valor ?? "").trim();
+}
+
+function cantidadMinimaReglaRuleta(regla) {
+  const valor = Number(String(regla?.cantidad_minima ?? 1).replace(",", "."));
+  return Number.isFinite(valor) && valor > 0 ? valor : 1;
+}
+
+function cumpleMinimoRuleta(linea, regla) {
+  const minimo = cantidadMinimaReglaRuleta(regla);
+  const cajas = Number(linea?.cajas || 0);
+  const unidades = Number(linea?.unidades || 0);
+
+  // Reproduce la misma regla usada al generar la participación en la tienda.
+  if (regla?.permite_unidades) return cajas > 0 || unidades >= minimo;
+  return cajas >= minimo;
+}
+
 export default function Estadisticas() {
   const hoyEstadistico = diaEstadisticoActualISO();
 
   const [movimientos, setMovimientos] = useState([]);
+  const [participacionesRuleta, setParticipacionesRuleta] = useState([]);
+  const [promocionesRuletaPorId, setPromocionesRuletaPorId] = useState(new Map());
   const [desde, setDesde] = useState(hoyEstadistico);
   const [hasta, setHasta] = useState(hoyEstadistico);
   const [periodoActivo, setPeriodoActivo] = useState("hoy");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
+  const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
 
   useEffect(() => {
     cargarEstadisticas(hoyEstadistico, hoyEstadistico);
@@ -129,6 +203,85 @@ export default function Estadisticas() {
       if (movimientosError) throw movimientosError;
 
       setMovimientos(data || []);
+
+      const { data: participacionesData, error: participacionesError } = await supabase
+        .from("promotion_participations")
+        .select("*")
+        .gte("created_at", inicio)
+        .lt("created_at", fin)
+        .order("created_at", { ascending: false });
+
+      if (participacionesError) throw participacionesError;
+
+      setParticipacionesRuleta(participacionesData || []);
+
+      // El informe debe utilizar la promoción asociada a cada participación,
+      // no la promoción activa hoy. Además, la tienda identifica los artículos
+      // de ruleta exclusivamente por codigo_articulo.
+      const idsPromocion = Array.from(
+        new Set(
+          (participacionesData || [])
+            .map((participacion) => String(participacion?.promotion_id || "").trim())
+            .filter(Boolean)
+        )
+      );
+
+      if (idsPromocion.length === 0) {
+        setPromocionesRuletaPorId(new Map());
+      } else {
+        const [promocionesResultado, reglasResultado, articulosResultado] = await Promise.all([
+          supabase
+            .from("promociones_ruleta")
+            .select("*")
+            .in("id", idsPromocion),
+          supabase
+            .from("promociones_ruleta_articulos")
+            .select("*")
+            .in("promocion_id", idsPromocion),
+          supabase
+            .from("articulos")
+            .select("codigo, permite_unidades"),
+        ]);
+
+        if (promocionesResultado.error) throw promocionesResultado.error;
+        if (reglasResultado.error) throw reglasResultado.error;
+        if (articulosResultado.error) throw articulosResultado.error;
+
+        const permiteUnidadesPorCodigo = new Map(
+          (articulosResultado.data || [])
+            .map((articulo) => [
+              normalizarCodigoRuleta(articulo.codigo),
+              Boolean(articulo.permite_unidades),
+            ])
+            .filter(([codigo]) => Boolean(codigo))
+        );
+
+        const mapaPromociones = new Map();
+        (promocionesResultado.data || []).forEach((promocion) => {
+          mapaPromociones.set(String(promocion.id), {
+            promocion,
+            reglasPorCodigo: new Map(),
+          });
+        });
+
+        (reglasResultado.data || []).forEach((regla) => {
+          const promocionId = String(regla.promocion_id || "").trim();
+          const codigo = normalizarCodigoRuleta(regla.codigo_articulo);
+          const configuracion = mapaPromociones.get(promocionId);
+
+          // Sin código no existe coincidencia válida. No usamos nombre ni id
+          // como respaldo porque el pedido histórico guarda codigo_articulo.
+          if (!configuracion || !codigo) return;
+
+          configuracion.reglasPorCodigo.set(codigo, {
+            ...regla,
+            permite_unidades: permiteUnidadesPorCodigo.get(codigo) === true,
+            origen_promocion: "articulo",
+          });
+        });
+
+        setPromocionesRuletaPorId(mapaPromociones);
+      }
     } catch (err) {
       console.error("Error cargando estadísticas:", err);
       setError(err?.message || JSON.stringify(err));
@@ -188,8 +341,11 @@ export default function Estadisticas() {
       totalCajas,
       totalUnidades,
       articulosDistintos,
+      codigosRuleta: participacionesRuleta.length,
+      tiradasRuleta: participacionesRuleta.reduce((total, fila) => total + Math.max(1, Number(fila.spins_total || 1)), 0),
+      codigosPendientes: participacionesRuleta.filter((fila) => String(fila.status || "").toLowerCase() === "pending").length,
     };
-  }, [movimientos]);
+  }, [movimientos, participacionesRuleta]);
 
   const pedidosPorDia = useMemo(() => {
     const mapa = new Map();
@@ -243,6 +399,112 @@ export default function Estadisticas() {
   const topCajas = useMemo(() => agruparArticulos(movimientos, "cajas").slice(0, 20), [movimientos]);
   const topUnidades = useMemo(() => agruparArticulos(movimientos, "unidades").slice(0, 20), [movimientos]);
   const topVecesPedido = useMemo(() => agruparArticulos(movimientos, "veces_pedido").slice(0, 20), [movimientos]);
+
+  const codigosRuletaPorPedido = useMemo(() => {
+    const mapa = new Map();
+
+    participacionesRuleta.forEach((participacion) => {
+      const pedidoId = String(participacion.order_id || participacion.pedido_id || "");
+      if (!pedidoId) return;
+
+      const actual = mapa.get(pedidoId) || [];
+      actual.push(participacion);
+      mapa.set(pedidoId, actual);
+    });
+
+    return mapa;
+  }, [participacionesRuleta]);
+
+  const pedidosConRuleta = useMemo(() => {
+    const mapa = new Map();
+
+    movimientos.forEach((fila) => {
+      const pedidoId = String(fila.pedido_id || fila.id || "");
+      if (!pedidoId || mapa.has(pedidoId)) return;
+
+      mapa.set(pedidoId, {
+        pedido_id: pedidoId,
+        created_at: fila.created_at,
+        codigos: codigosRuletaPorPedido.get(pedidoId) || [],
+      });
+    });
+
+    participacionesRuleta.forEach((participacion) => {
+      const pedidoId = String(participacion.order_id || participacion.pedido_id || "");
+      if (!pedidoId || mapa.has(pedidoId)) return;
+
+      mapa.set(pedidoId, {
+        pedido_id: pedidoId,
+        created_at: participacion.created_at,
+        codigos: [participacion],
+      });
+    });
+
+    return Array.from(mapa.values()).sort(
+      (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+    );
+  }, [movimientos, participacionesRuleta, codigosRuletaPorPedido]);
+
+
+  const detallePedidoSeleccionado = useMemo(() => {
+    if (!pedidoSeleccionado) return null;
+
+    const participacion = pedidoSeleccionado.codigos?.find(
+      (codigo) => codigo?.customer_phone || codigo?.customer_name
+    ) || pedidoSeleccionado.codigos?.[0] || null;
+
+    const promocionId = String(participacion?.promotion_id || "").trim();
+    const configuracionPedido = promocionesRuletaPorId.get(promocionId) || null;
+
+    const lineas = movimientos
+      .filter((fila) => String(fila.pedido_id || fila.id || "") === pedidoSeleccionado.pedido_id)
+      .map((fila) => {
+        const codigo = normalizarCodigoRuleta(fila.codigo_articulo);
+        const regla = configuracionPedido?.reglasPorCodigo.get(codigo) || null;
+
+        return {
+          ...fila,
+          ruleta: regla
+            ? {
+                incluido: true,
+                cumple: cumpleMinimoRuleta(fila, regla),
+                cantidadMinima: cantidadMinimaReglaRuleta(regla),
+                permiteUnidades: Boolean(regla.permite_unidades),
+                origen: regla.origen_promocion || "articulo",
+              }
+            : { incluido: false, cumple: false },
+        };
+      })
+      .sort((a, b) => {
+        const porDepartamento = String(a.departamento || "").localeCompare(
+          String(b.departamento || ""),
+          "es",
+          { sensitivity: "base" }
+        );
+        if (porDepartamento !== 0) return porDepartamento;
+        return String(a.nombre_articulo || "").localeCompare(
+          String(b.nombre_articulo || ""),
+          "es",
+          { sensitivity: "base" }
+        );
+      });
+
+    return {
+      ...pedidoSeleccionado,
+      customer_name: participacion?.customer_name || null,
+      customer_phone: participacion?.customer_phone || null,
+      lineas,
+      totalLineas: lineas.length,
+      totalCajas: lineas.reduce((total, fila) => total + Number(fila.cajas || 0), 0),
+      totalUnidades: lineas.reduce((total, fila) => total + Number(fila.unidades || 0), 0),
+      articulosDistintos: new Set(
+        lineas.map((fila) => String(fila.codigo_articulo || fila.nombre_articulo || ""))
+      ).size,
+      articulosRuleta: lineas.filter((fila) => fila.ruleta?.incluido),
+      articulosRuletaValidos: lineas.filter((fila) => fila.ruleta?.incluido && fila.ruleta?.cumple),
+      promocionRuleta: configuracionPedido?.promocion || null,
+    };
+  }, [pedidoSeleccionado, movimientos, promocionesRuletaPorId]);
 
   const departamentos = useMemo(() => {
     const mapa = new Map();
@@ -337,14 +599,68 @@ export default function Estadisticas() {
         <>
           <section style={statsGrid}>
             <StatCard label="Pedidos" value={formatearNumero(resumen.totalPedidos)} />
+            <StatCard label="Códigos ruleta" value={formatearNumero(resumen.codigosRuleta)} />
+            <StatCard label="Tiradas ruleta" value={formatearNumero(resumen.tiradasRuleta)} />
+            <StatCard label="Pendientes ruleta" value={formatearNumero(resumen.codigosPendientes)} />
             <StatCard label="Cajas" value={formatearNumero(resumen.totalCajas)} />
             <StatCard label="Unidades" value={formatearNumero(resumen.totalUnidades)} />
             <StatCard label="Artículos distintos" value={formatearNumero(resumen.articulosDistintos)} />
+            <StatCard label="Líneas" value={formatearNumero(resumen.totalLineas)} />
           </section>
 
           <section style={noticeBox}>
             <strong>Importante:</strong> desde ahora se cuentan pedidos reales usando pedido_id. Las estadísticas anteriores a este cambio pueden aparecer como líneas si no tenían pedido_id.
           </section>
+
+          <Panel title="Códigos de ruleta por pedido" subtitle="Muestra si cada pedido del periodo generó código para jugar">
+            <div style={tableWrap}>
+              <table style={table}>
+                <thead>
+                  <tr>
+                    <th style={th}>Fecha</th>
+                    <th style={th}>Pedido</th>
+                    <th style={th}>Código ruleta</th>
+                    <th style={thRight}>Tiradas</th>
+                    <th style={thRight}>Usadas</th>
+                    <th style={th}>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pedidosConRuleta.length === 0 ? (
+                    <FilaVacia columnas={6} />
+                  ) : (
+                    pedidosConRuleta.map((pedido) => {
+                      const codigos = pedido.codigos || [];
+
+                      if (!codigos.length) {
+                        return (
+                          <tr key={pedido.pedido_id}>
+                            <td style={td}>{new Date(pedido.created_at).toLocaleString("es-ES")}</td>
+                            <td style={td}><button type="button" style={orderButton} onClick={() => setPedidoSeleccionado(pedido)} title="Ver contenido del pedido">{pedido.pedido_id}</button></td>
+                            <td style={td}>No emitido</td>
+                            <td style={tdRight}>—</td>
+                            <td style={tdRight}>—</td>
+                            <td style={td}>—</td>
+                          </tr>
+                        );
+                      }
+
+                      return codigos.map((codigo, index) => (
+                        <tr key={`${pedido.pedido_id}-${codigo.id || codigo.code || index}`}>
+                          <td style={td}>{new Date(codigo.created_at || pedido.created_at).toLocaleString("es-ES")}</td>
+                          <td style={td}><button type="button" style={orderButton} onClick={() => setPedidoSeleccionado(pedido)} title="Ver contenido del pedido">{pedido.pedido_id}</button></td>
+                          <td style={tdRightStrong}>{codigo.code || codigo.codigo || "—"}</td>
+                          <td style={tdRight}>{formatearNumero(Math.max(1, Number(codigo.spins_total || 1)))}</td>
+                          <td style={tdRight}>{formatearNumero(Number(codigo.spins_used || 0))}</td>
+                          <td style={td}>{codigo.status || "—"}</td>
+                        </tr>
+                      ));
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
 
           <section style={gridTwo}>
             <Panel title="Actividad por día" subtitle="Cada día va de 14:30 a 14:30">
@@ -360,7 +676,6 @@ export default function Estadisticas() {
                 <thead>
                   <tr>
                     <th style={th}>Día estadístico</th>
-                    <th style={thRight}>Pedidos</th>
                     <th style={thRight}>Pedidos</th>
                     <th style={thRight}>Líneas</th>
                     <th style={thRight}>Cajas</th>
@@ -443,7 +758,7 @@ export default function Estadisticas() {
                 </thead>
                 <tbody>
                   {departamentos.length === 0 ? (
-                    <FilaVacia columnas={4} />
+                    <FilaVacia columnas={5} />
                   ) : (
                     departamentos.slice(0, 20).map((fila) => (
                       <tr key={fila.departamento}>
@@ -496,6 +811,194 @@ export default function Estadisticas() {
           </Panel>
         </>
       )}
+
+      {detallePedidoSeleccionado && (
+        <DetallePedidoModal
+          pedido={detallePedidoSeleccionado}
+          onClose={() => setPedidoSeleccionado(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function DetallePedidoModal({ pedido, onClose }) {
+  const [mensajeAccion, setMensajeAccion] = useState("");
+  const telefonoWa = telefonoWhatsApp(pedido.customer_phone);
+
+  useEffect(() => {
+    function cerrarConEscape(event) {
+      if (event.key === "Escape") onClose();
+    }
+
+    window.addEventListener("keydown", cerrarConEscape);
+    return () => window.removeEventListener("keydown", cerrarConEscape);
+  }, [onClose]);
+
+  async function copiarPedido() {
+    const texto = construirTextoPedido(pedido);
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(texto);
+      } else {
+        const area = document.createElement("textarea");
+        area.value = texto;
+        area.style.position = "fixed";
+        area.style.opacity = "0";
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand("copy");
+        area.remove();
+      }
+      setMensajeAccion("Pedido copiado al portapapeles.");
+    } catch (error) {
+      console.error("No se pudo copiar el pedido:", error);
+      setMensajeAccion("No se pudo copiar el pedido.");
+    }
+  }
+
+  function imprimirPedido() {
+    const ventana = window.open("", "_blank", "width=900,height=720");
+    if (!ventana) {
+      setMensajeAccion("El navegador ha bloqueado la ventana de impresión.");
+      return;
+    }
+
+    const filas = pedido.lineas.map((linea) => `
+      <tr>
+        <td><strong>${escaparHtml(linea.nombre_articulo || "Artículo sin nombre")}</strong><br><small>${escaparHtml(linea.codigo_articulo || "—")}</small></td>
+        <td>${escaparHtml(linea.departamento || "Sin departamento")}</td>
+        <td class="numero">${escaparHtml(formatearNumero(linea.cajas))}</td>
+        <td class="numero">${escaparHtml(formatearNumero(linea.unidades))}</td>
+        <td>${linea.ruleta?.incluido ? (linea.ruleta.cumple ? "Válido para ruleta" : `Incluido; mínimo ${escaparHtml(formatearNumero(linea.ruleta.cantidadMinima))} ${linea.ruleta.permiteUnidades ? "uds." : "cajas"}`) : "—"}</td>
+      </tr>`).join("");
+
+    ventana.document.write(`<!doctype html>
+      <html lang="es"><head><meta charset="utf-8"><title>Pedido ${escaparHtml(pedido.pedido_id)}</title>
+      <style>
+        body{font-family:Arial,sans-serif;color:#111827;margin:32px} h1{font-size:22px;margin:0 0 8px} p{margin:4px 0;color:#475569}
+        table{width:100%;border-collapse:collapse;margin-top:22px} th,td{border:1px solid #d1d5db;padding:10px;text-align:left} th{background:#f3f4f6}.numero{text-align:right}
+        .resumen{display:flex;gap:24px;flex-wrap:wrap;margin-top:20px;font-weight:700}.cliente{margin-top:14px} small{color:#64748b}
+        @media print{body{margin:12mm}}
+      </style></head><body>
+      <h1>Pedido ${escaparHtml(pedido.pedido_id)}</h1>
+      <p>${escaparHtml(pedido.created_at ? new Date(pedido.created_at).toLocaleString("es-ES") : "Fecha no disponible")}</p>
+      ${pedido.customer_name ? `<p class="cliente"><strong>Cliente:</strong> ${escaparHtml(pedido.customer_name)}</p>` : ""}
+      ${pedido.customer_phone ? `<p><strong>Teléfono:</strong> ${escaparHtml(pedido.customer_phone)}</p>` : ""}
+      <table><thead><tr><th>Artículo</th><th>Departamento</th><th>Cajas</th><th>Unidades</th><th>Promoción ruleta</th></tr></thead><tbody>${filas}</tbody></table>
+      <div class="resumen"><span>Artículos: ${escaparHtml(formatearNumero(pedido.articulosDistintos))}</span><span>Líneas: ${escaparHtml(formatearNumero(pedido.totalLineas))}</span><span>Cajas: ${escaparHtml(formatearNumero(pedido.totalCajas))}</span><span>Unidades: ${escaparHtml(formatearNumero(pedido.totalUnidades))}</span></div>
+      <script>window.addEventListener('load',()=>{window.print();});<\/script></body></html>`);
+    ventana.document.close();
+  }
+
+  function abrirWhatsApp() {
+    if (!telefonoWa) return;
+    const mensaje = encodeURIComponent(`Hola${pedido.customer_name ? ` ${pedido.customer_name}` : ""}, te contactamos en relación con tu pedido ${pedido.pedido_id}.`);
+    window.open(`https://wa.me/${telefonoWa}?text=${mensaje}`, "_blank", "noopener,noreferrer");
+  }
+
+  return (
+    <div style={modalOverlay} role="presentation" onMouseDown={onClose}>
+      <section
+        style={modalCard}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="detalle-pedido-titulo"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div style={modalHeader}>
+          <div>
+            <div style={modalEyebrow}>Detalle del pedido</div>
+            <h2 id="detalle-pedido-titulo" style={modalTitle}>{pedido.pedido_id}</h2>
+            <p style={modalDate}>
+              {pedido.created_at ? new Date(pedido.created_at).toLocaleString("es-ES") : "Fecha no disponible"}
+            </p>
+            {(pedido.customer_name || pedido.customer_phone) && (
+              <p style={modalCustomer}>
+                {pedido.customer_name || "Cliente sin nombre"}
+                {pedido.customer_phone ? ` · ${pedido.customer_phone}` : ""}
+              </p>
+            )}
+          </div>
+          <button type="button" onClick={onClose} style={closeButton} aria-label="Cerrar detalle">×</button>
+        </div>
+
+        <div style={modalStats}>
+          <StatCard label="Artículos distintos" value={formatearNumero(pedido.articulosDistintos)} />
+          <StatCard label="Líneas" value={formatearNumero(pedido.totalLineas)} />
+          <StatCard label="Cajas" value={formatearNumero(pedido.totalCajas)} />
+          <StatCard label="Unidades" value={formatearNumero(pedido.totalUnidades)} />
+          <StatCard label="En promoción ruleta" value={formatearNumero(pedido.articulosRuleta.length)} />
+          <StatCard label="Válidos para ruleta" value={formatearNumero(pedido.articulosRuletaValidos.length)} />
+        </div>
+
+        <div style={ruletaSummary}>
+          <div>
+            <strong>🎡 Artículos de la promoción de ruleta</strong>
+            <div style={smallText}>
+              {pedido.promocionRuleta?.nombre || "Configuración actual de la ruleta"}.
+              Los artículos marcados en verde cumplen la cantidad mínima; los amarillos pertenecen a la promoción pero no alcanzan el mínimo.
+            </div>
+          </div>
+          <strong>{pedido.articulosRuletaValidos.length} válidos de {pedido.articulosRuleta.length} incluidos</strong>
+        </div>
+
+        <div style={modalTableWrap}>
+          <table style={table}>
+            <thead>
+              <tr>
+                <th style={th}>Artículo</th>
+                <th style={th}>Departamento</th>
+                <th style={thRight}>Cajas</th>
+                <th style={thRight}>Unidades</th>
+                <th style={th}>Promoción ruleta</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pedido.lineas.length === 0 ? (
+                <FilaVacia columnas={4} />
+              ) : (
+                pedido.lineas.map((linea) => (
+                  <tr key={linea.id || `${linea.codigo_articulo}-${linea.nombre_articulo}`}>
+                    <td style={td}>
+                      <strong>{linea.nombre_articulo || "Artículo sin nombre"}</strong>
+                      <div style={smallText}>Código: {linea.codigo_articulo || "—"}</div>
+                    </td>
+                    <td style={td}>{linea.departamento || "Sin departamento"}</td>
+                    <td style={tdRightStrong}>{formatearNumero(linea.cajas)}</td>
+                    <td style={tdRightStrong}>{formatearNumero(linea.unidades)}</td>
+                    <td style={td}>
+                      {!linea.ruleta?.incluido ? (
+                        <span style={ruletaNoIncluido}>No incluido</span>
+                      ) : linea.ruleta.cumple ? (
+                        <span style={ruletaValido}>🎡 Válido</span>
+                      ) : (
+                        <span style={ruletaPendiente}>Mínimo: {formatearNumero(linea.ruleta.cantidadMinima)} {linea.ruleta.permiteUnidades ? "uds." : "cajas"}</span>
+                      )}
+                      {linea.ruleta?.incluido && (
+                        <div style={ruletaOrigen}>Por {linea.ruleta.origen === "departamento" ? "departamento" : "artículo"}</div>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={modalFooter}>
+          <div>
+            <span style={modalHint}>{mensajeAccion || "También puedes cerrar pulsando Esc o haciendo clic fuera."}</span>
+            {!telefonoWa && <div style={whatsappHint}>WhatsApp no está disponible porque este pedido no tiene teléfono guardado.</div>}
+          </div>
+          <div style={modalActions}>
+            <button type="button" onClick={imprimirPedido} style={secondaryAction}>📄 Imprimir pedido</button>
+            <button type="button" onClick={abrirWhatsApp} style={telefonoWa ? whatsappAction : disabledAction} disabled={!telefonoWa} title={telefonoWa ? "Abrir conversación de WhatsApp" : "No hay teléfono guardado"}>📲 Abrir WhatsApp</button>
+            <button type="button" onClick={copiarPedido} style={secondaryAction}>📋 Copiar pedido</button>
+            <button type="button" onClick={onClose} style={modalCloseAction}>❌ Cerrar</button>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
@@ -677,3 +1180,29 @@ const chartValue = { textAlign: "right", fontSize: "11px", fontWeight: "950", co
 const chartEmpty = { border: "1px dashed #cbd5e1", borderRadius: "16px", padding: "20px", color: "#94a3b8", fontWeight: "850", textAlign: "center", marginBottom: "14px" };
 const loadingBox = { padding: "30px", textAlign: "center", color: "#64748b", fontWeight: "900", background: "#ffffff", borderRadius: "16px" };
 const errorBox = { background: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", padding: "16px", borderRadius: "18px", marginBottom: "18px" };
+
+const orderButton = { border: "none", background: "transparent", color: "#1d4ed8", padding: 0, font: "inherit", fontWeight: "950", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "3px", textAlign: "left" };
+const modalOverlay = { position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", background: "rgba(15,23,42,0.72)", backdropFilter: "blur(5px)" };
+const modalCard = { width: "min(980px, 100%)", maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column", background: "#ffffff", borderRadius: "24px", boxShadow: "0 35px 90px rgba(15,23,42,0.38)", border: "1px solid rgba(255,255,255,0.55)" };
+const modalHeader = { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", padding: "22px 24px", color: "#ffffff", background: "linear-gradient(135deg, #111827 0%, #1d4ed8 100%)" };
+const modalEyebrow = { fontSize: "12px", fontWeight: "900", textTransform: "uppercase", letterSpacing: "0.08em", color: "#bfdbfe", marginBottom: "7px" };
+const modalTitle = { margin: 0, fontSize: "20px", lineHeight: 1.25, overflowWrap: "anywhere" };
+const modalDate = { margin: "8px 0 0", color: "#dbeafe", fontSize: "14px" };
+const modalCustomer = { margin: "8px 0 0", color: "#ffffff", fontSize: "14px", fontWeight: "800" };
+const closeButton = { width: "42px", height: "42px", flex: "0 0 auto", borderRadius: "50%", border: "1px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.12)", color: "#ffffff", fontSize: "28px", lineHeight: 1, cursor: "pointer" };
+const modalStats = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: "10px", padding: "16px 20px", background: "#f8fafc", borderBottom: "1px solid #e5e7eb" };
+const ruletaSummary = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "18px", margin: "16px 20px 0", padding: "14px 16px", borderRadius: "16px", border: "1px solid #c4b5fd", background: "#f5f3ff", color: "#4c1d95", flexWrap: "wrap" };
+const ruletaValido = { display: "inline-flex", alignItems: "center", padding: "5px 9px", borderRadius: "999px", background: "#dcfce7", color: "#166534", fontSize: "12px", fontWeight: "900", whiteSpace: "nowrap" };
+const ruletaPendiente = { display: "inline-flex", alignItems: "center", padding: "5px 9px", borderRadius: "999px", background: "#fef3c7", color: "#92400e", fontSize: "12px", fontWeight: "900", whiteSpace: "nowrap" };
+const ruletaNoIncluido = { color: "#94a3b8", fontSize: "12px", fontWeight: "750" };
+const ruletaOrigen = { marginTop: "4px", color: "#64748b", fontSize: "10px", fontWeight: "750" };
+const modalTableWrap = { overflow: "auto", margin: "18px 20px 0", border: "1px solid #e5e7eb", borderRadius: "16px" };
+const modalFooter = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 20px 20px", flexWrap: "wrap" };
+const modalHint = { color: "#64748b", fontSize: "12px" };
+const whatsappHint = { color: "#b45309", fontSize: "11px", marginTop: "4px", fontWeight: "750" };
+const modalActions = { display: "flex", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" };
+const actionBase = { border: "none", borderRadius: "12px", padding: "11px 14px", fontWeight: "900", cursor: "pointer", whiteSpace: "nowrap" };
+const secondaryAction = { ...actionBase, background: "#e2e8f0", color: "#0f172a" };
+const whatsappAction = { ...actionBase, background: "#16a34a", color: "#ffffff" };
+const disabledAction = { ...actionBase, background: "#e5e7eb", color: "#94a3b8", cursor: "not-allowed" };
+const modalCloseAction = { ...actionBase, background: "#111827", color: "#ffffff" };

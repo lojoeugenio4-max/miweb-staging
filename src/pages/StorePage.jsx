@@ -6,6 +6,9 @@ import StoreWheel from "../components/StoreWheel";
 const DISPLAY_EVENT_KEY = "lojo-ruleta-display-event";
 const SPIN_DURATION_MS = 9200;
 
+const PRODUCTOS_PUBLIC_URL =
+  "https://bohlxagrtpjvqrgkonlo.supabase.co/storage/v1/object/public/productos";
+
 function enviarEventoDisplay(type, payload = {}) {
   if (typeof window === "undefined") return;
 
@@ -128,14 +131,19 @@ function normalizarCodigo(value) {
 }
 
 function getPrizeImageUrl(premio) {
-  return (
+  const raw =
     premio?.imagen_url ||
     premio?.foto_url ||
     premio?.image_url ||
     premio?.foto ||
     premio?.imagen ||
-    ""
-  );
+    "";
+
+  const value = String(raw || "").trim();
+  if (!value) return "";
+  if (value.startsWith("http") || value.startsWith("data:") || value.startsWith("blob:")) return value;
+
+  return `${PRODUCTOS_PUBLIC_URL}/${value.replace(/^\/+/, "")}`;
 }
 
 
@@ -166,58 +174,76 @@ function seleccionarPremioRuleta(premios = []) {
   return activos[activos.length - 1];
 }
 
-async function actualizarSaldoTiradas(entry, usadas, total, prize = null) {
-  if (!entry?.code) return null;
-
-  const spinsTotal = Math.max(1, Number(total || 1));
-  const spinsUsed = Math.min(spinsTotal, Math.max(0, Number(usadas || 0)));
-  const quedan = Math.max(0, spinsTotal - spinsUsed);
-
-  // IMPORTANTE:
-  // No llamamos a la RPC play_promotion_participation porque consume el QR en el primer giro.
-  // El QR solo pasa a played cuando ya no quedan tiradas.
-  const updatePayload = {
-    status: quedan > 0 ? "pending" : "played",
-    spins_used: spinsUsed,
-    spins_total: spinsTotal,
-  };
-
-  if (prize?.id) {
-    updatePayload.prize_id = prize.id;
+async function actualizarSaldoTiradas(entry, prize = null) {
+  if (!entry?.id) {
+    throw new Error("La participación no tiene un identificador válido.");
   }
 
-  if (quedan <= 0) {
-    updatePayload.played_at = new Date().toISOString();
-  } else {
-    updatePayload.played_at = null;
+  // Los códigos permanentes siguen siendo reutilizables y no consumen saldo.
+  // No se registran en promotion_spins porque pueden girarse indefinidamente.
+  if (entry.is_permanent === true) {
+    return {
+      ...entry,
+      status: "pending",
+      spins_total: 1,
+      spins_used: 0,
+      played_at: null,
+    };
   }
 
-  const { data, error } = await supabase
+  const { data: spinResult, error: spinError } = await supabase.rpc(
+    "register_promotion_spin",
+    {
+      p_participation_id: entry.id,
+      p_prize_id: prize?.id ?? null,
+    }
+  );
+
+  if (spinError) {
+    console.error("No se pudo registrar la tirada:", spinError);
+    throw spinError;
+  }
+
+  // Recuperamos la fila actualizada para que la interfaz use el estado real
+  // confirmado por la base de datos, no un cálculo local aproximado.
+  const { data: participation, error: participationError } = await supabase
     .from("promotion_participations")
-    .update(updatePayload)
-    .eq("code", entry.code)
     .select("*")
-    .maybeSingle();
+    .eq("id", entry.id)
+    .single();
 
-  if (error) {
-    console.warn("No se pudo actualizar el saldo de tiradas:", error);
-    return null;
+  if (participationError) {
+    console.error(
+      "La tirada se registró, pero no se pudo recargar la participación:",
+      participationError
+    );
+
+    return {
+      ...entry,
+      spins_total: Number(spinResult?.spins_total ?? entry.spins_total ?? 1),
+      spins_used: Number(spinResult?.spins_used ?? entry.spins_used ?? 0),
+      status:
+        Number(spinResult?.spins_remaining ?? 0) > 0 ? "pending" : "played",
+    };
   }
 
-  return data;
+  return participation;
 }
 
 function obtenerTiradasTotalesEntrada(entrada) {
+  if (entrada?.is_permanent === true) return 1;
   const total = Number(entrada?.spins_total ?? 1);
   return Number.isFinite(total) && total > 0 ? total : 1;
 }
 
 function obtenerTiradasUsadasEntrada(entrada) {
+  if (entrada?.is_permanent === true) return 0;
   const usadas = Number(entrada?.spins_used ?? 0);
   return Number.isFinite(usadas) && usadas > 0 ? usadas : 0;
 }
 
 function obtenerTiradasRestantesEntrada(entrada) {
+  if (entrada?.is_permanent === true) return 1;
   return Math.max(
     0,
     obtenerTiradasTotalesEntrada(entrada) - obtenerTiradasUsadasEntrada(entrada)
@@ -234,6 +260,7 @@ export default function StorePage() {
   const [mensaje, setMensaje] = useState("");
   const [girando, setGirando] = useState(false);
   const [premioFinal, setPremioFinal] = useState(null);
+  const [premioObjetivo, setPremioObjetivo] = useState(null);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -278,7 +305,21 @@ export default function StorePage() {
       return;
     }
 
-    if (data.status !== "pending" && obtenerTiradasRestantesEntrada(data) <= 0) {
+    const estadoCodigo = String(data.status || "").toLowerCase();
+    const estadosBloqueados = ["disabled", "cancelled", "canceled", "blocked"];
+
+    if (data.is_permanent === true && estadosBloqueados.includes(estadoCodigo)) {
+      setEntrada(data);
+      setMensaje("Este código VIP está desactivado.");
+      setEstado("used");
+      return;
+    }
+
+    if (
+      data.is_permanent !== true &&
+      data.status !== "pending" &&
+      obtenerTiradasRestantesEntrada(data) <= 0
+    ) {
       setEntrada(data);
       setMensaje(
         data.status === "played"
@@ -289,7 +330,11 @@ export default function StorePage() {
       return;
     }
 
-    if (data.expires_at && new Date(data.expires_at) < new Date()) {
+    if (
+      data.is_permanent !== true &&
+      data.expires_at &&
+      new Date(data.expires_at) < new Date()
+    ) {
       setEntrada(data);
       setMensaje("Este código está caducado.");
       setEstado("error");
@@ -335,15 +380,9 @@ export default function StorePage() {
       getAudioContext().resume?.();
     } catch {}
 
-    setGirando(true);
     setPremioFinal(null);
+    setPremioObjetivo(null);
     setMensaje("");
-    startSpinSound(SPIN_DURATION_MS);
-
-    enviarEventoDisplay("spin", {
-      entrada,
-      premios,
-    });
 
     const tiradasUsadasAntes = obtenerTiradasUsadasEntrada(entrada);
     const tiradasTotalesAntes = obtenerTiradasTotalesEntrada(entrada);
@@ -367,49 +406,48 @@ export default function StorePage() {
       return;
     }
 
-    window.setTimeout(() => {
+    setPremioObjetivo(prize);
+    setGirando(true);
+    startSpinSound(SPIN_DURATION_MS);
+
+    enviarEventoDisplay("spin", {
+      entrada,
+      premios,
+      premio: prize,
+    });
+
+    window.setTimeout(async () => {
       stopSpinSound();
 
-      const total = tiradasTotalesAntes;
-      const usadas = Math.min(total, tiradasUsadasAntes + 1);
-      const quedan = Math.max(0, total - usadas);
+      try {
+        const entryActualizada = await actualizarSaldoTiradas(entrada, prize);
 
-      const entryActualizada = {
-        ...entrada,
-        spins_total: total,
-        spins_used: usadas,
-        status: quedan > 0 ? "pending" : "played",
-        played_at: quedan > 0 ? null : new Date().toISOString(),
-        prize_id: prize?.id ?? entrada?.prize_id ?? null,
-      };
+        setEntrada(entryActualizada);
+        setPremioFinal(prize);
+        setPremioObjetivo(null);
+        setGirando(false);
+        setEstado("result");
 
-      setEntrada(entryActualizada);
-      setPremioFinal(prize);
-      setGirando(false);
-      setEstado("result");
+        enviarEventoDisplay("result", {
+          entrada: entryActualizada,
+          premios,
+          premio: prize,
+        });
 
-      actualizarSaldoTiradas(entryActualizada, usadas, total, prize).then((entryBd) => {
-        if (entryBd) {
-          setEntrada((actual) => ({
-            ...actual,
-            ...entryBd,
-            spins_total: total,
-            spins_used: usadas,
-            status: quedan > 0 ? "pending" : "played",
-          }));
+        if (prize.tipo_sonido === "sirena" || prize.tipo_sonido === "jackpot") {
+          playSirena();
+        } else {
+          playCampana();
         }
-      });
-
-      enviarEventoDisplay("result", {
-        entrada: entryActualizada,
-        premios,
-        premio: prize,
-      });
-
-      if (prize.tipo_sonido === "sirena" || prize.tipo_sonido === "jackpot") {
-        playSirena();
-      } else {
-        playCampana();
+      } catch (error) {
+        console.error(error);
+        setPremioObjetivo(null);
+        setGirando(false);
+        setMensaje(
+          "No se pudo registrar la tirada. No vuelvas a girar hasta comprobar la conexión."
+        );
+        setEstado("error");
+        enviarEventoDisplay("waiting");
       }
     }, SPIN_DURATION_MS);
   }
@@ -421,6 +459,7 @@ export default function StorePage() {
     }
 
     setPremioFinal(null);
+    setPremioObjetivo(null);
     setMensaje("");
     setEstado("ready");
     enviarEventoDisplay("ready", {
@@ -438,6 +477,7 @@ export default function StorePage() {
     setMensaje("");
     setGirando(false);
     setPremioFinal(null);
+    setPremioObjetivo(null);
     enviarEventoDisplay("waiting");
 
     window.setTimeout(() => {
@@ -538,8 +578,10 @@ export default function StorePage() {
               ref={inputRef}
               value={codigo}
               onChange={(event) => setCodigo(event.target.value.toUpperCase())}
-              placeholder="LJ-XXXXXX"
+              placeholder="••••••••"
               autoComplete="off"
+              type="password"
+              inputMode="text"
               style={styles.input}
             />
 
@@ -577,6 +619,7 @@ export default function StorePage() {
               premios={premios}
               girando={girando}
               premioFinal={premioFinal}
+              premioObjetivo={premioObjetivo}
               onGirar={girar}
               duracionGiro={SPIN_DURATION_MS}
             />
@@ -584,7 +627,7 @@ export default function StorePage() {
             <div style={styles.note}>
               <span style={styles.noteIcon}>ⓘ</span>
               <span>
-                Código <strong>{entrada.code}</strong> · Cliente{" "}
+                Código <strong>••••••••</strong> · Cliente{" "}
                 <strong>{entrada.customer_name || "sin nombre"}</strong>
                 {tiradasTotales > 1 && (
                   <>

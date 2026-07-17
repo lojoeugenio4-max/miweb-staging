@@ -17,7 +17,7 @@ import {
   abrirPedidoEnWhatsApp,
 } from "./utils/whatsappPedido";
 
-const WHATSAPP_NUMBER = "34670619113";
+const WHATSAPP_NUMBER = "34670716744";
 const ORDER_STORAGE_KEY = "cash-lojo-pedido";
 const ORDER_SENT_PENDING_CLEAR_KEY = "cash-lojo-pedido-enviado-pendiente-borrar";
 const LANGUAGE_STORAGE_KEY = "cash-lojo-language";
@@ -282,8 +282,9 @@ export default function App() {
   const [notes, setNotes] = useState(() => getSavedOrder().notes || "");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [selectedDepartment, setSelectedDepartment] = useState("OFERTAS");
+  const [selectedDepartment, setSelectedDepartment] = useState("TODOS");
   const [articuloDestacado, setArticuloDestacado] = useState(null);
+  const [campoCantidadActivo, setCampoCantidadActivo] = useState(null);
   const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
   const [showOrderSummary, setShowOrderSummary] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -432,7 +433,7 @@ export default function App() {
       setNotes("");
       setSearchInput("");
       setSearch("");
-      setSelectedDepartment("OFERTAS");
+      setSelectedDepartment("TODOS");
       setDepartmentDropdownOpen(false);
       setShowOrderSummary(false);
       setSelectedImage(null);
@@ -905,6 +906,14 @@ export default function App() {
     [productosVisibles]
   );
 
+  const productosRuleta = useMemo(
+    () =>
+      ordenarProductos(
+        productosVisibles.filter((product) => product.participaRuleta)
+      ),
+    [productosVisibles]
+  );
+
   const departamentosCatalogo = useMemo(() => {
     const grupos = [];
 
@@ -922,6 +931,13 @@ export default function App() {
       });
     }
 
+    if (productosRuleta.length > 0) {
+      grupos.push({
+        name: "RULETA",
+        products: ordenarProductos(productosRuleta),
+      });
+    }
+
     departamentos.forEach((departamento) => {
       const nombreDepartamento = String(departamento.nombre || "").trim();
 
@@ -929,6 +945,7 @@ export default function App() {
         !nombreDepartamento ||
         nombreDepartamento === "NOVEDAD" ||
         nombreDepartamento === "OFERTAS" ||
+        nombreDepartamento === "RULETA" ||
         nombreDepartamento === "TODOS" ||
         nombreDepartamento === "ARTÍCULOS BUSCADOS"
       ) {
@@ -950,7 +967,13 @@ export default function App() {
     });
 
     return grupos;
-  }, [departamentos, productosVisibles, productosConOferta, productosNovedad]);
+  }, [
+    departamentos,
+    productosVisibles,
+    productosConOferta,
+    productosNovedad,
+    productosRuleta,
+  ]);
 
   const departmentOptions = useMemo(() => {
     const uniqueDepartments = Array.from(
@@ -988,6 +1011,8 @@ export default function App() {
         selectedProducts = productosNovedad;
       } else if (selectedDepartment === "OFERTAS") {
         selectedProducts = productosConOferta;
+      } else if (selectedDepartment === "RULETA") {
+        selectedProducts = productosRuleta;
       } else {
         selectedProducts = productosVisibles.filter(
           (product) => product.department === selectedDepartment
@@ -1037,6 +1062,7 @@ export default function App() {
     productosVisibles,
     productosNovedad,
     productosConOferta,
+    productosRuleta,
   ]);
 
   useEffect(() => {
@@ -1138,6 +1164,111 @@ export default function App() {
     [orderedItems, configuracionRuleta, articulosRuleta]
   );
 
+  const obtenerEstadoArticuloRuleta = (product, quantity = {}) => {
+    if (!product?.participaRuleta) return null;
+
+    const minimo = Math.max(1, Number(product.cantidadMinimaRuleta || 1));
+    const cajas = Number(quantity.boxes || 0);
+    const unidades = Number(quantity.units || 0);
+
+    if (product.permite_unidades) {
+      if (cajas > 0 || unidades >= minimo) {
+        return {
+          completo: true,
+          texto: "✓ Este artículo ya cuenta para la Ruleta",
+        };
+      }
+
+      return {
+        completo: false,
+        texto:
+          unidades > 0
+            ? `Te faltan ${Math.max(0, minimo - unidades)} unidades para que cuente`
+            : `Pide 1 caja o ${minimo} unidades para que cuente`,
+      };
+    }
+
+    if (cajas >= minimo) {
+      return {
+        completo: true,
+        texto: "✓ Este artículo ya cuenta para la Ruleta",
+      };
+    }
+
+    return {
+      completo: false,
+      texto:
+        cajas > 0
+          ? `Te faltan ${Math.max(0, minimo - cajas)} cajas para que cuente`
+          : `Pide ${minimo} ${minimo === 1 ? "caja" : "cajas"} para que cuente`,
+    };
+  };
+
+  const activarCampoCantidad = (productId, field) => {
+    // Solo marca el artículo y el campo activo. No cambia el departamento,
+    // no busca el artículo y no modifica el scroll.
+    setArticuloDestacado(productId);
+    setCampoCantidadActivo(`${productId}:${field}`);
+  };
+
+  const alinearArticuloActivo = (input) => {
+    if (!input || document.activeElement !== input) return;
+
+    const article = input.closest("article");
+    const departmentSection = article?.closest("section");
+    const departmentTitle = departmentSection?.querySelector("h2");
+    const topArea = document.querySelector("[data-top-area='true']");
+
+    if (!article) return;
+
+    const articleRect = article.getBoundingClientRect();
+    const topAreaRect = topArea?.getBoundingClientRect();
+    const titleHeight = departmentTitle?.getBoundingClientRect().height || 0;
+
+    // La tarjeta queda en la misma zona visual que el primer artículo de un
+    // departamento: justo debajo de la cabecera y del título, nunca oculta.
+    const desiredArticleTop = Math.max(
+      12,
+      Math.min(window.innerHeight * 0.28, (topAreaRect?.bottom || 0) + titleHeight + 10)
+    );
+
+    const delta = articleRect.top - desiredArticleTop;
+    if (Math.abs(delta) > 2) {
+      window.scrollBy({ top: delta, left: 0, behavior: "auto" });
+    }
+  };
+
+  const prepararCampoCantidad = (event, productId, field) => {
+    const input = event.currentTarget;
+
+    activarCampoCantidad(productId, field);
+
+    // El foco se obtiene SINCRÓNICAMENTE durante el primer toque. Así el
+    // teclado se abre en ese mismo toque. Cancelamos únicamente la acción
+    // nativa posterior para impedir que el navegador vuelva a desplazar la
+    // página o quite el cursor al terminar el gesto.
+    event.preventDefault();
+    input.focus({ preventScroll: true });
+    input.select?.();
+
+    let adjusted = false;
+    const ajustarUnaVez = () => {
+      if (adjusted || document.activeElement !== input) return;
+      adjusted = true;
+      requestAnimationFrame(() => alinearArticuloActivo(input));
+    };
+
+    // En iOS/Android la altura visible cambia cuando aparece el teclado.
+    // Esperamos ese cambio para colocar la tarjeta una sola vez, manteniendo
+    // el foco y el teclado abiertos.
+    const viewport = window.visualViewport;
+    if (viewport) {
+      viewport.addEventListener("resize", ajustarUnaVez, { once: true });
+      setTimeout(ajustarUnaVez, 220);
+    } else {
+      setTimeout(ajustarUnaVez, 120);
+    }
+  };
 
   const updateQuantity = (productId, field, value) => {
     const product = productos.find((item) => item.id === productId);
@@ -1149,20 +1280,31 @@ export default function App() {
 
     const numericValue = value === "" ? "" : Math.max(0, Number(value));
 
-    setQuantities((current) => ({
-      ...current,
-      [productId]: {
-        boxes: current[productId]?.boxes || "",
-        units:
-          field === "units"
-            ? current[productId]?.units || ""
-            : product?.permite_unidades
-              ? current[productId]?.units || ""
-              : "",
-        notes: current[productId]?.notes || "",
-        [field]: numericValue,
-      },
-    }));
+    setQuantities((current) => {
+      const previous = current[productId] || {};
+      const hasValue = numericValue !== "" && Number(numericValue) > 0;
+
+      return {
+        ...current,
+        [productId]: {
+          boxes:
+            field === "boxes"
+              ? numericValue
+              : hasValue
+                ? ""
+                : previous.boxes || "",
+          units:
+            field === "units"
+              ? numericValue
+              : hasValue
+                ? ""
+                : product?.permite_unidades
+                  ? previous.units || ""
+                  : "",
+          notes: previous.notes || "",
+        },
+      };
+    });
   };
 
   const updateNotes = (productId, value) => {
@@ -1244,22 +1386,15 @@ export default function App() {
   };
 
   const aceptarCantidad = (productId) => {
-    if (document.activeElement) {
+    // “Aceptar” únicamente cierra el teclado. Antes se desplazaba al artículo
+    // siguiente y podía saltar incluso al departamento siguiente.
+    // Ese desplazamiento automático queda eliminado por completo.
+    if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
 
-    const productIds = filteredDepartments.flatMap((department) =>
-      department.products.map((product) => product.id)
-    );
-
-    const currentIndex = productIds.indexOf(productId);
-    const nextProductId = productIds[currentIndex + 1];
-
-    if (nextProductId) {
-      setTimeout(() => {
-        asegurarArticuloVisible(nextProductId);
-      }, 120);
-    }
+    setArticuloDestacado(productId);
+    setCampoCantidadActivo(null);
   };
 
   const manejarEnterCantidad = (event, productId) => {
@@ -1296,7 +1431,7 @@ export default function App() {
     setNotes("");
     setSearchInput("");
     setSearch("");
-    setSelectedDepartment("OFERTAS");
+    setSelectedDepartment("TODOS");
     setDepartmentDropdownOpen(false);
     setShowOrderSummary(false);
     setSelectedImage(null);
@@ -1359,7 +1494,7 @@ export default function App() {
     setNotes("");
     setSearchInput("");
     setSearch("");
-    setSelectedDepartment("OFERTAS");
+    setSelectedDepartment("TODOS");
     setDepartmentDropdownOpen(false);
     setShowOrderSummary(false);
     setSelectedImage(null);
@@ -1814,10 +1949,52 @@ export default function App() {
               </div>
             )}
           </div>
+
+          {resumenRuletaPedido && (
+            <div style={styles.ruletaProgressPanel}>
+              <div style={styles.ruletaProgressHeader}>
+                <span style={styles.ruletaProgressTitle}>🎡 Progreso Ruleta</span>
+                <strong>
+                  {resumenRuletaPedido.variedadActual}/{resumenRuletaPedido.variedadMinima}
+                </strong>
+              </div>
+              <div style={styles.ruletaProgressTrack}>
+                <div
+                  style={{
+                    ...styles.ruletaProgressFill,
+                    width: `${Math.min(
+                      100,
+                      (resumenRuletaPedido.variedadParaSiguienteTirada /
+                        resumenRuletaPedido.variedadMinima) *
+                        100
+                    )}%`,
+                  }}
+                />
+              </div>
+              <div style={styles.ruletaProgressMessage}>
+                {resumenRuletaPedido.tiradasConseguidas > 0
+                  ? `Tienes ${resumenRuletaPedido.tiradasConseguidas} ${
+                      resumenRuletaPedido.tiradasConseguidas === 1
+                        ? "tirada"
+                        : "tiradas"
+                    }. Te faltan ${
+                      resumenRuletaPedido.variedadRestanteSiguienteTirada
+                    } artículos diferentes para la siguiente.`
+                  : `Te faltan ${resumenRuletaPedido.variedadRestante} artículos diferentes de Ruleta para conseguir una tirada.`}
+              </div>
+            </div>
+          )}
         </section>
       </div>
 
-      <main style={styles.catalog}>
+      <main
+        style={{
+          ...styles.catalog,
+          ...(selectedDepartment !== "TODOS" && !search.trim()
+            ? styles.catalogSingleDepartment
+            : {}),
+        }}
+      >
         {cargando && <p style={styles.loading}>{t.loading}</p>}
         {errorCatalogo && <p style={styles.error}>{errorCatalogo}</p>}
 
@@ -1906,7 +2083,10 @@ export default function App() {
                               enterKeyHint="done"
                               autoComplete="off"
                               value={quantity.boxes || ""}
-                              onFocus={() => asegurarArticuloVisible(product.id)}
+                              onPointerDown={(event) =>
+                                prepararCampoCantidad(event, product.id, "boxes")
+                              }
+                              onFocus={() => activarCampoCantidad(product.id, "boxes")}
                               onKeyDown={(event) => manejarEnterCantidad(event, product.id)}
                               onChange={(event) =>
                                 updateQuantity(
@@ -1915,7 +2095,12 @@ export default function App() {
                                   event.target.value.replace(/[^0-9]/g, "")
                                 )
                               }
-                              style={styles.quantityInput}
+                              style={{
+                                ...styles.quantityInput,
+                                ...(campoCantidadActivo === `${product.id}:boxes`
+                                  ? styles.quantityInputActive
+                                  : {}),
+                              }}
                             />
                           </label>
 
@@ -1930,8 +2115,13 @@ export default function App() {
                               readOnly={!product.permite_unidades}
                               value={product.permite_unidades ? quantity.units || "" : ""}
                               placeholder={product.permite_unidades ? "" : "—"}
+                              onPointerDown={(event) => {
+                                if (product.permite_unidades) {
+                                  prepararCampoCantidad(event, product.id, "units");
+                                }
+                              }}
                               onFocus={() => {
-                                asegurarArticuloVisible(product.id);
+                                activarCampoCantidad(product.id, "units");
                                 if (!product.permite_unidades) {
                                   avisarSoloCajas(product.id);
                                 }
@@ -1949,11 +2139,15 @@ export default function App() {
                                   event.target.value.replace(/[^0-9]/g, "")
                                 )
                               }
-                              style={
-                                product.permite_unidades
+                              style={{
+                                ...(product.permite_unidades
                                   ? styles.quantityInput
-                                  : styles.quantityInputBlocked
-                              }
+                                  : styles.quantityInputBlocked),
+                                ...(product.permite_unidades &&
+                                campoCantidadActivo === `${product.id}:units`
+                                  ? styles.quantityInputActive
+                                  : {}),
+                              }}
                             />
                           </label>
 
@@ -1966,6 +2160,25 @@ export default function App() {
                             Aceptar
                           </button>
                         </div>
+
+                        {product.participaRuleta && (() => {
+                          const estadoRuleta = obtenerEstadoArticuloRuleta(
+                            product,
+                            quantity
+                          );
+
+                          return (
+                            <div
+                              style={
+                                estadoRuleta?.completo
+                                  ? styles.ruletaProductStatusOk
+                                  : styles.ruletaProductStatusPending
+                              }
+                            >
+                              {estadoRuleta?.texto}
+                            </div>
+                          );
+                        })()}
 
                         {!product.permite_unidades && soloCajasAviso === product.id && (
                           <div style={styles.onlyBoxesMessage}>
@@ -2109,6 +2322,73 @@ export default function App() {
 }
 
 const styles = {
+  ruletaProgressPanel: {
+    marginTop: "8px",
+    padding: "10px 12px",
+    borderRadius: "12px",
+    border: "2px solid #f59e0b",
+    background: "#fff7d6",
+    color: "#78350f",
+  },
+
+  ruletaProgressHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "10px",
+    fontSize: "14px",
+  },
+
+  ruletaProgressTitle: {
+    fontWeight: "900",
+  },
+
+  ruletaProgressTrack: {
+    height: "10px",
+    marginTop: "7px",
+    overflow: "hidden",
+    borderRadius: "999px",
+    background: "#fde68a",
+  },
+
+  ruletaProgressFill: {
+    height: "100%",
+    borderRadius: "999px",
+    background: "#f59e0b",
+    transition: "width 160ms ease",
+  },
+
+  ruletaProgressMessage: {
+    marginTop: "6px",
+    fontSize: "13px",
+    lineHeight: "1.25",
+    fontWeight: "800",
+  },
+
+  ruletaProductStatusPending: {
+    marginTop: "8px",
+    padding: "7px 9px",
+    borderRadius: "9px",
+    background: "#fff7d6",
+    border: "1px solid #f59e0b",
+    color: "#92400e",
+    fontSize: "12px",
+    lineHeight: "1.25",
+    fontWeight: "900",
+  },
+
+  ruletaProductStatusOk: {
+    marginTop: "8px",
+    padding: "7px 9px",
+    borderRadius: "9px",
+    background: "#dcfce7",
+    border: "1px solid #22c55e",
+    color: "#166534",
+    fontSize: "12px",
+    lineHeight: "1.25",
+    fontWeight: "900",
+  },
+
   page: {
     minHeight: "100dvh",
     width: "100%",
@@ -2541,6 +2821,12 @@ const styles = {
     WebkitOverflowScrolling: "touch",
   },
 
+  catalogSingleDepartment: {
+    // No añadimos espacio artificial ni recolocamos el catálogo.
+    // La posición permanece exactamente donde la dejó el cliente.
+    paddingTop: "6px",
+  },
+
   departmentSection: {
     marginBottom: "16px",
   },
@@ -2741,6 +3027,13 @@ const styles = {
     outline: "none",
     appearance: "textfield",
     WebkitAppearance: "none",
+  },
+
+  quantityInputActive: {
+    background: "#fef08a",
+    border: "2px solid #f59e0b",
+    boxShadow: "0 0 0 3px rgba(245,158,11,0.22)",
+    fontWeight: "900",
   },
 
   quantityInputBlocked: {

@@ -16,6 +16,9 @@ const COLORS = [
 
 const DEFAULT_SPIN_DURATION = 9200;
 
+const PRODUCTOS_PUBLIC_URL =
+  "https://bohlxagrtpjvqrgkonlo.supabase.co/storage/v1/object/public/productos";
+
 function normalizarGrados(valor) {
   return ((valor % 360) + 360) % 360;
 }
@@ -25,10 +28,33 @@ function easeCasino(t) {
   return 1 - Math.pow(1 - t, 4.6);
 }
 
+function getPrizeImageUrl(premio) {
+  const raw =
+    premio?.imagen_url ||
+    premio?.foto_url ||
+    premio?.image_url ||
+    premio?.foto ||
+    premio?.imagen ||
+    "";
+
+  const value = String(raw || "").trim();
+  if (!value) return "";
+  if (value.startsWith("http") || value.startsWith("data:") || value.startsWith("blob:")) return value;
+
+  return `${PRODUCTOS_PUBLIC_URL}/${value.replace(/^\/+/, "")}`;
+}
+
+function mismoPremio(a, b) {
+  if (!a || !b) return false;
+  if (a.id != null && b.id != null) return String(a.id) === String(b.id);
+  return a === b;
+}
+
 export default function StoreWheel({
   premios = [],
   girando = false,
   premioFinal,
+  premioObjetivo,
   onGirar,
   mostrarBoton = true,
   lucesReposo = false,
@@ -59,7 +85,7 @@ export default function StoreWheel({
       color: COLORS[index % COLORS.length],
       start: index * grados,
       end: index * grados + grados,
-      icono: ["?", "★", "🎁", "♦"][index % 4],
+      icono: ["✦", "◆", "✶", "◈", "✧", "●", "✺", "❖", "✹", "◇"][index % 10],
     }));
   }, [premios]);
 
@@ -88,7 +114,15 @@ export default function StoreWheel({
     const inicio = rotacionRef.current;
     const inicioNormalizado = normalizarGrados(inicio);
     const vueltas = 15 + Math.floor(Math.random() * 4);
-    const ajusteFinal = 360 - inicioNormalizado;
+    const premioDestino = premioObjetivo || premioFinal;
+    const indiceDestino = segmentos.findIndex((segmento) => mismoPremio(segmento.premio, premioDestino));
+    const totalSegmentosDestino = Math.max(segmentos.length, 1);
+    const gradosSegmentoDestino = 360 / totalSegmentosDestino;
+    const centroDestino = indiceDestino >= 0
+      ? indiceDestino * gradosSegmentoDestino + gradosSegmentoDestino / 2
+      : 0;
+    const rotacionObjetivo = normalizarGrados(360 - centroDestino);
+    const ajusteFinal = normalizarGrados(rotacionObjetivo - inicioNormalizado);
     const destino = inicio + vueltas * 360 + ajusteFinal;
     const distancia = destino - inicio;
     const inicioTiempo = performance.now();
@@ -125,8 +159,13 @@ export default function StoreWheel({
         cancelAnimationFrame(frameRef.current);
         frameRef.current = null;
       }
+
+      // Si cambian los premios o el premio objetivo mientras seguimos en modo giro
+      // (como ocurre al recibir el evento en la pantalla grande), permitimos que
+      // el efecto siguiente vuelva a iniciar la animación en vez de dejarla parada.
+      estabaGirandoRef.current = false;
     };
-  }, [girando, duracionGiro, segmentos.length]);
+  }, [girando, duracionGiro, segmentos, premioObjetivo, premioFinal]);
 
   const frenoActivo = girando;
   const anguloFreno = frenoActivo ? (tickFreno % 2 === 0 ? -8 : 8) : 0;
@@ -185,23 +224,34 @@ export default function StoreWheel({
             transform: `rotate(${rotacion}deg)`,
           }}
         >
-          {segmentos.map((segmento, index) => (
-            <div
-              key={index}
-              style={{
-                ...styles.segmentIcon,
-                transform: `rotate(${segmento.start + (segmento.end - segmento.start) / 2}deg) translateY(calc(var(--wheel-size) * -0.28))`,
-              }}
-            >
-              <span
+          {segmentos.map((segmento, index) => {
+            const anguloCentro = segmento.start + (segmento.end - segmento.start) / 2;
+            const esGanador = premioFinal && mismoPremio(segmento.premio, premioFinal);
+
+            return (
+              <div
+                key={index}
                 style={{
-                  transform: `rotate(-${segmento.start + (segmento.end - segmento.start) / 2}deg)`,
+                  ...styles.segmentPrize,
+                  transform: `rotate(${anguloCentro}deg) translateY(calc(var(--wheel-size) * -0.28))`,
                 }}
               >
-                {segmento.icono}
-              </span>
-            </div>
-          ))}
+                <div
+                  style={{
+                    ...styles.segmentPrizeInner,
+                    ...(esGanador ? styles.segmentPrizeWinner : {}),
+                    transform: `rotate(-${anguloCentro}deg)${esGanador ? " scale(1.08)" : ""}`,
+                  }}
+                >
+                  <span style={styles.segmentPrizeFallback} aria-label="Premio sorpresa">
+                    <span style={styles.symbolRing} aria-hidden="true">
+                      {segmento.icono}
+                    </span>
+                  </span>
+                </div>
+              </div>
+            );
+          })}
 
           <div style={styles.center}>
             <img src={logoLojo} alt="Lojo" style={styles.logo} />
@@ -309,22 +359,57 @@ const styles = {
     overflow: "hidden",
     willChange: "transform",
   },
-  segmentIcon: {
+  segmentPrize: {
     position: "absolute",
     left: "50%",
     top: "50%",
-    width: 68,
-    height: 68,
-    marginLeft: -34,
-    marginTop: -34,
+    width: "clamp(54px, 8vh, 82px)",
+    height: "clamp(54px, 8vh, 82px)",
+    marginLeft: "clamp(-41px, -4vh, -27px)",
+    marginTop: "clamp(-41px, -4vh, -27px)",
     display: "flex",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "center",
-    fontSize: "clamp(24px, 4.5vh, 42px)",
-    fontWeight: 1000,
-    color: "#ffffff",
-    textShadow: "0 4px 12px rgba(0,0,0,.75)",
-    transformOrigin: "34px 34px",
+    transformOrigin: "50% 50%",
+    pointerEvents: "none",
+  },
+  segmentPrizeInner: {
+    width: "100%",
+    height: "100%",
+    borderRadius: "50%",
+    background: "linear-gradient(145deg, #fffdf6 0%, #f7e7b4 100%)",
+    border: "2px solid rgba(255,255,255,.96)",
+    boxShadow: "0 8px 22px rgba(0,0,0,.38), inset 0 0 0 2px rgba(155,103,20,.18)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  segmentPrizeWinner: {
+    boxShadow: "0 0 0 5px rgba(250,204,21,.95), 0 0 34px rgba(250,204,21,.95), 0 10px 28px rgba(0,0,0,.5)",
+  },
+  segmentPrizeFallback: {
+    width: "100%",
+    height: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  symbolRing: {
+    width: "70%",
+    height: "70%",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "radial-gradient(circle at 35% 30%, #ffffff 0%, #f5df9c 72%, #c58a24 100%)",
+    border: "1px solid rgba(122,79,12,.25)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.95), 0 3px 9px rgba(80,45,5,.22)",
+    color: "#7c4a0d",
+    fontSize: "clamp(21px, 3.7vh, 35px)",
+    fontWeight: 800,
+    lineHeight: 1,
+    textShadow: "0 1px 0 rgba(255,255,255,.9)",
   },
   center: {
     position: "absolute",
