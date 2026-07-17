@@ -1,10 +1,14 @@
-function construirUrlQr(codigoRuleta) {
-  if (!codigoRuleta) return "";
+function construirUrlQr(codigoParticipacion) {
+  if (!codigoParticipacion) return "";
+
+  const urlParticipacion = new URL("https://miweb-staging.vercel.app/");
+  urlParticipacion.searchParams.set("bingo", "1");
+  urlParticipacion.searchParams.set("code", codigoParticipacion);
 
   const params = new URLSearchParams({
     size: "360",
     margin: "2",
-    text: codigoRuleta,
+    text: urlParticipacion.toString(),
   });
 
   return `https://quickchart.io/qr?${params.toString()}`;
@@ -88,7 +92,16 @@ export function construirTextoPedidoWhatsApp({
   if (codigoRuleta) {
     const urlQr = construirUrlQr(codigoRuleta);
 
-    const numeroTiradas = Math.max(1, Number(tiradasRuleta || participacionRuleta?.tiradas_ruleta || participacionRuleta?.tiradas_totales || participacionRuleta?.spins_total || 1));
+    const numeroTiradas = Math.max(
+      1,
+      Number(
+        tiradasRuleta ||
+          participacionRuleta?.tiradas_ruleta ||
+          participacionRuleta?.tiradas_totales ||
+          participacionRuleta?.spins_total ||
+          1
+      )
+    );
 
     lines.push("🎁 *PARTICIPACIÓN CONSEGUIDA*");
     lines.push("");
