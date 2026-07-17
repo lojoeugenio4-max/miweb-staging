@@ -9,7 +9,11 @@ export default function TablaArticulos({
 }) {
   function obtenerFoto(articulo) {
     if (!articulo.foto) return null;
-    const { data } = supabaseStorage.storage.from("productos").getPublicUrl(articulo.foto);
+
+    const { data } = supabaseStorage.storage
+      .from("productos")
+      .getPublicUrl(articulo.foto);
+
     return data.publicUrl;
   }
 
