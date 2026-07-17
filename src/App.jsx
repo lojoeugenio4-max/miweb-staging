@@ -22,8 +22,6 @@ const WHATSAPP_NUMBER = "34670619113";
 const ORDER_STORAGE_KEY = "cash-lojo-pedido";
 const ORDER_SENT_PENDING_CLEAR_KEY = "cash-lojo-pedido-enviado-pendiente-borrar";
 const LANGUAGE_STORAGE_KEY = "cash-lojo-language";
-const SUPABASE_URL = "https://bohlxagrtpjvqrgkonlo.supabase.co";
-
 const translations = {
   es: {
     language: "Idioma",
@@ -167,7 +165,8 @@ function productMatchesSearch(product, searchText) {
 
 function getPublicPhotoUrl(fileName) {
   if (!fileName) return "";
-  return `${SUPABASE_URL}/storage/v1/object/public/productos/${fileName}`;
+  const { data } = supabase.storage.from("productos").getPublicUrl(fileName);
+  return data.publicUrl;
 }
 
 function getOfferStatus(offer) {
