@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import BingoCard from "../../components/bingo/BingoCard";
 import { supabase } from "../../supabaseClient";
 
-const DEFAULT_GAME_ID = "469849c4-105b-47fe-b4a7-aa37ba1f3fc2";
+const DEFAULT_CODE = "LJ8G37N6";
 
 export default function BingoDemo() {
   const [game, setGame] = useState(null);
@@ -10,39 +10,70 @@ export default function BingoDemo() {
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    async function loadBingoGame() {
+    async function loadBingoFromCode() {
       setLoading(true);
       setErrorMessage("");
 
       const searchParams = new URLSearchParams(window.location.search);
-      const gameId = searchParams.get("game") || DEFAULT_GAME_ID;
+      const code = searchParams.get("code") || DEFAULT_CODE;
 
-      const { data, error } = await supabase
+      const { data: participation, error: participationError } = await supabase
+        .from("promotion_participations")
+        .select(
+          "id, code, customer_phone, customer_name, status, bingo_game_id, bingo_plays_total, bingo_plays_used"
+        )
+        .eq("code", code)
+        .maybeSingle();
+
+      if (participationError) {
+        console.error("Error cargando la participación:", participationError);
+        setErrorMessage("No se ha podido cargar la participación.");
+        setLoading(false);
+        return;
+      }
+
+      if (!participation) {
+        setErrorMessage("No existe ninguna participación con ese código.");
+        setLoading(false);
+        return;
+      }
+
+      if (!participation.bingo_game_id) {
+        setErrorMessage("Esta participación no tiene un Bingo asociado.");
+        setLoading(false);
+        return;
+      }
+
+      const { data: bingoGame, error: bingoError } = await supabase
         .from("bingo_games")
         .select(
           "id, customer_phone, status, card, drawn_numbers, line_completed, bingo_completed"
         )
-        .eq("id", gameId)
+        .eq("id", participation.bingo_game_id)
         .maybeSingle();
 
-      if (error) {
-        console.error("Error cargando el Bingo:", error);
+      if (bingoError) {
+        console.error("Error cargando el Bingo:", bingoError);
         setErrorMessage("No se ha podido cargar el Bingo.");
         setLoading(false);
         return;
       }
 
-      if (!data) {
-        setErrorMessage("No existe ningún Bingo con ese identificador.");
+      if (!bingoGame) {
+        setErrorMessage("No existe el Bingo asociado a esta participación.");
         setLoading(false);
         return;
       }
 
-      setGame(data);
+      setGame({
+        ...bingoGame,
+        customer_name: participation.customer_name,
+        participation_code: participation.code,
+      });
       setLoading(false);
     }
 
-    loadBingoGame();
+    loadBingoFromCode();
   }, []);
 
   return (
@@ -61,12 +92,7 @@ export default function BingoDemo() {
           margin: "0 auto",
         }}
       >
-        <header
-          style={{
-            marginBottom: 24,
-            textAlign: "center",
-          }}
-        >
+        <header style={{ marginBottom: 24, textAlign: "center" }}>
           <h1
             style={{
               margin: 0,
@@ -77,14 +103,8 @@ export default function BingoDemo() {
             Bingo Cash Lojo
           </h1>
 
-          <p
-            style={{
-              margin: "8px 0 0",
-              color: "#4b5563",
-              fontSize: 16,
-            }}
-          >
-            Cartón cargado desde Supabase
+          <p style={{ margin: "8px 0 0", color: "#4b5563", fontSize: 16 }}>
+            Código: {game?.participation_code || DEFAULT_CODE}
           </p>
         </header>
 
@@ -124,7 +144,9 @@ export default function BingoDemo() {
             <BingoCard
               card={game.card}
               drawnNumbers={game.drawn_numbers}
-              customerName={game.customer_phone || "Cliente"}
+              customerName={
+                game.customer_name || game.customer_phone || "Cliente"
+              }
             />
 
             <div
@@ -139,8 +161,6 @@ export default function BingoDemo() {
               }}
             >
               Estado: {game.status}
-              {game.line_completed ? " · Línea completada" : ""}
-              {game.bingo_completed ? " · Bingo completado" : ""}
             </div>
           </>
         )}
