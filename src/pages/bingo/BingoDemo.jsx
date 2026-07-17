@@ -1,16 +1,49 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import BingoCard from "../../components/bingo/BingoCard";
+import { supabase } from "../../supabaseClient";
 
-function createDemoCard() {
-  return [
-    [4, null, 23, null, 41, 52, null, 74, null],
-    [null, 15, null, 34, 46, null, 63, null, 86],
-    [8, null, 29, 37, null, 58, null, 78, null],
-  ];
-}
+const DEFAULT_GAME_ID = "469849c4-105b-47fe-b4a7-aa37ba1f3fc2";
 
 export default function BingoDemo() {
-  const card = useMemo(() => createDemoCard(), []);
+  const [game, setGame] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    async function loadBingoGame() {
+      setLoading(true);
+      setErrorMessage("");
+
+      const searchParams = new URLSearchParams(window.location.search);
+      const gameId = searchParams.get("game") || DEFAULT_GAME_ID;
+
+      const { data, error } = await supabase
+        .from("bingo_games")
+        .select(
+          "id, customer_phone, status, card, drawn_numbers, line_completed, bingo_completed"
+        )
+        .eq("id", gameId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error cargando el Bingo:", error);
+        setErrorMessage("No se ha podido cargar el Bingo desde Supabase.");
+        setLoading(false);
+        return;
+      }
+
+      if (!data) {
+        setErrorMessage("No existe ningún Bingo con ese identificador.");
+        setLoading(false);
+        return;
+      }
+
+      setGame(data);
+      setLoading(false);
+    }
+
+    loadBingoGame();
+  }, []);
 
   return (
     <main
@@ -51,15 +84,66 @@ export default function BingoDemo() {
               fontSize: 16,
             }}
           >
-            Pantalla de prueba del cartón de Bingo
+            Cartón cargado desde Supabase
           </p>
         </header>
 
-        <BingoCard
-          card={card}
-          drawnNumbers={[4, 23, 46, 63]}
-          customerName="Cliente de prueba"
-        />
+        {loading && (
+          <div
+            style={{
+              padding: 30,
+              borderRadius: 18,
+              background: "#ffffff",
+              textAlign: "center",
+              fontWeight: 700,
+              color: "#111a8f",
+            }}
+          >
+            Cargando Bingo...
+          </div>
+        )}
+
+        {!loading && errorMessage && (
+          <div
+            style={{
+              padding: 30,
+              border: "2px solid #ff2020",
+              borderRadius: 18,
+              background: "#ffffff",
+              textAlign: "center",
+              fontWeight: 700,
+              color: "#b00020",
+            }}
+          >
+            {errorMessage}
+          </div>
+        )}
+
+        {!loading && game && (
+          <>
+            <BingoCard
+              card={game.card}
+              drawnNumbers={game.drawn_numbers}
+              customerName={game.customer_phone || "Cliente"}
+            />
+
+            <div
+              style={{
+                marginTop: 16,
+                padding: 14,
+                borderRadius: 14,
+                background: "#ffffff",
+                textAlign: "center",
+                color: "#374151",
+                fontWeight: 700,
+              }}
+            >
+              Estado: {game.status}
+              {game.line_completed ? " · Línea completada" : ""}
+              {game.bingo_completed ? " · Bingo completado" : ""}
+            </div>
+          </>
+        )}
       </div>
     </main>
   );
