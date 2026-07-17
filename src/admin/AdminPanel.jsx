@@ -7,6 +7,7 @@ import Pushes from "./Pushes";
 import Estadisticas from "./Estadisticas";
 import Configuracion from "./Configuracion";
 import Promociones from "./Promociones";
+import Clientes from "./Clientes";
 
 export default function AdminPanel() {
   const [opcion, setOpcion] = useState("articulos");
