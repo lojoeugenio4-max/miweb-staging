@@ -9,6 +9,7 @@ import {
   X,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
+import { supabaseStorage } from "./supabaseStorageClient";
 import StorePage from "./pages/StorePage";
 import DisplayPage from "./pages/DisplayPage";
 import BingoDemo from "./pages/bingo/BingoDemo";
@@ -22,6 +23,7 @@ const WHATSAPP_NUMBER = "34670619113";
 const ORDER_STORAGE_KEY = "cash-lojo-pedido";
 const ORDER_SENT_PENDING_CLEAR_KEY = "cash-lojo-pedido-enviado-pendiente-borrar";
 const LANGUAGE_STORAGE_KEY = "cash-lojo-language";
+
 const translations = {
   es: {
     language: "Idioma",
@@ -165,7 +167,11 @@ function productMatchesSearch(product, searchText) {
 
 function getPublicPhotoUrl(fileName) {
   if (!fileName) return "";
-  const { data } = supabase.storage.from("productos").getPublicUrl(fileName);
+
+  const { data } = supabaseStorage.storage
+    .from("productos")
+    .getPublicUrl(fileName);
+
   return data.publicUrl;
 }
 
