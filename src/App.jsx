@@ -11,6 +11,7 @@ import {
 import { supabase } from "./supabaseClient";
 import StorePage from "./pages/StorePage";
 import DisplayPage from "./pages/DisplayPage";
+import BingoDemo from "./pages/bingo/BingoDemo";
 import logoLojo from "./assets/logo-lojo.jpg";
 import {
   construirTextoPedidoWhatsApp,
@@ -241,9 +242,14 @@ export default function App() {
 
   const isStoreMode = searchParams?.get("store") === "1";
   const isDisplayMode = searchParams?.get("display") === "1";
+  const isBingoMode = searchParams?.get("bingo") === "1";
 
   if (isDisplayMode) {
     return <DisplayPage />;
+  }
+
+  if (isBingoMode) {
+    return <BingoDemo />;
   }
 
   if (isStoreMode) {
