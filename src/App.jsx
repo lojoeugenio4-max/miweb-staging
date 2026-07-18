@@ -9,6 +9,8 @@ import {
   X,
   Star,
   Grid3X3,
+  Download,
+  Share,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { supabaseStorage } from "./supabaseStorageClient";
@@ -381,6 +383,13 @@ export default function App() {
     () => localStorage.getItem(LANGUAGE_STORAGE_KEY) || "es"
   );
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [mostrarAyudaInstalacion, setMostrarAyudaInstalacion] = useState(false);
+  const [appInstalada, setAppInstalada] = useState(() =>
+    typeof window !== "undefined" &&
+    (window.matchMedia?.("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true)
+  );
 
   // El acceso identificado es opcional. Sin token, la aplicación sigue
   // funcionando exactamente igual para clientes anónimos.
@@ -406,6 +415,39 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
   }, [language]);
+
+  useEffect(() => {
+    const guardarPrompt = (event) => {
+      event.preventDefault();
+      setInstallPrompt(event);
+    };
+
+    const marcarInstalada = () => {
+      setAppInstalada(true);
+      setInstallPrompt(null);
+      setMostrarAyudaInstalacion(false);
+    };
+
+    window.addEventListener("beforeinstallprompt", guardarPrompt);
+    window.addEventListener("appinstalled", marcarInstalada);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", guardarPrompt);
+      window.removeEventListener("appinstalled", marcarInstalada);
+    };
+  }, []);
+
+  async function instalarAplicacion() {
+    if (installPrompt) {
+      await installPrompt.prompt();
+      const resultado = await installPrompt.userChoice;
+      if (resultado.outcome === "accepted") setAppInstalada(true);
+      setInstallPrompt(null);
+      return;
+    }
+
+    setMostrarAyudaInstalacion(true);
+  }
 
   useEffect(() => {
     let cancelado = false;
@@ -2093,6 +2135,43 @@ export default function App() {
 
   return (
     <div style={styles.page}>
+      {!appInstalada && clienteToken && (
+        <button
+          type="button"
+          onClick={instalarAplicacion}
+          style={styles.installButton}
+          aria-label="Instalar Cash Lojo en el móvil"
+        >
+          <Download size={18} />
+          Instalar en el móvil
+        </button>
+      )}
+
+      {mostrarAyudaInstalacion && (
+        <div style={styles.installOverlay} onClick={() => setMostrarAyudaInstalacion(false)}>
+          <div style={styles.installModal} onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              style={styles.installClose}
+              onClick={() => setMostrarAyudaInstalacion(false)}
+              aria-label="Cerrar"
+            >
+              ×
+            </button>
+            <Download size={34} />
+            <h3 style={styles.installTitle}>Añadir Cash Lojo al escritorio</h3>
+            <p style={styles.installText}>
+              <strong>iPhone/iPad:</strong> pulsa <Share size={16} style={{ verticalAlign: "middle" }} /> Compartir y después “Añadir a pantalla de inicio”.
+            </p>
+            <p style={styles.installText}>
+              <strong>Android:</strong> abre el menú del navegador y pulsa “Instalar aplicación” o “Añadir a pantalla de inicio”.
+            </p>
+            <p style={styles.installNote}>
+              Se guardará este enlace personal para que el cliente entre siempre con su acceso.
+            </p>
+          </div>
+        </div>
+      )}
       {pushOferta && pushItems.length > 0 && !pushCerrado && (
         <div style={styles.pushOverlay}>
           <button
@@ -2864,6 +2943,66 @@ export default function App() {
 }
 
 const styles = {
+  installButton: {
+    position: "fixed",
+    right: "14px",
+    bottom: "88px",
+    zIndex: 1200,
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    border: "none",
+    borderRadius: "999px",
+    padding: "12px 16px",
+    background: "#0b1185",
+    color: "#ffffff",
+    fontSize: "14px",
+    fontWeight: "900",
+    boxShadow: "0 10px 28px rgba(11,17,133,0.32)",
+    cursor: "pointer",
+  },
+  installOverlay: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 5000,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "20px",
+    background: "rgba(15,23,42,0.68)",
+  },
+  installModal: {
+    position: "relative",
+    width: "min(420px, 100%)",
+    borderRadius: "22px",
+    padding: "28px 22px 22px",
+    background: "#ffffff",
+    color: "#111827",
+    textAlign: "center",
+    boxShadow: "0 24px 70px rgba(0,0,0,0.28)",
+  },
+  installClose: {
+    position: "absolute",
+    top: "8px",
+    right: "12px",
+    border: "none",
+    background: "transparent",
+    fontSize: "30px",
+    lineHeight: 1,
+    cursor: "pointer",
+  },
+  installTitle: { margin: "12px 0 14px", fontSize: "21px" },
+  installText: { margin: "10px 0", lineHeight: 1.45, textAlign: "left" },
+  installNote: {
+    margin: "16px 0 0",
+    padding: "10px 12px",
+    borderRadius: "12px",
+    background: "#eef2ff",
+    color: "#3730a3",
+    fontSize: "13px",
+    fontWeight: "800",
+    lineHeight: 1.4,
+  },
   ruletaProgressPanel: {
     marginTop: "8px",
     padding: "10px 12px",
