@@ -26,7 +26,7 @@ function tieneBingo(rows, markedNumbers) {
   return nums.length > 0 && nums.every((number) => markedNumbers.has(number));
 }
 
-function PrizePanel({ title, prize, won }) {
+function PrizePanel({ title, prize, won, special = false }) {
   const active = Boolean(prize?.active);
   const name = active ? prize?.name?.trim() || "Premio configurado" : "Sin premio activo";
   const message = active
@@ -34,7 +34,8 @@ function PrizePanel({ title, prize, won }) {
     : "El establecimiento todavía no ha activado este premio.";
 
   return (
-    <section className={`cl-prize ${won ? "cl-prize--won" : ""}`}>
+    <section className={`cl-prize ${special ? "cl-prize--special" : ""} ${won ? "cl-prize--won" : ""}`}>
+      {special && <div className="cl-prize__badge">★ PREMIO ESPECIAL ★</div>}
       <div className="cl-prize__title">{title}</div>
       <div className="cl-prize__body">
         <div className="cl-prize__media">
@@ -85,7 +86,7 @@ export default function BingoCard({
             <div className="cl-brand__ribbon">BINGO</div>
           </div>
         </div>
-        <div className="cl-slogan"><i></i><span>Juega, <b>Disfruta</b> y <b>Gana</b></span><i></i></div>
+        <div className="cl-slogan"><i></i><span><b>Gana</b></span><i></i></div>
       </header>
 
       <main className="cl-bingo__main">
@@ -121,7 +122,7 @@ export default function BingoCard({
         <aside className="cl-prizes" aria-label="Premios del Bingo">
           <PrizePanel title="PREMIO POR LÍNEA" prize={linePrize} won={lineCompleted} />
           <PrizePanel title="PREMIO POR BINGO" prize={bingoPrize} won={bingoCompleted} />
-          {specialPrize?.active && <PrizePanel title={`PREMIO ESPECIAL · BINGO EN ${specialPrize.maxBalls} BOLAS O MENOS`} prize={specialPrize} won={specialWon} />}
+          {specialPrize?.active && <PrizePanel special title={`BINGO EN ${specialPrize.maxBalls} BOLAS O MENOS`} prize={specialPrize} won={specialWon} />}
         </aside>
       </main>
 
@@ -173,6 +174,13 @@ const styles = `
 .cl-prize__copy p { margin:24px 0 0; font-size:clamp(15px,1.65vw,23px); line-height:1.4; }
 .cl-prize__won { width:max-content; max-width:100%; margin-top:15px; display:flex; align-items:center; gap:7px; padding:7px 10px; border-radius:999px; color:#fff; background:#d41016; font-size:13px; font-weight:950; }
 .cl-prize--won { box-shadow:0 0 0 4px rgba(255,226,111,.38),0 0 28px rgba(255,221,85,.4); }
+.cl-prize--special { position:relative; border:4px solid #ffd34e; background:linear-gradient(145deg,#6a168f 0%,#a82572 42%,#d76a19 100%); box-shadow:0 0 0 3px rgba(255,211,78,.2),0 12px 30px rgba(0,0,0,.3),inset 0 0 24px rgba(255,255,255,.12); }
+.cl-prize--special::before { content:""; position:absolute; inset:0; pointer-events:none; background:radial-gradient(circle at 10% 15%,rgba(255,255,255,.34) 0 2px,transparent 3px),radial-gradient(circle at 87% 28%,rgba(255,226,113,.5) 0 3px,transparent 4px),radial-gradient(circle at 72% 82%,rgba(255,255,255,.28) 0 2px,transparent 3px); background-size:48px 48px,66px 66px,58px 58px; }
+.cl-prize--special .cl-prize__title { position:relative; color:#fff8c5; text-shadow:0 2px 4px rgba(0,0,0,.45); font-size:clamp(21px,2.25vw,33px); letter-spacing:.4px; }
+.cl-prize--special .cl-prize__body { position:relative; border:3px solid #ffd34e; background:linear-gradient(130deg,#fffdf0,#fff0b8); box-shadow:inset 0 0 22px rgba(255,190,30,.18); }
+.cl-prize--special .cl-prize__copy strong { color:#75136f; }
+.cl-prize__badge { position:relative; z-index:1; width:max-content; max-width:calc(100% - 20px); margin:-2px auto 5px; padding:6px 16px; border:2px solid #fff0a4; border-radius:999px; color:#4f164f; background:linear-gradient(#ffe987,#ffc62d); box-shadow:0 4px 12px rgba(0,0,0,.3); font-size:13px; font-weight:950; letter-spacing:1.6px; text-align:center; }
+
 .cl-bingo__footer { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:8px; padding:16px 18px 2px; border:1px solid rgba(255,244,217,.7); border-radius:18px; background:rgba(2,23,63,.45); }
 .cl-bingo__footer > div { min-width:0; display:flex; align-items:center; justify-content:center; gap:15px; } .cl-bingo__footer svg { width:41px; height:41px; flex:none; }
 .cl-bingo__footer span { min-width:0; display:flex; flex-direction:column; } .cl-bingo__footer small { font-size:13px; font-weight:900; } .cl-bingo__footer strong { margin-top:4px; overflow:hidden; font-size:18px; font-weight:500; text-overflow:ellipsis; white-space:nowrap; }
