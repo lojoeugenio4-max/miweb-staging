@@ -29,6 +29,41 @@ const ORDER_STORAGE_KEY = "cash-lojo-pedido";
 const ORDER_SENT_PENDING_CLEAR_KEY = "cash-lojo-pedido-enviado-pendiente-borrar";
 const LANGUAGE_STORAGE_KEY = "cash-lojo-language";
 const APP_INSTALLED_STORAGE_KEY = "cash-lojo-app-instalada";
+const ORDER_STORAGE_VERSION = 1;
+
+function readSavedOrder() {
+  try {
+    const saved = localStorage.getItem(ORDER_STORAGE_KEY);
+    if (!saved) return {};
+
+    const parsed = JSON.parse(saved);
+    return {
+      quantities: parsed?.quantities && typeof parsed.quantities === "object" ? parsed.quantities : {},
+      customerName: typeof parsed?.customerName === "string" ? parsed.customerName : "",
+      notes: typeof parsed?.notes === "string" ? parsed.notes : "",
+    };
+  } catch (error) {
+    console.warn("No se pudo recuperar el pedido guardado:", error);
+    return {};
+  }
+}
+
+function savePendingOrder({ quantities, customerName, notes }) {
+  try {
+    localStorage.setItem(
+      ORDER_STORAGE_KEY,
+      JSON.stringify({
+        version: ORDER_STORAGE_VERSION,
+        updatedAt: new Date().toISOString(),
+        quantities,
+        customerName,
+        notes,
+      })
+    );
+  } catch (error) {
+    console.warn("No se pudo guardar el pedido pendiente:", error);
+  }
+}
 
 const translations = {
   es: {
@@ -345,14 +380,7 @@ export default function App() {
   const departmentDropdownRef = useRef(null);
   const stickyCardRef = useRef(null);
 
-  const getSavedOrder = () => {
-    try {
-      const saved = localStorage.getItem(ORDER_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  };
+  const [savedOrder] = useState(() => readSavedOrder());
 
   const [articulos, setArticulos] = useState([]);
   const [departamentos, setDepartamentos] = useState([]);
@@ -362,15 +390,11 @@ export default function App() {
   const [cargando, setCargando] = useState(true);
   const [errorCatalogo, setErrorCatalogo] = useState("");
 
-  const [quantities, setQuantities] = useState(
-    () => getSavedOrder().quantities || {}
-  );
-  const [customerName, setCustomerName] = useState(
-    () => getSavedOrder().customerName || ""
-  );
+  const [quantities, setQuantities] = useState(() => savedOrder.quantities || {});
+  const [customerName, setCustomerName] = useState(() => savedOrder.customerName || "");
   const [customerNameFocused, setCustomerNameFocused] = useState(false);
   const [soloCajasAviso, setSoloCajasAviso] = useState(null);
-  const [notes, setNotes] = useState(() => getSavedOrder().notes || "");
+  const [notes, setNotes] = useState(() => savedOrder.notes || "");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("TODOS");
@@ -825,14 +849,21 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(
-      ORDER_STORAGE_KEY,
-      JSON.stringify({
-        quantities,
-        customerName,
-        notes,
-      })
-    );
+    savePendingOrder({ quantities, customerName, notes });
+  }, [quantities, customerName, notes]);
+
+  useEffect(() => {
+    const guardarAntesDeSalir = () => {
+      savePendingOrder({ quantities, customerName, notes });
+    };
+
+    window.addEventListener("pagehide", guardarAntesDeSalir);
+    document.addEventListener("visibilitychange", guardarAntesDeSalir);
+
+    return () => {
+      window.removeEventListener("pagehide", guardarAntesDeSalir);
+      document.removeEventListener("visibilitychange", guardarAntesDeSalir);
+    };
   }, [quantities, customerName, notes]);
 
   useEffect(() => {
