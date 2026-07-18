@@ -302,6 +302,7 @@ export default function App() {
   const [selectedDepartment, setSelectedDepartment] = useState("TODOS");
   const [articuloDestacado, setArticuloDestacado] = useState(null);
   const [campoCantidadActivo, setCampoCantidadActivo] = useState(null);
+  const [tecladoCantidadVisible, setTecladoCantidadVisible] = useState(false);
   const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
   const [showOrderSummary, setShowOrderSummary] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -330,6 +331,42 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
   }, [language]);
+
+  useEffect(() => {
+    setTecladoCantidadVisible(Boolean(campoCantidadActivo));
+
+    if (!campoCantidadActivo) return undefined;
+
+    const mantenerCampoVisible = () => {
+      window.requestAnimationFrame(() => {
+        const activo = document.activeElement;
+        if (!(activo instanceof HTMLInputElement)) return;
+
+        const rect = activo.getBoundingClientRect();
+        const altoVisible = window.visualViewport?.height || window.innerHeight;
+        const limiteInferior = Math.max(120, altoVisible - 92);
+
+        if (rect.bottom > limiteInferior || rect.top < 90) {
+          activo.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+            inline: "nearest",
+          });
+        }
+      });
+    };
+
+    mantenerCampoVisible();
+
+    const viewport = window.visualViewport;
+    viewport?.addEventListener("resize", mantenerCampoVisible);
+    viewport?.addEventListener("scroll", mantenerCampoVisible);
+
+    return () => {
+      viewport?.removeEventListener("resize", mantenerCampoVisible);
+      viewport?.removeEventListener("scroll", mantenerCampoVisible);
+    };
+  }, [campoCantidadActivo]);
 
   useEffect(() => {
     let cancelado = false;
@@ -1575,6 +1612,7 @@ export default function App() {
 
     setArticuloDestacado(productId);
     setCampoCantidadActivo(null);
+    setTecladoCantidadVisible(false);
   };
 
   const manejarEnterCantidad = (event, productId) => {
@@ -2337,6 +2375,13 @@ export default function App() {
                                 prepararCampoCantidad(event, product.id, "boxes")
                               }
                               onFocus={() => activarCampoCantidad(product.id, "boxes")}
+                              onBlur={() => {
+                                window.setTimeout(() => {
+                                  setCampoCantidadActivo((actual) =>
+                                    actual === `${product.id}:boxes` ? null : actual
+                                  );
+                                }, 80);
+                              }}
                               onKeyDown={(event) => manejarEnterCantidad(event, product.id)}
                               onChange={(event) =>
                                 updateQuantity(
@@ -2380,6 +2425,13 @@ export default function App() {
                                 if (!product.permite_unidades) {
                                   avisarSoloCajas(product.id);
                                 }
+                              }}
+                              onBlur={() => {
+                                window.setTimeout(() => {
+                                  setCampoCantidadActivo((actual) =>
+                                    actual === `${product.id}:units` ? null : actual
+                                  );
+                                }, 80);
                               }}
                               onKeyDown={(event) => manejarEnterCantidad(event, product.id)}
                               onChange={(event) =>
@@ -2446,23 +2498,42 @@ export default function App() {
           ))}
       </main>
 
-      <div ref={stickyCardRef} style={styles.stickySummary}>
-        <div>
-          <strong>{t.summary}</strong>
-          <div style={styles.summarySmall}>
-            {selectedCount} {t.itemsWithQuantity}
+      {!tecladoCantidadVisible && (
+        <div ref={stickyCardRef} style={styles.stickySummary}>
+          <div>
+            <strong>{t.summary}</strong>
+            <div style={styles.summarySmall}>
+              {selectedCount} {t.itemsWithQuantity}
+            </div>
           </div>
-        </div>
 
-        <button
-          type="button"
-          onClick={() => setShowOrderSummary(true)}
-          style={styles.reviewButton}
-        >
-          <ShoppingCart size={18} />
-          {t.reviewAndSend}
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => setShowOrderSummary(true)}
+            style={styles.reviewButton}
+          >
+            <ShoppingCart size={18} />
+            {t.reviewAndSend}
+          </button>
+        </div>
+      )}
+
+      {tecladoCantidadVisible && campoCantidadActivo && (
+        <div style={styles.keyboardActionBar}>
+          <button
+            type="button"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              aceptarCantidad(campoCantidadActivo.split(":")[0]);
+            }}
+            style={styles.keyboardAcceptButton}
+            aria-label="Aceptar cantidad y cerrar teclado"
+          >
+            <Check size={21} strokeWidth={3} />
+            Aceptar cantidad
+          </button>
+        </div>
+      )}
 
       {showOrderSummary && (
         <div style={styles.summaryOverlay}>
@@ -3374,6 +3445,37 @@ const styles = {
 
   noteInput: {
     display: "none",
+  },
+
+  keyboardActionBar: {
+    position: "fixed",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1200,
+    width: "100%",
+    padding: "8px 10px calc(8px + env(safe-area-inset-bottom))",
+    boxSizing: "border-box",
+    background: "#111827",
+    borderTop: "1px solid rgba(255,255,255,0.14)",
+    boxShadow: "0 -8px 22px rgba(15,23,42,0.28)",
+  },
+
+  keyboardAcceptButton: {
+    width: "100%",
+    minHeight: "46px",
+    border: "none",
+    borderRadius: "12px",
+    background: "#22c55e",
+    color: "#ffffff",
+    fontSize: "16px",
+    fontWeight: "1000",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    cursor: "pointer",
+    touchAction: "manipulation",
   },
 
   stickySummary: {
