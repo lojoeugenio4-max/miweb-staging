@@ -18,6 +18,7 @@ import StorePage from "./pages/StorePage";
 import DisplayPage from "./pages/DisplayPage";
 import BingoDemo from "./pages/bingo/BingoDemo";
 import BingoCard from "./components/bingo/BingoCard";
+import BingoDrum from "./components/bingo/BingoDrum";
 import logoLojo from "./assets/logo-lojo.jpg";
 import {
   construirTextoPedidoWhatsApp,
@@ -692,6 +693,7 @@ export default function App() {
         card: resultado.carton,
         drawn_numbers: resultado.numeros_marcados || [],
         status: resultado.estado || "activo",
+        edition_id: resultado.edition_id,
       });
 
       const hoy = getTodayISO();
@@ -737,7 +739,9 @@ export default function App() {
     } catch (error) {
       console.error("No se pudo cargar el Bingo personal:", error);
       setErrorBingo(
-        "No se pudo cargar tu cartón. Comprueba que has ejecutado el SQL del Bingo."
+        error?.message?.includes("JSON")
+          ? "No se ha podido leer tu cartón."
+          : "Todavía no tienes cartón para este Bingo. Debes completar un pedido que cumpla sus condiciones dentro de las fechas activas."
       );
     } finally {
       setCargandoBingo(false);
@@ -2134,6 +2138,23 @@ export default function App() {
     };
   }
 
+  async function registrarPedidoParaBingo(itemsPedido, pedidoId) {
+    if (!clienteToken || !configuracionBingoCliente) return null;
+    const items = itemsPedido.map((item) => ({
+      codigo: String(item.product.codigo || item.product.idnum || "").trim(),
+      cajas: Number(item.boxes || 0),
+      unidades: Number(item.units || 0),
+      permite_unidades: Boolean(item.product.permite_unidades),
+    }));
+    const { data, error } = await supabase.rpc("registrar_pedido_bingo", {
+      p_token: clienteToken, p_order_id: pedidoId, p_items: items,
+    });
+    if (error) { console.warn("No se pudo registrar el pedido para Bingo:", error); return null; }
+    const result = Array.isArray(data) ? data[0] : data;
+    if (result?.qualified) { setCartonBingo(null); }
+    return result;
+  }
+
   function enviarPedidoFinal({
     itemsPedido,
     customerNamePedido,
@@ -2200,6 +2221,8 @@ export default function App() {
         return;
       }
     }
+
+    await registrarPedidoParaBingo(itemsPedido, pedidoId);
 
     enviarPedidoFinal({
       itemsPedido,
@@ -2402,6 +2425,11 @@ export default function App() {
 
               {!cargandoBingo && !errorBingo && cartonBingo && (
                 <>
+                  <BingoDrum
+                    editionId={cartonBingo.edition_id}
+                    initialNumbers={cartonBingo.drawn_numbers}
+                    onNumbersChange={(numbers) => setCartonBingo((current) => current ? { ...current, drawn_numbers: numbers } : current)}
+                  />
                   <BingoCard
                     card={cartonBingo.card}
                     drawnNumbers={cartonBingo.drawn_numbers}
