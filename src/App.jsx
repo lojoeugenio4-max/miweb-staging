@@ -3081,7 +3081,7 @@ const styles = {
   },
 
   languageLabel: {
-    color: "#64748b",
+    color: "#cbd5e1",
     fontSize: "13px",
     fontWeight: "700",
   },
@@ -3350,7 +3350,7 @@ const styles = {
   },
 
   departmentCount: {
-    color: "#64748b",
+    color: "#cbd5e1",
     fontWeight: "900",
   },
 
@@ -3392,7 +3392,7 @@ const styles = {
 
   departmentTitleCount: {
     fontSize: "12px",
-    color: "#64748b",
+    color: "#cbd5e1",
     fontWeight: "800",
   },
 
@@ -3888,7 +3888,7 @@ const styles = {
   },
 
   emptyBox: {
-    color: "#64748b",
+    color: "#cbd5e1",
     background: "#fff",
     border: "1px dashed #cbd5e1",
     borderRadius: "14px",
@@ -3899,7 +3899,7 @@ const styles = {
 
   loading: {
     textAlign: "center",
-    color: "#64748b",
+    color: "#cbd5e1",
     fontWeight: "800",
   },
 
@@ -3967,8 +3967,8 @@ const styles = {
     height: "44px",
     borderRadius: "999px",
     border: "none",
-    background: "#ffffff",
-    color: "#111827",
+    background: "rgba(255,255,255,0.08)",
+    color: "#ffffff",
     fontSize: "30px",
     lineHeight: "1",
     fontWeight: "900",
@@ -4188,13 +4188,13 @@ const styles = {
   },
 
   bingoModal: {
-    width: "min(940px, 100%)",
+    width: "min(1540px, 100%)",
     maxHeight: "calc(100dvh - 24px)",
     display: "flex",
     flexDirection: "column",
     overflow: "hidden",
-    borderRadius: "22px",
-    background: "#eef2f8",
+    borderRadius: "24px",
+    background: "#03163f",
     boxShadow: "0 24px 70px rgba(0,0,0,0.35)",
   },
 
@@ -4203,21 +4203,21 @@ const styles = {
     alignItems: "center",
     justifyContent: "space-between",
     gap: "12px",
-    padding: "14px 16px",
-    background: "#ffffff",
-    borderBottom: "1px solid #dbe3ef",
+    padding: "10px 14px",
+    background: "#03163f",
+    borderBottom: "1px solid rgba(255,255,255,0.14)",
   },
 
   bingoModalTitle: {
     display: "block",
-    color: "#111a8f",
+    color: "#ffffff",
     fontSize: "22px",
     fontWeight: "900",
   },
 
   bingoModalSubtitle: {
     marginTop: "3px",
-    color: "#64748b",
+    color: "#cbd5e1",
     fontSize: "13px",
     fontWeight: "700",
   },
@@ -4231,15 +4231,15 @@ const styles = {
     justifyContent: "center",
     border: "1px solid #cbd5e1",
     borderRadius: "999px",
-    background: "#ffffff",
-    color: "#111827",
+    background: "rgba(255,255,255,0.08)",
+    color: "#ffffff",
     cursor: "pointer",
   },
 
   bingoModalBody: {
     overflowY: "auto",
     WebkitOverflowScrolling: "touch",
-    padding: "14px",
+    padding: "10px",
   },
 
   bingoStatusBox: {
