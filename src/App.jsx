@@ -2446,6 +2446,46 @@ export default function App() {
                             />
                           </label>
 
+                          {(() => {
+                            const campoActivoCajas =
+                              campoCantidadActivo === `${product.id}:boxes`;
+                            const campoActivoUnidades =
+                              campoCantidadActivo === `${product.id}:units`;
+                            const cantidadEscrita = campoActivoCajas
+                              ? quantity.boxes
+                              : campoActivoUnidades
+                                ? quantity.units
+                                : "";
+
+                            if (
+                              !campoActivoCajas &&
+                              !campoActivoUnidades
+                            ) {
+                              return null;
+                            }
+
+                            if (cantidadEscrita === "" || cantidadEscrita == null) {
+                              return null;
+                            }
+
+                            return (
+                              <button
+                                type="button"
+                                style={styles.acceptQuantityButton}
+                                onPointerDown={(event) => {
+                                  // Evita que el botón pierda el foco antes de ejecutar
+                                  // el clic. Así no desaparece prematuramente en iPhone.
+                                  event.preventDefault();
+                                }}
+                                onClick={() => aceptarCantidad(product.id)}
+                                aria-label="Aceptar cantidad"
+                              >
+                                <Check size={15} strokeWidth={3} />
+                                <span>Aceptar cantidad</span>
+                              </button>
+                            );
+                          })()}
+
                         </div>
 
                         {product.participaRuleta && (() => {
@@ -3390,23 +3430,28 @@ const styles = {
   },
 
   acceptQuantityButton: {
-    width: "52px",
-    minWidth: "52px",
-    maxWidth: "52px",
-    height: "24px",
-    minHeight: "24px",
-    maxHeight: "24px",
+    gridColumn: "1 / -1",
+    width: "164px",
+    minWidth: "164px",
+    maxWidth: "164px",
+    minHeight: "30px",
     border: "none",
-    borderRadius: "7px",
+    borderRadius: "8px",
     background: "#22c55e",
     color: "#ffffff",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    gap: "5px",
     cursor: "pointer",
-    padding: 0,
+    padding: "5px 8px",
     boxSizing: "border-box",
     flexShrink: 0,
+    fontSize: "11px",
+    lineHeight: 1,
+    fontWeight: "900",
+    touchAction: "manipulation",
+    WebkitTapHighlightColor: "transparent",
   },
 
   noteInput: {
