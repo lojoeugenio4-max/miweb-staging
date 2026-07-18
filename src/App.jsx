@@ -394,6 +394,7 @@ export default function App() {
   const [cartonBingo, setCartonBingo] = useState(null);
   const [cargandoBingo, setCargandoBingo] = useState(false);
   const [errorBingo, setErrorBingo] = useState("");
+  const [premiosBingo, setPremiosBingo] = useState({ line: null, bingo: null });
 
   const [premiosRuleta, setPremiosRuleta] = useState([]);
   const [configuracionRuleta, setConfiguracionRuleta] = useState(null);
@@ -538,6 +539,7 @@ export default function App() {
     setCartonBingo(null);
     setMostrarBingo(false);
     setErrorBingo("");
+    setPremiosBingo({ line: null, bingo: null });
   }, [clienteIdentificado?.id]);
 
   async function abrirMiBingo() {
@@ -569,6 +571,32 @@ export default function App() {
         drawn_numbers: resultado.numeros_marcados || [],
         status: resultado.estado || "activo",
       });
+
+      const { data: promo } = await supabase
+        .from("promociones_bingo")
+        .select("premio_linea_activo,premio_linea_nombre,premio_linea_mensaje,premio_linea_articulo_id,premio_bingo_activo,premio_bingo_nombre,premio_bingo_mensaje,premio_bingo_articulo_id")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      const prizeIds = [promo?.premio_linea_articulo_id, promo?.premio_bingo_articulo_id].filter(Boolean);
+      let prizeArticles = [];
+      if (prizeIds.length) {
+        const { data: articles } = await supabase.from("articulos").select("id,nombre,foto").in("id", prizeIds);
+        prizeArticles = articles || [];
+      }
+      const articleById = new Map(prizeArticles.map((article) => [String(article.id), article]));
+      const makePrize = (type) => {
+        const id = promo?.[`premio_${type}_articulo_id`];
+        const article = articleById.get(String(id || ""));
+        return {
+          active: Boolean(promo?.[`premio_${type}_activo`]),
+          name: promo?.[`premio_${type}_nombre`] || article?.nombre || "",
+          message: promo?.[`premio_${type}_mensaje`] || "",
+          image: getPublicPhotoUrl(article?.foto),
+        };
+      };
+      setPremiosBingo({ line: makePrize("linea"), bingo: makePrize("bingo") });
     } catch (error) {
       console.error("No se pudo cargar el Bingo personal:", error);
       setErrorBingo(
@@ -2190,6 +2218,8 @@ export default function App() {
                     card={cartonBingo.card}
                     drawnNumbers={cartonBingo.drawn_numbers}
                     customerName={clienteIdentificado.nombre}
+                    linePrize={premiosBingo.line}
+                    bingoPrize={premiosBingo.bingo}
                   />
                   <div style={styles.bingoInfoBox}>
                     Este es tu único cartón activo. En el siguiente paso, cada
