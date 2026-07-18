@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Check,
   X,
+  Star,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { supabaseStorage } from "./supabaseStorageClient";
@@ -314,6 +315,10 @@ export default function App() {
   // funcionando exactamente igual para clientes anónimos.
   const [clienteIdentificado, setClienteIdentificado] = useState(null);
   const [cargandoCliente, setCargandoCliente] = useState(Boolean(clienteToken));
+  const [favoritos, setFavoritos] = useState(() => new Set());
+  const [cargandoFavoritos, setCargandoFavoritos] = useState(false);
+  const [errorFavoritos, setErrorFavoritos] = useState("");
+  const [soloFavoritos, setSoloFavoritos] = useState(false);
 
   const [premiosRuleta, setPremiosRuleta] = useState([]);
   const [configuracionRuleta, setConfiguracionRuleta] = useState(null);
@@ -369,6 +374,89 @@ export default function App() {
       cancelado = true;
     };
   }, [clienteToken]);
+
+  useEffect(() => {
+    let cancelado = false;
+
+    async function cargarFavoritos() {
+      if (!clienteIdentificado?.id) {
+        setFavoritos(new Set());
+        setSoloFavoritos(false);
+        setErrorFavoritos("");
+        return;
+      }
+
+      setCargandoFavoritos(true);
+      setErrorFavoritos("");
+
+      try {
+        const { data, error } = await supabase
+          .from("clientes_favoritos")
+          .select("articulo_id")
+          .eq("cliente_id", clienteIdentificado.id);
+
+        if (error) throw error;
+        if (!cancelado) {
+          setFavoritos(new Set((data || []).map((item) => String(item.articulo_id))));
+        }
+      } catch (error) {
+        console.error("No se pudieron cargar los favoritos:", error);
+        if (!cancelado) {
+          setErrorFavoritos("No se pudieron cargar tus favoritos.");
+          setFavoritos(new Set());
+        }
+      } finally {
+        if (!cancelado) setCargandoFavoritos(false);
+      }
+    }
+
+    cargarFavoritos();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [clienteIdentificado?.id]);
+
+  async function alternarFavorito(articuloId) {
+    if (!clienteIdentificado?.id) return;
+
+    const idArticulo = String(articuloId);
+    const yaEsFavorito = favoritos.has(idArticulo);
+
+    setErrorFavoritos("");
+    setFavoritos((actuales) => {
+      const siguientes = new Set(actuales);
+      if (yaEsFavorito) siguientes.delete(idArticulo);
+      else siguientes.add(idArticulo);
+      return siguientes;
+    });
+
+    try {
+      if (yaEsFavorito) {
+        const { error } = await supabase
+          .from("clientes_favoritos")
+          .delete()
+          .eq("cliente_id", clienteIdentificado.id)
+          .eq("articulo_id", idArticulo);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("clientes_favoritos").insert({
+          cliente_id: clienteIdentificado.id,
+          articulo_id: idArticulo,
+        });
+        if (error) throw error;
+      }
+    } catch (error) {
+      console.error("No se pudo actualizar el favorito:", error);
+      setFavoritos((actuales) => {
+        const siguientes = new Set(actuales);
+        if (yaEsFavorito) siguientes.add(idArticulo);
+        else siguientes.delete(idArticulo);
+        return siguientes;
+      });
+      setErrorFavoritos("No se pudo guardar el favorito. Inténtalo de nuevo.");
+    }
+  }
 
   useEffect(() => {
     cargarConfiguracionRuleta();
@@ -1038,6 +1126,9 @@ export default function App() {
     productosConOferta,
     productosNovedad,
     productosRuleta,
+    soloFavoritos,
+    clienteIdentificado,
+    favoritos,
   ]);
 
   const departmentOptions = useMemo(() => {
@@ -1068,6 +1159,18 @@ export default function App() {
       cleanSearch
         ? lista.filter((product) => productMatchesSearch(product, cleanSearch))
         : lista;
+
+    if (soloFavoritos && clienteIdentificado) {
+      const productosFavoritos = ordenarProductos(
+        filterBySearch(
+          productosVisibles.filter((product) => favoritos.has(String(product.id)))
+        )
+      );
+
+      return productosFavoritos.length > 0
+        ? [{ name: "MIS FAVORITOS", products: productosFavoritos }]
+        : [];
+    }
 
     if (selectedDepartment !== "TODOS") {
       let selectedProducts = [];
@@ -1935,6 +2038,24 @@ export default function App() {
                 <div style={styles.clienteSesionActiva}>
                   <strong>Hola, {clienteIdentificado.nombre}</strong>
                   <span>Cliente identificado · ventajas personales activadas</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSoloFavoritos((valor) => !valor);
+                      setSelectedDepartment("TODOS");
+                      setSearch("");
+                      setSearchInput("");
+                    }}
+                    style={{
+                      ...styles.favoritesFilterButton,
+                      ...(soloFavoritos ? styles.favoritesFilterButtonActive : {}),
+                    }}
+                  >
+                    <Star size={16} fill={soloFavoritos ? "currentColor" : "none"} />
+                    {soloFavoritos ? "Ver todos" : `Mis favoritos (${favoritos.size})`}
+                  </button>
+                  {cargandoFavoritos && <small>Cargando favoritos...</small>}
+                  {errorFavoritos && <small style={styles.favoritesError}>{errorFavoritos}</small>}
                 </div>
               )}
 
@@ -2145,12 +2266,46 @@ export default function App() {
                             </div>
                           </div>
 
+                          <div style={styles.productTopActions}>
+                            {clienteIdentificado && (
+                              <button
+                                type="button"
+                                onClick={() => alternarFavorito(product.id)}
+                                style={{
+                                  ...styles.favoriteButton,
+                                  ...(favoritos.has(String(product.id))
+                                    ? styles.favoriteButtonActive
+                                    : {}),
+                                }}
+                                aria-label={
+                                  favoritos.has(String(product.id))
+                                    ? "Quitar de favoritos"
+                                    : "Añadir a favoritos"
+                                }
+                                title={
+                                  favoritos.has(String(product.id))
+                                    ? "Quitar de favoritos"
+                                    : "Añadir a favoritos"
+                                }
+                              >
+                                <Star
+                                  size={20}
+                                  fill={
+                                    favoritos.has(String(product.id))
+                                      ? "currentColor"
+                                      : "none"
+                                  }
+                                />
+                              </button>
+                            )}
+
                           {product.participaRuleta && (
                             <MiniRuletaPromocion
                               cantidadMinima={product.cantidadMinimaRuleta}
                               permiteUnidades={product.permite_unidades}
                             />
                           )}
+                          </div>
                         </div>
 
                         <div style={styles.quantityGrid}>
@@ -2992,6 +3147,33 @@ const styles = {
     flex: 1,
   },
 
+  productTopActions: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: "4px",
+    flexShrink: 0,
+  },
+
+  favoriteButton: {
+    width: "34px",
+    height: "34px",
+    borderRadius: "999px",
+    border: "1px solid #d1d5db",
+    background: "#fff",
+    color: "#94a3b8",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    padding: 0,
+  },
+
+  favoriteButtonActive: {
+    color: "#f59e0b",
+    borderColor: "#fbbf24",
+    background: "#fffbeb",
+  },
+
   ruletaPromoBadge: {
     width: "116px",
     height: "auto",
@@ -3606,6 +3788,32 @@ const styles = {
     background: "#f0fdf4",
     color: "#166534",
     fontSize: "13px",
+  },
+
+  favoritesFilterButton: {
+    marginTop: "6px",
+    border: "1px solid #cbd5e1",
+    borderRadius: "9px",
+    background: "#ffffff",
+    color: "#334155",
+    padding: "7px 10px",
+    fontWeight: "800",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "6px",
+    cursor: "pointer",
+  },
+
+  favoritesFilterButtonActive: {
+    background: "#fffbeb",
+    borderColor: "#f59e0b",
+    color: "#b45309",
+  },
+
+  favoritesError: {
+    color: "#b91c1c",
+    fontWeight: "700",
   },
 
   inputClienteIdentificado: {
