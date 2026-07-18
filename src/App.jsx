@@ -249,6 +249,11 @@ export default function App() {
   const isDisplayMode = searchParams?.get("display") === "1";
   const isBingoMode = searchParams?.get("bingo") === "1";
 
+  const clienteToken =
+    typeof window !== "undefined" && window.location.pathname.startsWith("/cliente/")
+      ? decodeURIComponent(window.location.pathname.slice("/cliente/".length)).trim()
+      : "";
+
   if (isDisplayMode) {
     return <DisplayPage />;
   }
@@ -305,6 +310,11 @@ export default function App() {
   );
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
 
+  // El acceso identificado es opcional. Sin token, la aplicación sigue
+  // funcionando exactamente igual para clientes anónimos.
+  const [clienteIdentificado, setClienteIdentificado] = useState(null);
+  const [cargandoCliente, setCargandoCliente] = useState(Boolean(clienteToken));
+
   const [premiosRuleta, setPremiosRuleta] = useState([]);
   const [configuracionRuleta, setConfiguracionRuleta] = useState(null);
   const [articulosRuleta, setArticulosRuleta] = useState([]);
@@ -315,6 +325,50 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
   }, [language]);
+
+  useEffect(() => {
+    let cancelado = false;
+
+    async function identificarCliente() {
+      if (!clienteToken) {
+        setClienteIdentificado(null);
+        setCargandoCliente(false);
+        return;
+      }
+
+      setCargandoCliente(true);
+
+      try {
+        const { data, error } = await supabase
+          .from("clientes")
+          .select("id, nombre, telefono, estado, token")
+          .eq("token", clienteToken)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (cancelado) return;
+
+        if (data?.estado === "activo") {
+          setClienteIdentificado(data);
+          setCustomerName(data.nombre || "");
+        } else {
+          // Token inexistente o cliente inactivo: compra anónima, sin bloquear.
+          setClienteIdentificado(null);
+        }
+      } catch (error) {
+        console.error("No se pudo identificar al cliente:", error);
+        if (!cancelado) setClienteIdentificado(null);
+      } finally {
+        if (!cancelado) setCargandoCliente(false);
+      }
+    }
+
+    identificarCliente();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [clienteToken]);
 
   useEffect(() => {
     cargarConfiguracionRuleta();
@@ -1871,10 +1925,24 @@ export default function App() {
                 </select>
               </div>
 
+              {cargandoCliente && (
+                <div style={styles.clienteSesionCargando}>
+                  Comprobando enlace personal...
+                </div>
+              )}
+
+              {!cargandoCliente && clienteIdentificado && (
+                <div style={styles.clienteSesionActiva}>
+                  <strong>Hola, {clienteIdentificado.nombre}</strong>
+                  <span>Cliente identificado · ventajas personales activadas</span>
+                </div>
+              )}
+
               <label style={styles.labelCompact}>{t.customerName}</label>
               <input
                 type="text"
                 value={customerName}
+                readOnly={Boolean(clienteIdentificado)}
                 onFocus={() => setCustomerNameFocused(true)}
                 onBlur={() => setCustomerNameFocused(false)}
                 onChange={(event) => setCustomerName(event.target.value)}
@@ -1882,6 +1950,7 @@ export default function App() {
                 style={{
                   ...styles.inputCompact,
                   borderColor: customerNameFocused ? "#2563eb" : "#aeb7ff",
+                  ...(clienteIdentificado ? styles.inputClienteIdentificado : {}),
                 }}
               />
             </section>
@@ -3512,6 +3581,38 @@ const styles = {
     fontSize: "16px",
     fontWeight: "900",
     marginTop: "16px",
+  },
+
+
+  clienteSesionCargando: {
+    marginBottom: "10px",
+    border: "1px solid #bfdbfe",
+    borderRadius: "12px",
+    padding: "10px 12px",
+    background: "#eff6ff",
+    color: "#1d4ed8",
+    fontSize: "13px",
+    fontWeight: "800",
+  },
+
+  clienteSesionActiva: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "3px",
+    marginBottom: "10px",
+    border: "1px solid #bbf7d0",
+    borderRadius: "12px",
+    padding: "10px 12px",
+    background: "#f0fdf4",
+    color: "#166534",
+    fontSize: "13px",
+  },
+
+  inputClienteIdentificado: {
+    background: "#f8fafc",
+    color: "#166534",
+    fontWeight: "900",
+    cursor: "default",
   },
 
   returnPushButton: {
