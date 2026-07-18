@@ -60,6 +60,8 @@ export default function BingoCard({
   customerName = "",
   linePrize = null,
   bingoPrize = null,
+  specialPrize = null,
+  endDate = "",
 }) {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const rows = useMemo(() => normalizarFilas(card), [card]);
@@ -67,6 +69,9 @@ export default function BingoCard({
   const lineCompleted = useMemo(() => tieneLinea(rows, markedNumbers), [rows, markedNumbers]);
   const bingoCompleted = useMemo(() => tieneBingo(rows, markedNumbers), [rows, markedNumbers]);
   const markedCount = rows.flat().filter((value) => Number.isFinite(Number(value)) && markedNumbers.has(Number(value))).length;
+  const drawnCount = Array.isArray(drawnNumbers) ? new Set(drawnNumbers.map(Number).filter(Number.isFinite)).size : 0;
+  const specialWon = Boolean(bingoCompleted && specialPrize?.active && specialPrize?.maxBalls > 0 && drawnCount <= specialPrize.maxBalls);
+  const formattedEndDate = endDate ? new Date(`${endDate}T12:00:00`).toLocaleDateString("es-ES") : "Sin fecha límite";
 
   return (
     <section className="cl-bingo" aria-label="Cartón de Bingo Cash Lojo">
@@ -116,14 +121,15 @@ export default function BingoCard({
         <aside className="cl-prizes" aria-label="Premios del Bingo">
           <PrizePanel title="PREMIO POR LÍNEA" prize={linePrize} won={lineCompleted} />
           <PrizePanel title="PREMIO POR BINGO" prize={bingoPrize} won={bingoCompleted} />
+          {specialPrize?.active && <PrizePanel title={`PREMIO ESPECIAL · BINGO EN ${specialPrize.maxBalls} BOLAS O MENOS`} prize={specialPrize} won={specialWon} />}
         </aside>
       </main>
 
       <footer className="cl-bingo__footer">
         <div><UserRound /><span><small>JUGADOR:</small><strong>{customerName || "Cliente Cash Lojo"}</strong></span></div>
-        <div><Clock3 /><span><small>ESTADO:</small><strong>{bingoCompleted ? "Bingo completado" : lineCompleted ? "Línea completada" : "En juego"}</strong></span></div>
-        <div><CheckCircle2 /><span><small>MARCADOS:</small><strong>{markedCount}</strong></span></div>
-        <div><Gift /><span><small>PREMIOS:</small><strong>{[linePrize?.active, bingoPrize?.active].filter(Boolean).length} activos</strong></span></div>
+        <div><Clock3 /><span><small>FECHA LÍMITE:</small><strong>{formattedEndDate}</strong></span></div>
+        <div><CheckCircle2 /><span><small>BOLAS CANTADAS:</small><strong>{drawnCount}</strong></span></div>
+        <div><Gift /><span><small>PREMIOS:</small><strong>{[linePrize?.active, bingoPrize?.active, specialPrize?.active].filter(Boolean).length} activos</strong></span></div>
       </footer>
     </section>
   );
