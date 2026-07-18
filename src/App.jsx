@@ -410,7 +410,8 @@ export default function App() {
   const [cartonBingo, setCartonBingo] = useState(null);
   const [cargandoBingo, setCargandoBingo] = useState(false);
   const [errorBingo, setErrorBingo] = useState("");
-  const [premiosBingo, setPremiosBingo] = useState({ line: null, bingo: null });
+  const [premiosBingo, setPremiosBingo] = useState({ line: null, bingo: null, special: null });
+  const [configuracionBingoCliente, setConfiguracionBingoCliente] = useState(null);
 
   const [premiosRuleta, setPremiosRuleta] = useState([]);
   const [configuracionRuleta, setConfiguracionRuleta] = useState(null);
@@ -612,11 +613,35 @@ export default function App() {
     setCartonBingo(null);
     setMostrarBingo(false);
     setErrorBingo("");
-    setPremiosBingo({ line: null, bingo: null });
+    setPremiosBingo({ line: null, bingo: null, special: null });
   }, [clienteIdentificado?.id]);
 
+  useEffect(() => {
+    let activo = true;
+    async function cargarDisponibilidadBingo() {
+      const { data, error } = await supabase
+        .from("promociones_bingo")
+        .select("*")
+        .order("updated_at", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false });
+      if (!activo) return;
+      if (error) {
+        console.error("No se pudo comprobar la disponibilidad del Bingo:", error);
+        setConfiguracionBingoCliente(null);
+        return;
+      }
+      const hoy = getTodayISO();
+      const promociones = data || [];
+      const vigente = promociones.find((item) => item.activa && (!item.fecha_inicio || item.fecha_inicio <= hoy) && (!item.fecha_fin || item.fecha_fin >= hoy));
+      setConfiguracionBingoCliente(vigente || null);
+      if (!vigente) setMostrarBingo(false);
+    }
+    cargarDisponibilidadBingo();
+    return () => { activo = false; };
+  }, []);
+
   async function abrirMiBingo() {
-    if (!clienteIdentificado?.id || !clienteToken) return;
+    if (!clienteIdentificado?.id || !clienteToken || !configuracionBingoCliente) return;
 
     setMostrarBingo(true);
     if (cartonBingo) return;
@@ -648,7 +673,7 @@ export default function App() {
       const hoy = getTodayISO();
       const { data: promocionesBingo, error: premiosError } = await supabase
         .from("promociones_bingo")
-        .select("id,activa,fecha_inicio,fecha_fin,created_at,updated_at,premio_linea_activo,premio_linea_nombre,premio_linea_mensaje,premio_linea_articulo_id,premio_bingo_activo,premio_bingo_nombre,premio_bingo_mensaje,premio_bingo_articulo_id")
+        .select("*")
         .order("updated_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false });
 
@@ -661,7 +686,9 @@ export default function App() {
         return item.activa && inicioOk && finOk;
       }) || promocionesDisponibles.find((item) => item.activa) || promocionesDisponibles[0] || null;
 
-      const prizeIds = [...new Set([promo?.premio_linea_articulo_id, promo?.premio_bingo_articulo_id].filter(Boolean))];
+      if (!promo) throw new Error("El Bingo no está activo o ha finalizado.");
+      setConfiguracionBingoCliente(promo);
+      const prizeIds = [...new Set([promo?.premio_linea_articulo_id, promo?.premio_bingo_articulo_id, promo?.premio_especial_articulo_id].filter(Boolean))];
       let prizeArticles = [];
       if (prizeIds.length) {
         const { data: articles } = await supabase.from("articulos").select("id,nombre,foto").in("id", prizeIds);
@@ -678,7 +705,11 @@ export default function App() {
           image: getPublicPhotoUrl(article?.foto),
         };
       };
-      setPremiosBingo({ line: makePrize("linea"), bingo: makePrize("bingo") });
+      setPremiosBingo({
+        line: makePrize("linea"),
+        bingo: makePrize("bingo"),
+        special: { ...makePrize("especial"), maxBalls: Number(promo?.premio_especial_max_bolas) || 0 },
+      });
     } catch (error) {
       console.error("No se pudo cargar el Bingo personal:", error);
       setErrorBingo(
@@ -2307,7 +2338,7 @@ export default function App() {
       )}
 
 
-      {mostrarBingo && clienteIdentificado && (
+      {mostrarBingo && clienteIdentificado && configuracionBingoCliente && (
         <div
           style={styles.bingoOverlay}
           onClick={() => setMostrarBingo(false)}
@@ -2346,6 +2377,8 @@ export default function App() {
                     customerName={clienteIdentificado.nombre}
                     linePrize={premiosBingo.line}
                     bingoPrize={premiosBingo.bingo}
+                    specialPrize={premiosBingo.special}
+                    endDate={configuracionBingoCliente.fecha_fin}
                   />
 
                 </>
@@ -2435,14 +2468,17 @@ export default function App() {
                     <Star size={16} fill={soloFavoritos ? "currentColor" : "none"} />
                     {soloFavoritos ? "Ver todos" : `Mis favoritos (${favoritos.size})`}
                   </button>
-                  <button
-                    type="button"
-                    onClick={abrirMiBingo}
-                    style={styles.bingoButton}
-                  >
-                    <Grid3X3 size={17} />
-                    Mi Bingo
-                  </button>
+                  {configuracionBingoCliente && (
+                    <button
+                      type="button"
+                      onClick={abrirMiBingo}
+                      style={styles.bingoButton}
+                      title={configuracionBingoCliente.fecha_fin ? `Disponible hasta el ${new Date(`${configuracionBingoCliente.fecha_fin}T12:00:00`).toLocaleDateString("es-ES")}` : "Bingo activo"}
+                    >
+                      <Grid3X3 size={17} />
+                      Mi Bingo{configuracionBingoCliente.fecha_fin ? ` · hasta ${new Date(`${configuracionBingoCliente.fecha_fin}T12:00:00`).toLocaleDateString("es-ES")}` : ""}
+                    </button>
+                  )}
                   {cargandoFavoritos && <small>Cargando favoritos...</small>}
                   {errorFavoritos && <small style={styles.favoritesError}>{errorFavoritos}</small>}
                 </div>
