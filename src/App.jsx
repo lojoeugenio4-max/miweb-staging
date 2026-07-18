@@ -2194,6 +2194,9 @@ export default function App() {
           ...(selectedDepartment !== "TODOS" && !search.trim()
             ? styles.catalogSingleDepartment
             : {}),
+          ...(soloFavoritos && clienteIdentificado
+            ? styles.catalogFavoritesMode
+            : {}),
         }}
       >
         {cargando && <p style={styles.loading}>{t.loading}</p>}
@@ -3060,6 +3063,13 @@ const styles = {
     // No añadimos espacio artificial ni recolocamos el catálogo.
     // La posición permanece exactamente donde la dejó el cliente.
     paddingTop: "6px",
+  },
+
+  catalogFavoritesMode: {
+    // Garantiza recorrido vertical aunque la lista personal sea muy corta.
+    // Con uno o dos favoritos, el navegador ya dispone de suficiente espacio
+    // para desplazar la cabecera sticky sin bloquear el gesto de scroll.
+    minHeight: "calc(100dvh + 180px)",
   },
 
   departmentSection: {
