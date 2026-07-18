@@ -8,12 +8,14 @@ import {
   Check,
   X,
   Star,
+  Grid3X3,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { supabaseStorage } from "./supabaseStorageClient";
 import StorePage from "./pages/StorePage";
 import DisplayPage from "./pages/DisplayPage";
 import BingoDemo from "./pages/bingo/BingoDemo";
+import BingoCard from "./components/bingo/BingoCard";
 import logoLojo from "./assets/logo-lojo.jpg";
 import {
   construirTextoPedidoWhatsApp,
@@ -240,6 +242,75 @@ function MiniRuletaPromocion({ cantidadMinima = 1, permiteUnidades = true }) {
   );
 }
 
+
+function crearCartonBingo90() {
+  // Cartón clásico: 3 filas, 9 columnas y 15 números (5 por fila).
+  // Cada columna conserva su decena y sus números quedan ordenados.
+  for (let intento = 0; intento < 200; intento += 1) {
+    const posiciones = Array.from({ length: 3 }, () => Array(9).fill(false));
+    const filasUsadas = [0, 0, 0];
+    const columnasUsadas = Array(9).fill(0);
+
+    // Garantiza al menos un número en cada columna.
+    const columnasBarajadas = Array.from({ length: 9 }, (_, i) => i).sort(
+      () => Math.random() - 0.5
+    );
+
+    columnasBarajadas.forEach((columna) => {
+      const filasDisponibles = [0, 1, 2]
+        .filter((fila) => filasUsadas[fila] < 5)
+        .sort(() => Math.random() - 0.5);
+      const fila = filasDisponibles[0];
+      posiciones[fila][columna] = true;
+      filasUsadas[fila] += 1;
+      columnasUsadas[columna] += 1;
+    });
+
+    let seguridad = 0;
+    while (filasUsadas.some((cantidad) => cantidad < 5) && seguridad < 300) {
+      seguridad += 1;
+      const filasPendientes = [0, 1, 2].filter((fila) => filasUsadas[fila] < 5);
+      const fila = filasPendientes[Math.floor(Math.random() * filasPendientes.length)];
+      const columnasDisponibles = Array.from({ length: 9 }, (_, i) => i).filter(
+        (columna) => !posiciones[fila][columna] && columnasUsadas[columna] < 3
+      );
+
+      if (columnasDisponibles.length === 0) break;
+      const columna =
+        columnasDisponibles[Math.floor(Math.random() * columnasDisponibles.length)];
+      posiciones[fila][columna] = true;
+      filasUsadas[fila] += 1;
+      columnasUsadas[columna] += 1;
+    }
+
+    if (!filasUsadas.every((cantidad) => cantidad === 5)) continue;
+
+    const carton = Array.from({ length: 3 }, () => Array(9).fill(null));
+
+    for (let columna = 0; columna < 9; columna += 1) {
+      const minimo = columna === 0 ? 1 : columna * 10;
+      const maximo = columna === 8 ? 90 : columna * 10 + 9;
+      const cantidad = columnasUsadas[columna];
+      const numeros = [];
+
+      while (numeros.length < cantidad) {
+        const numero = minimo + Math.floor(Math.random() * (maximo - minimo + 1));
+        if (!numeros.includes(numero)) numeros.push(numero);
+      }
+
+      numeros.sort((a, b) => a - b);
+      const filasColumna = [0, 1, 2].filter((fila) => posiciones[fila][columna]);
+      filasColumna.forEach((fila, indice) => {
+        carton[fila][columna] = numeros[indice];
+      });
+    }
+
+    return carton;
+  }
+
+  throw new Error("No se pudo generar el cartón de Bingo.");
+}
+
 export default function App() {
   const searchParams =
     typeof window !== "undefined"
@@ -319,6 +390,10 @@ export default function App() {
   const [cargandoFavoritos, setCargandoFavoritos] = useState(false);
   const [errorFavoritos, setErrorFavoritos] = useState("");
   const [soloFavoritos, setSoloFavoritos] = useState(false);
+  const [mostrarBingo, setMostrarBingo] = useState(false);
+  const [cartonBingo, setCartonBingo] = useState(null);
+  const [cargandoBingo, setCargandoBingo] = useState(false);
+  const [errorBingo, setErrorBingo] = useState("");
 
   const [premiosRuleta, setPremiosRuleta] = useState([]);
   const [configuracionRuleta, setConfiguracionRuleta] = useState(null);
@@ -455,6 +530,52 @@ export default function App() {
         return siguientes;
       });
       setErrorFavoritos("No se pudo guardar el favorito. Inténtalo de nuevo.");
+    }
+  }
+
+
+  useEffect(() => {
+    setCartonBingo(null);
+    setMostrarBingo(false);
+    setErrorBingo("");
+  }, [clienteIdentificado?.id]);
+
+  async function abrirMiBingo() {
+    if (!clienteIdentificado?.id || !clienteToken) return;
+
+    setMostrarBingo(true);
+    if (cartonBingo) return;
+
+    setCargandoBingo(true);
+    setErrorBingo("");
+
+    try {
+      const nuevoCarton = crearCartonBingo90();
+      const { data, error } = await supabase.rpc("obtener_o_crear_carton_bingo", {
+        p_token: clienteToken,
+        p_carton: nuevoCarton,
+      });
+
+      if (error) throw error;
+      const resultado = Array.isArray(data) ? data[0] : data;
+
+      if (!resultado) {
+        throw new Error("El enlace personal no corresponde a un cliente activo.");
+      }
+
+      setCartonBingo({
+        id: resultado.carton_id,
+        card: resultado.carton,
+        drawn_numbers: resultado.numeros_marcados || [],
+        status: resultado.estado || "activo",
+      });
+    } catch (error) {
+      console.error("No se pudo cargar el Bingo personal:", error);
+      setErrorBingo(
+        "No se pudo cargar tu cartón. Comprueba que has ejecutado el SQL del Bingo."
+      );
+    } finally {
+      setCargandoBingo(false);
     }
   }
 
@@ -2023,6 +2144,64 @@ export default function App() {
         </button>
       )}
 
+
+      {mostrarBingo && clienteIdentificado && (
+        <div
+          style={styles.bingoOverlay}
+          onClick={() => setMostrarBingo(false)}
+          role="presentation"
+        >
+          <div
+            style={styles.bingoModal}
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mi Bingo personal"
+          >
+            <div style={styles.bingoModalHeader}>
+              <div>
+                <strong style={styles.bingoModalTitle}>Mi Bingo</strong>
+                <div style={styles.bingoModalSubtitle}>
+                  Cartón personal de {clienteIdentificado.nombre}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMostrarBingo(false)}
+                style={styles.bingoCloseButton}
+                aria-label="Cerrar Mi Bingo"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div style={styles.bingoModalBody}>
+              {cargandoBingo && (
+                <div style={styles.bingoStatusBox}>Preparando tu cartón...</div>
+              )}
+
+              {!cargandoBingo && errorBingo && (
+                <div style={styles.bingoErrorBox}>{errorBingo}</div>
+              )}
+
+              {!cargandoBingo && !errorBingo && cartonBingo && (
+                <>
+                  <BingoCard
+                    card={cartonBingo.card}
+                    drawnNumbers={cartonBingo.drawn_numbers}
+                    customerName={clienteIdentificado.nombre}
+                  />
+                  <div style={styles.bingoInfoBox}>
+                    Este es tu único cartón activo. En el siguiente paso, cada
+                    pedido válido añadirá un número automáticamente.
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {selectedImage && (
         <div style={styles.imageOverlay} onClick={() => setSelectedImage(null)}>
           <button
@@ -2102,6 +2281,14 @@ export default function App() {
                   >
                     <Star size={16} fill={soloFavoritos ? "currentColor" : "none"} />
                     {soloFavoritos ? "Ver todos" : `Mis favoritos (${favoritos.size})`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={abrirMiBingo}
+                    style={styles.bingoButton}
+                  >
+                    <Grid3X3 size={17} />
+                    Mi Bingo
                   </button>
                   {cargandoFavoritos && <small>Cargando favoritos...</small>}
                   {errorFavoritos && <small style={styles.favoritesError}>{errorFavoritos}</small>}
@@ -3942,4 +4129,117 @@ const styles = {
     fontWeight: "1000",
     boxShadow: "0 14px 28px rgba(14,165,233,0.35)",
   },
+
+  bingoButton: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "7px",
+    border: "1px solid #111a8f",
+    borderRadius: "999px",
+    padding: "8px 14px",
+    background: "#111a8f",
+    color: "#ffffff",
+    fontSize: "14px",
+    fontWeight: "900",
+    cursor: "pointer",
+  },
+
+  bingoOverlay: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 10020,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "12px",
+    background: "rgba(15, 23, 42, 0.78)",
+    boxSizing: "border-box",
+  },
+
+  bingoModal: {
+    width: "min(940px, 100%)",
+    maxHeight: "calc(100dvh - 24px)",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
+    borderRadius: "22px",
+    background: "#eef2f8",
+    boxShadow: "0 24px 70px rgba(0,0,0,0.35)",
+  },
+
+  bingoModalHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
+    padding: "14px 16px",
+    background: "#ffffff",
+    borderBottom: "1px solid #dbe3ef",
+  },
+
+  bingoModalTitle: {
+    display: "block",
+    color: "#111a8f",
+    fontSize: "22px",
+    fontWeight: "900",
+  },
+
+  bingoModalSubtitle: {
+    marginTop: "3px",
+    color: "#64748b",
+    fontSize: "13px",
+    fontWeight: "700",
+  },
+
+  bingoCloseButton: {
+    width: "42px",
+    height: "42px",
+    flexShrink: 0,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    border: "1px solid #cbd5e1",
+    borderRadius: "999px",
+    background: "#ffffff",
+    color: "#111827",
+    cursor: "pointer",
+  },
+
+  bingoModalBody: {
+    overflowY: "auto",
+    WebkitOverflowScrolling: "touch",
+    padding: "14px",
+  },
+
+  bingoStatusBox: {
+    padding: "34px 18px",
+    borderRadius: "16px",
+    background: "#ffffff",
+    color: "#111a8f",
+    textAlign: "center",
+    fontWeight: "900",
+  },
+
+  bingoErrorBox: {
+    padding: "24px 18px",
+    border: "2px solid #dc2626",
+    borderRadius: "16px",
+    background: "#ffffff",
+    color: "#b91c1c",
+    textAlign: "center",
+    fontWeight: "800",
+  },
+
+  bingoInfoBox: {
+    marginTop: "12px",
+    padding: "12px 14px",
+    borderRadius: "12px",
+    background: "#ffffff",
+    color: "#475569",
+    textAlign: "center",
+    fontSize: "13px",
+    fontWeight: "700",
+  },
+
 };
