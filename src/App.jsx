@@ -302,7 +302,6 @@ export default function App() {
   const [selectedDepartment, setSelectedDepartment] = useState("TODOS");
   const [articuloDestacado, setArticuloDestacado] = useState(null);
   const [campoCantidadActivo, setCampoCantidadActivo] = useState(null);
-  const [tecladoCantidadVisible, setTecladoCantidadVisible] = useState(false);
   const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
   const [showOrderSummary, setShowOrderSummary] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -331,42 +330,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
   }, [language]);
-
-  useEffect(() => {
-    setTecladoCantidadVisible(Boolean(campoCantidadActivo));
-
-    if (!campoCantidadActivo) return undefined;
-
-    const mantenerCampoVisible = () => {
-      window.requestAnimationFrame(() => {
-        const activo = document.activeElement;
-        if (!(activo instanceof HTMLInputElement)) return;
-
-        const rect = activo.getBoundingClientRect();
-        const altoVisible = window.visualViewport?.height || window.innerHeight;
-        const limiteInferior = Math.max(120, altoVisible - 92);
-
-        if (rect.bottom > limiteInferior || rect.top < 90) {
-          activo.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-            inline: "nearest",
-          });
-        }
-      });
-    };
-
-    mantenerCampoVisible();
-
-    const viewport = window.visualViewport;
-    viewport?.addEventListener("resize", mantenerCampoVisible);
-    viewport?.addEventListener("scroll", mantenerCampoVisible);
-
-    return () => {
-      viewport?.removeEventListener("resize", mantenerCampoVisible);
-      viewport?.removeEventListener("scroll", mantenerCampoVisible);
-    };
-  }, [campoCantidadActivo]);
 
   useEffect(() => {
     let cancelado = false;
@@ -1166,6 +1129,7 @@ export default function App() {
     soloFavoritos,
     clienteIdentificado,
     favoritos,
+    departamentos,
   ]);
 
   const departmentOptions = useMemo(() => {
@@ -1198,23 +1162,59 @@ export default function App() {
         : lista;
 
     if (soloFavoritos && clienteIdentificado) {
-      const productosFavoritos = filterBySearch(
+      const favoritosVisibles = filterBySearch(
         productosVisibles.filter((product) => favoritos.has(String(product.id)))
-      ).sort((a, b) => {
-        const comparacionDepartamento = String(a.department || "").localeCompare(
-          String(b.department || ""),
-          "es",
-          { sensitivity: "base" }
+      );
+
+      // Mantiene juntos los artículos de cada departamento siguiendo el orden
+      // configurado en Administración. Dentro de cada departamento se ordenan
+      // alfabéticamente. Los nombres de los departamentos no se muestran.
+      const ordenDepartamentos = departamentos
+        .map((departamento) => String(departamento.nombre || "").trim())
+        .filter(
+          (nombre) =>
+            nombre &&
+            !["NOVEDAD", "OFERTAS", "RULETA", "TODOS", "ARTÍCULOS BUSCADOS"].includes(
+              nombre
+            )
         );
 
-        if (comparacionDepartamento !== 0) return comparacionDepartamento;
+      const productosFavoritos = [];
+      const idsIncluidos = new Set();
 
-        return String(a.name || a.nombre || "").localeCompare(
-          String(b.name || b.nombre || ""),
-          "es",
-          { sensitivity: "base" }
-        );
+      ordenDepartamentos.forEach((nombreDepartamento) => {
+        ordenarProductos(
+          favoritosVisibles.filter(
+            (product) => product.department === nombreDepartamento
+          )
+        ).forEach((product) => {
+          const id = String(product.id);
+          if (!idsIncluidos.has(id)) {
+            idsIncluidos.add(id);
+            productosFavoritos.push(product);
+          }
+        });
       });
+
+      // Por seguridad, añade al final cualquier artículo cuyo departamento ya
+      // no exista en la configuración, agrupándolo también por departamento.
+      const restantes = favoritosVisibles
+        .filter((product) => !idsIncluidos.has(String(product.id)))
+        .sort((a, b) => {
+          const porDepartamento = String(a.department || "").localeCompare(
+            String(b.department || ""),
+            "es",
+            { sensitivity: "base" }
+          );
+          return porDepartamento ||
+            String(a.name || a.nombre || "").localeCompare(
+              String(b.name || b.nombre || ""),
+              "es",
+              { sensitivity: "base" }
+            );
+        });
+
+      productosFavoritos.push(...restantes);
 
       return productosFavoritos.length > 0
         ? [{ name: "MIS FAVORITOS", products: productosFavoritos }]
@@ -1612,7 +1612,6 @@ export default function App() {
 
     setArticuloDestacado(productId);
     setCampoCantidadActivo(null);
-    setTecladoCantidadVisible(false);
   };
 
   const manejarEnterCantidad = (event, productId) => {
@@ -2255,12 +2254,14 @@ export default function App() {
         {!cargando &&
           filteredDepartments.map((department) => (
             <section key={department.name} style={styles.departmentSection}>
-              <h2 style={styles.departmentTitle}>
-                {getDepartmentLabel(department.name, language)}
-                <span style={styles.departmentTitleCount}>
-                  {department.products.length} {t.articles}
-                </span>
-              </h2>
+              {!(soloFavoritos && clienteIdentificado) && (
+                <h2 style={styles.departmentTitle}>
+                  {getDepartmentLabel(department.name, language)}
+                  <span style={styles.departmentTitleCount}>
+                    {department.products.length} {t.articles}
+                  </span>
+                </h2>
+              )}
 
               {department.products.length === 0 ? (
                 <div style={styles.emptyBox}>{t.noItems}</div>
@@ -2365,24 +2366,20 @@ export default function App() {
                           <label style={styles.quantityLabel}>
                             {t.boxes}
                             <input
-                              type="text"
+                              type="number"
                               inputMode="numeric"
                               pattern="[0-9]*"
                               enterKeyHint="done"
+                              min="0"
+                              step="1"
                               autoComplete="off"
                               value={quantity.boxes || ""}
                               onPointerDown={(event) =>
                                 prepararCampoCantidad(event, product.id, "boxes")
                               }
                               onFocus={() => activarCampoCantidad(product.id, "boxes")}
-                              onBlur={() => {
-                                window.setTimeout(() => {
-                                  setCampoCantidadActivo((actual) =>
-                                    actual === `${product.id}:boxes` ? null : actual
-                                  );
-                                }, 80);
-                              }}
                               onKeyDown={(event) => manejarEnterCantidad(event, product.id)}
+                              onBlur={() => setCampoCantidadActivo(null)}
                               onChange={(event) =>
                                 updateQuantity(
                                   product.id,
@@ -2402,10 +2399,12 @@ export default function App() {
                           <label style={styles.quantityLabel}>
                             {t.units}
                             <input
-                              type="text"
+                              type="number"
                               inputMode="numeric"
                               pattern="[0-9]*"
                               enterKeyHint="done"
+                              min="0"
+                              step="1"
                               autoComplete="off"
                               readOnly={!product.permite_unidades}
                               value={product.permite_unidades ? quantity.units || "" : ""}
@@ -2426,14 +2425,8 @@ export default function App() {
                                   avisarSoloCajas(product.id);
                                 }
                               }}
-                              onBlur={() => {
-                                window.setTimeout(() => {
-                                  setCampoCantidadActivo((actual) =>
-                                    actual === `${product.id}:units` ? null : actual
-                                  );
-                                }, 80);
-                              }}
                               onKeyDown={(event) => manejarEnterCantidad(event, product.id)}
+                              onBlur={() => setCampoCantidadActivo(null)}
                               onChange={(event) =>
                                 updateQuantity(
                                   product.id,
@@ -2453,14 +2446,6 @@ export default function App() {
                             />
                           </label>
 
-                          <button
-                            type="button"
-                            onClick={() => aceptarCantidad(product.id)}
-                            style={styles.acceptQuantityButton}
-                            aria-label="Aceptar cantidad"
-                          >
-                            Aceptar
-                          </button>
                         </div>
 
                         {product.participaRuleta && (() => {
@@ -2498,42 +2483,23 @@ export default function App() {
           ))}
       </main>
 
-      {!tecladoCantidadVisible && (
-        <div ref={stickyCardRef} style={styles.stickySummary}>
-          <div>
-            <strong>{t.summary}</strong>
-            <div style={styles.summarySmall}>
-              {selectedCount} {t.itemsWithQuantity}
-            </div>
+      <div ref={stickyCardRef} style={styles.stickySummary}>
+        <div>
+          <strong>{t.summary}</strong>
+          <div style={styles.summarySmall}>
+            {selectedCount} {t.itemsWithQuantity}
           </div>
-
-          <button
-            type="button"
-            onClick={() => setShowOrderSummary(true)}
-            style={styles.reviewButton}
-          >
-            <ShoppingCart size={18} />
-            {t.reviewAndSend}
-          </button>
         </div>
-      )}
 
-      {tecladoCantidadVisible && campoCantidadActivo && (
-        <div style={styles.keyboardActionBar}>
-          <button
-            type="button"
-            onPointerDown={(event) => {
-              event.preventDefault();
-              aceptarCantidad(campoCantidadActivo.split(":")[0]);
-            }}
-            style={styles.keyboardAcceptButton}
-            aria-label="Aceptar cantidad y cerrar teclado"
-          >
-            <Check size={21} strokeWidth={3} />
-            Aceptar cantidad
-          </button>
-        </div>
-      )}
+        <button
+          type="button"
+          onClick={() => setShowOrderSummary(true)}
+          style={styles.reviewButton}
+        >
+          <ShoppingCart size={18} />
+          {t.reviewAndSend}
+        </button>
+      </div>
 
       {showOrderSummary && (
         <div style={styles.summaryOverlay}>
@@ -3445,37 +3411,6 @@ const styles = {
 
   noteInput: {
     display: "none",
-  },
-
-  keyboardActionBar: {
-    position: "fixed",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 1200,
-    width: "100%",
-    padding: "8px 10px calc(8px + env(safe-area-inset-bottom))",
-    boxSizing: "border-box",
-    background: "#111827",
-    borderTop: "1px solid rgba(255,255,255,0.14)",
-    boxShadow: "0 -8px 22px rgba(15,23,42,0.28)",
-  },
-
-  keyboardAcceptButton: {
-    width: "100%",
-    minHeight: "46px",
-    border: "none",
-    borderRadius: "12px",
-    background: "#22c55e",
-    color: "#ffffff",
-    fontSize: "16px",
-    fontWeight: "1000",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "8px",
-    cursor: "pointer",
-    touchAction: "manipulation",
   },
 
   stickySummary: {
