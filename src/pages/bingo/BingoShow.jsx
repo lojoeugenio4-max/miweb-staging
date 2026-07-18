@@ -28,7 +28,6 @@ function playRevealSound() {
 }
 
 export default function BingoShow() {
-  const demoMode = new URLSearchParams(window.location.search).get("demo") === "1";
   const [promotion, setPromotion] = useState(null);
   const [numbers, setNumbers] = useState([]);
   const [phase, setPhase] = useState("idle");
@@ -39,12 +38,6 @@ export default function BingoShow() {
 
   const loadPromotion = useCallback(async () => {
     setLoading(true);
-    if (demoMode) {
-      setPromotion({ id: "demo", edition_id: "demo-edition", nombre: "Gran Bingo Cash Lojo · Demostración" });
-      setNumbers([5, 17, 29, 44, 63]);
-      setLoading(false);
-      return;
-    }
     setError("");
     const today = new Date().toISOString().slice(0, 10);
     const { data, error: promotionError } = await supabase
@@ -76,7 +69,7 @@ export default function BingoShow() {
     if (drawsError) setError("No se han podido cargar las bolas cantadas.");
     setNumbers((draws || []).map((draw) => Number(draw.number)));
     setLoading(false);
-  }, [demoMode]);
+  }, []);
 
   useEffect(() => { loadPromotion(); }, [loadPromotion]);
 
@@ -93,22 +86,7 @@ export default function BingoShow() {
   }, []);
 
   useEffect(() => {
-    if (!demoMode || !promotion) return undefined;
-    const demoNumbers = [72, 11, 38, 86, 24, 51, 3, 68, 33, 79];
-    let index = 0;
-    const startTimer = window.setTimeout(() => revealNumber(demoNumbers[index++]), 1200);
-    const interval = window.setInterval(() => {
-      revealNumber(demoNumbers[index % demoNumbers.length]);
-      index += 1;
-    }, 9000);
-    return () => {
-      window.clearTimeout(startTimer);
-      window.clearInterval(interval);
-    };
-  }, [demoMode, promotion, revealNumber]);
-
-  useEffect(() => {
-    if (demoMode || !promotion?.edition_id) return undefined;
+    if (!promotion?.edition_id) return undefined;
     const channel = supabase
       .channel(`bingo-show-${promotion.edition_id}`)
       .on("postgres_changes", {
@@ -147,7 +125,7 @@ export default function BingoShow() {
       <style>{styles}</style>
       <div className="bingo-stage__lights" aria-hidden="true" />
       <header className="bingo-stage__header">
-        <div><span className="bingo-stage__eyebrow">{demoMode ? "Modo demostración · Sin datos reales" : "Cash Lojo presenta"}</span><h1>{promotion.nombre || "Gran Bingo Cash Lojo"}</h1></div>
+        <div><span className="bingo-stage__eyebrow">Cash Lojo presenta</span><h1>{promotion.nombre || "Gran Bingo Cash Lojo"}</h1></div>
         <button type="button" onClick={toggleFullscreen}>⛶ Pantalla completa</button>
       </header>
 
