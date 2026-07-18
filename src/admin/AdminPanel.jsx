@@ -111,6 +111,7 @@ export default function AdminPanel() {
             {opcion === "articulos" && <Articulos />}
             {opcion === "departamentos" && <Departamentos />}
             {opcion === "ofertas" && <Ofertas />}
+            {opcion === "clientes" && <Clientes />}
             {opcion === "promociones" && <Promociones />}
             {opcion === "pushes" && <Pushes />}
             {opcion === "estadisticas" && <Estadisticas />}
