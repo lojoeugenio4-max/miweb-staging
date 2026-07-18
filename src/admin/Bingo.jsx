@@ -1,5 +1,6 @@
 import BingoConfiguracion from "./BingoConfiguracion";
 import BingoArticulos from "./BingoArticulos";
+import BingoSorteo from "./BingoSorteo";
 
 export default function Bingo() {
   return (
@@ -11,6 +12,7 @@ export default function Bingo() {
       <div style={aviso}>
         En este paso solo se configura la promoción. Guardar o activar el Bingo no crea cartones automáticamente.
       </div>
+      <BingoSorteo />
       <BingoConfiguracion />
       <BingoArticulos />
     </div>
