@@ -1161,11 +1161,23 @@ export default function App() {
         : lista;
 
     if (soloFavoritos && clienteIdentificado) {
-      const productosFavoritos = ordenarProductos(
-        filterBySearch(
-          productosVisibles.filter((product) => favoritos.has(String(product.id)))
-        )
-      );
+      const productosFavoritos = filterBySearch(
+        productosVisibles.filter((product) => favoritos.has(String(product.id)))
+      ).sort((a, b) => {
+        const comparacionDepartamento = String(a.department || "").localeCompare(
+          String(b.department || ""),
+          "es",
+          { sensitivity: "base" }
+        );
+
+        if (comparacionDepartamento !== 0) return comparacionDepartamento;
+
+        return String(a.name || a.nombre || "").localeCompare(
+          String(b.name || b.nombre || ""),
+          "es",
+          { sensitivity: "base" }
+        );
+      });
 
       return productosFavoritos.length > 0
         ? [{ name: "MIS FAVORITOS", products: productosFavoritos }]
