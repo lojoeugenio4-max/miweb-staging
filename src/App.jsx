@@ -28,6 +28,7 @@ const WHATSAPP_NUMBER = "34670619113";
 const ORDER_STORAGE_KEY = "cash-lojo-pedido";
 const ORDER_SENT_PENDING_CLEAR_KEY = "cash-lojo-pedido-enviado-pendiente-borrar";
 const LANGUAGE_STORAGE_KEY = "cash-lojo-language";
+const APP_INSTALLED_STORAGE_KEY = "cash-lojo-app-instalada";
 
 const translations = {
   es: {
@@ -385,11 +386,17 @@ export default function App() {
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
   const [mostrarAyudaInstalacion, setMostrarAyudaInstalacion] = useState(false);
-  const [appInstalada, setAppInstalada] = useState(() =>
-    typeof window !== "undefined" &&
-    (window.matchMedia?.("(display-mode: standalone)").matches ||
-      window.navigator.standalone === true)
-  );
+  const [appInstalada, setAppInstalada] = useState(() => {
+    if (typeof window === "undefined") return false;
+
+    const abiertaComoApp =
+      window.matchMedia?.("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true;
+    const instalacionGuardada =
+      localStorage.getItem(APP_INSTALLED_STORAGE_KEY) === "true";
+
+    return Boolean(abiertaComoApp || instalacionGuardada);
+  });
 
   // El acceso identificado es opcional. Sin token, la aplicación sigue
   // funcionando exactamente igual para clientes anónimos.
@@ -417,31 +424,55 @@ export default function App() {
   }, [language]);
 
   useEffect(() => {
-    const guardarPrompt = (event) => {
-      event.preventDefault();
-      setInstallPrompt(event);
-    };
+    const estaAbiertaComoApp = () =>
+      window.matchMedia?.("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true;
 
     const marcarInstalada = () => {
+      localStorage.setItem(APP_INSTALLED_STORAGE_KEY, "true");
       setAppInstalada(true);
       setInstallPrompt(null);
       setMostrarAyudaInstalacion(false);
     };
 
+    const comprobarModoAplicacion = () => {
+      if (estaAbiertaComoApp()) marcarInstalada();
+    };
+
+    const guardarPrompt = (event) => {
+      event.preventDefault();
+
+      // Si ya se confirmó o detectó la instalación, nunca volvemos a mostrarla.
+      if (localStorage.getItem(APP_INSTALLED_STORAGE_KEY) === "true") return;
+      setInstallPrompt(event);
+    };
+
+    comprobarModoAplicacion();
     window.addEventListener("beforeinstallprompt", guardarPrompt);
     window.addEventListener("appinstalled", marcarInstalada);
+    window.addEventListener("pageshow", comprobarModoAplicacion);
+    document.addEventListener("visibilitychange", comprobarModoAplicacion);
 
     return () => {
       window.removeEventListener("beforeinstallprompt", guardarPrompt);
       window.removeEventListener("appinstalled", marcarInstalada);
+      window.removeEventListener("pageshow", comprobarModoAplicacion);
+      document.removeEventListener("visibilitychange", comprobarModoAplicacion);
     };
   }, []);
+
+  function confirmarAplicacionInstalada() {
+    localStorage.setItem(APP_INSTALLED_STORAGE_KEY, "true");
+    setAppInstalada(true);
+    setInstallPrompt(null);
+    setMostrarAyudaInstalacion(false);
+  }
 
   async function instalarAplicacion() {
     if (installPrompt) {
       await installPrompt.prompt();
       const resultado = await installPrompt.userChoice;
-      if (resultado.outcome === "accepted") setAppInstalada(true);
+      if (resultado.outcome === "accepted") confirmarAplicacionInstalada();
       setInstallPrompt(null);
       return;
     }
@@ -2136,15 +2167,23 @@ export default function App() {
   return (
     <div style={styles.page}>
       {!appInstalada && clienteToken && (
-        <button
-          type="button"
-          onClick={instalarAplicacion}
-          style={styles.installButton}
-          aria-label="Instalar Cash Lojo en el móvil"
-        >
-          <Download size={18} />
-          Instalar en el móvil
-        </button>
+        <div style={styles.installBanner} role="region" aria-label="Instalar aplicación">
+          <div style={styles.installBannerIcon}>
+            <Download size={26} />
+          </div>
+          <div style={styles.installBannerContent}>
+            <strong style={styles.installBannerTitle}>Ten Cash Lojo siempre a mano</strong>
+            <span style={styles.installBannerText}>Añade esta aplicación a la pantalla de inicio de tu móvil.</span>
+          </div>
+          <button
+            type="button"
+            onClick={instalarAplicacion}
+            style={styles.installButton}
+            aria-label="Instalar Cash Lojo en el móvil"
+          >
+            Cómo instalarla
+          </button>
+        </div>
       )}
 
       {mostrarAyudaInstalacion && (
@@ -2169,6 +2208,13 @@ export default function App() {
             <p style={styles.installNote}>
               Se guardará este enlace personal para que el cliente entre siempre con su acceso.
             </p>
+            <button
+              type="button"
+              onClick={confirmarAplicacionInstalada}
+              style={styles.installConfirmedButton}
+            >
+              No volver a mostrar
+            </button>
           </div>
         </div>
       )}
@@ -2943,23 +2989,60 @@ export default function App() {
 }
 
 const styles = {
-  installButton: {
+  installBanner: {
     position: "fixed",
-    right: "14px",
-    bottom: "88px",
+    left: "50%",
+    bottom: "18px",
+    transform: "translateX(-50%)",
     zIndex: 1200,
+    width: "min(720px, calc(100% - 24px))",
     display: "flex",
     alignItems: "center",
-    gap: "8px",
-    border: "none",
-    borderRadius: "999px",
-    padding: "12px 16px",
-    background: "#0b1185",
+    gap: "14px",
+    padding: "14px",
+    border: "2px solid #ffffff",
+    borderRadius: "20px",
+    background: "linear-gradient(135deg, #0b1185 0%, #2835d4 100%)",
     color: "#ffffff",
+    boxShadow: "0 16px 42px rgba(11,17,133,0.42)",
+  },
+  installBannerIcon: {
+    flex: "0 0 auto",
+    display: "grid",
+    placeItems: "center",
+    width: "48px",
+    height: "48px",
+    borderRadius: "14px",
+    background: "rgba(255,255,255,0.18)",
+  },
+  installBannerContent: {
+    minWidth: 0,
+    flex: "1 1 auto",
+    display: "flex",
+    flexDirection: "column",
+    gap: "3px",
+  },
+  installBannerTitle: {
+    fontSize: "17px",
+    lineHeight: 1.2,
+  },
+  installBannerText: {
     fontSize: "14px",
+    lineHeight: 1.35,
+    opacity: 0.95,
+  },
+  installButton: {
+    flex: "0 0 auto",
+    border: "none",
+    borderRadius: "13px",
+    padding: "13px 18px",
+    background: "#ffffff",
+    color: "#0b1185",
+    fontSize: "15px",
     fontWeight: "900",
-    boxShadow: "0 10px 28px rgba(11,17,133,0.32)",
+    boxShadow: "0 8px 22px rgba(0,0,0,0.18)",
     cursor: "pointer",
+    whiteSpace: "nowrap",
   },
   installOverlay: {
     position: "fixed",
@@ -3002,6 +3085,18 @@ const styles = {
     fontSize: "13px",
     fontWeight: "800",
     lineHeight: 1.4,
+  },
+  installConfirmedButton: {
+    width: "100%",
+    marginTop: "14px",
+    border: "none",
+    borderRadius: "13px",
+    padding: "13px 16px",
+    background: "#0b1185",
+    color: "#ffffff",
+    fontSize: "15px",
+    fontWeight: "900",
+    cursor: "pointer",
   },
   ruletaProgressPanel: {
     marginTop: "8px",
