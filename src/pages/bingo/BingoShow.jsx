@@ -101,6 +101,11 @@ function DrumCanvas({ moving, phase, excludedNumber }) {
       vy: (random() - 0.5) * 0.005,
       radius: 0.027 + random() * 0.008,
       hue: 44,
+      chaosA: random() * Math.PI * 2,
+      chaosB: random() * Math.PI * 2,
+      chaosRate: 0.72 + random() * 1.65,
+      kickBias: random() * 2 - 1,
+      liftBias: 0.65 + random() * 0.9,
     }));
     let raf = 0;
     let last = performance.now();
@@ -180,15 +185,36 @@ function DrumCanvas({ moving, phase, excludedNumber }) {
       balls.forEach((ball, index) => {
         if (ball.number === excludedNumberRef.current && ["extracting", "landed", "reveal"].includes(phaseRef.current)) return;
         if (spinStrength > 0.001) {
-          // El frente del tambor baja y las bolas siguen exactamente ese mismo sentido.
-          // Las palas las recogen por un lateral y la gravedad las hace cruzar el centro,
-          // evitando que todas formen una órbita circular rígida.
-          const localSpeed = (0.00102 + (index % 7) * 0.000032) * spinStrength;
-          const edgeGrip = Math.min(1, Math.max(0, (Math.abs(ball.x) - 0.08) / 0.72));
-          ball.vx += -ball.y * localSpeed * (0.28 + edgeGrip * 0.22) * dt;
-          ball.vy += ball.x * localSpeed * (0.9 + edgeGrip * 0.75) * dt;
-          ball.vx += Math.sin(rotation * 2.2 + index * 0.71) * 0.00012 * spinStrength * dt;
-          ball.vy += Math.cos(rotation * 2.65 + index * 0.49) * 0.00016 * spinStrength * dt;
+          // Mezcla turbulenta: cada bola recibe impulsos distintos y cambiantes.
+          // No existe un par de fuerzas x/y común, por lo que desaparece la órbita
+          // colectiva en sentido horario. Unas bolas suben, otras cruzan y otras caen.
+          const t = rotation * ball.chaosRate;
+          const sideContact = Math.min(1, Math.max(0, (Math.abs(ball.x) - 0.34) / 0.48));
+          const bottomContact = Math.min(1, Math.max(0, (ball.y - 0.18) / 0.52));
+          const burst = Math.max(0, Math.sin(t * 3.1 + ball.chaosB));
+          const crossBurst = Math.max(0, Math.cos(t * 2.35 + ball.chaosA * 1.7));
+
+          // Palas imaginarias: impulsos verticales alternos en ambos laterales.
+          const sideDirection = ball.x < 0 ? 1 : -1;
+          const alternatingLift = Math.sin(t * 1.8 + ball.chaosA) > 0 ? -1 : 1;
+          ball.vy += sideContact * sideDirection * alternatingLift * 0.00072 * ball.liftBias * spinStrength * dt;
+
+          // Corrientes independientes que cambian de dirección y atraviesan el centro.
+          ball.vx += (
+            Math.sin(t * 2.7 + ball.chaosA) * 0.00048 +
+            Math.sin(t * 5.3 + ball.chaosB) * 0.00021 +
+            ball.kickBias * burst * 0.00024
+          ) * spinStrength * dt;
+          ball.vy += (
+            Math.cos(t * 2.15 + ball.chaosB) * 0.00042 -
+            crossBurst * bottomContact * 0.00058
+          ) * spinStrength * dt;
+
+          // Pequeños golpes discontinuos evitan trayectorias suaves o circulares.
+          if (burst > 0.94) {
+            ball.vx += Math.sin(ball.chaosA + t * 7.1) * 0.00052 * spinStrength * dt;
+            ball.vy += Math.cos(ball.chaosB + t * 6.4) * 0.00046 * spinStrength * dt;
+          }
         }
 
         // La gravedad aparece gradualmente mientras el bombo frena y amontona las bolas abajo.
