@@ -572,14 +572,23 @@ export default function App() {
         status: resultado.estado || "activo",
       });
 
-      const { data: promo } = await supabase
+      const hoy = getTodayISO();
+      const { data: promocionesBingo, error: premiosError } = await supabase
         .from("promociones_bingo")
-        .select("premio_linea_activo,premio_linea_nombre,premio_linea_mensaje,premio_linea_articulo_id,premio_bingo_activo,premio_bingo_nombre,premio_bingo_mensaje,premio_bingo_articulo_id")
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
+        .select("id,activa,fecha_inicio,fecha_fin,created_at,updated_at,premio_linea_activo,premio_linea_nombre,premio_linea_mensaje,premio_linea_articulo_id,premio_bingo_activo,premio_bingo_nombre,premio_bingo_mensaje,premio_bingo_articulo_id")
+        .order("updated_at", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false });
 
-      const prizeIds = [promo?.premio_linea_articulo_id, promo?.premio_bingo_articulo_id].filter(Boolean);
+      if (premiosError) throw premiosError;
+
+      const promocionesDisponibles = promocionesBingo || [];
+      const promo = promocionesDisponibles.find((item) => {
+        const inicioOk = !item.fecha_inicio || item.fecha_inicio <= hoy;
+        const finOk = !item.fecha_fin || item.fecha_fin >= hoy;
+        return item.activa && inicioOk && finOk;
+      }) || promocionesDisponibles.find((item) => item.activa) || promocionesDisponibles[0] || null;
+
+      const prizeIds = [...new Set([promo?.premio_linea_articulo_id, promo?.premio_bingo_articulo_id].filter(Boolean))];
       let prizeArticles = [];
       if (prizeIds.length) {
         const { data: articles } = await supabase.from("articulos").select("id,nombre,foto").in("id", prizeIds);
@@ -2186,22 +2195,14 @@ export default function App() {
             aria-modal="true"
             aria-label="Mi Bingo personal"
           >
-            <div style={styles.bingoModalHeader}>
-              <div>
-                <strong style={styles.bingoModalTitle}>Mi Bingo</strong>
-                <div style={styles.bingoModalSubtitle}>
-                  Cartón personal de {clienteIdentificado.nombre}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setMostrarBingo(false)}
-                style={styles.bingoCloseButton}
-                aria-label="Cerrar Mi Bingo"
-              >
-                <X size={24} />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setMostrarBingo(false)}
+              style={styles.bingoCloseButton}
+              aria-label="Cerrar Mi Bingo"
+            >
+              <X size={24} />
+            </button>
 
             <div style={styles.bingoModalBody}>
               {cargandoBingo && (
@@ -2221,10 +2222,7 @@ export default function App() {
                     linePrize={premiosBingo.line}
                     bingoPrize={premiosBingo.bingo}
                   />
-                  <div style={styles.bingoInfoBox}>
-                    Este es tu único cartón activo. En el siguiente paso, cada
-                    pedido válido añadirá un número automáticamente.
-                  </div>
+
                 </>
               )}
             </div>
@@ -4188,13 +4186,14 @@ const styles = {
   },
 
   bingoModal: {
-    width: "min(940px, 100%)",
+    position: "relative",
+    width: "min(1540px, 100%)",
     maxHeight: "calc(100dvh - 24px)",
     display: "flex",
     flexDirection: "column",
     overflow: "hidden",
-    borderRadius: "22px",
-    background: "#eef2f8",
+    borderRadius: "30px",
+    background: "transparent",
     boxShadow: "0 24px 70px rgba(0,0,0,0.35)",
   },
 
@@ -4223,23 +4222,28 @@ const styles = {
   },
 
   bingoCloseButton: {
-    width: "42px",
-    height: "42px",
+    position: "absolute",
+    zIndex: 5,
+    top: "20px",
+    right: "20px",
+    width: "44px",
+    height: "44px",
     flexShrink: 0,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    border: "1px solid #cbd5e1",
+    border: "2px solid rgba(255,255,255,.75)",
     borderRadius: "999px",
-    background: "#ffffff",
-    color: "#111827",
+    background: "rgba(3,22,58,.88)",
+    color: "#ffffff",
+    boxShadow: "0 5px 18px rgba(0,0,0,.3)",
     cursor: "pointer",
   },
 
   bingoModalBody: {
     overflowY: "auto",
     WebkitOverflowScrolling: "touch",
-    padding: "14px",
+    padding: "0",
   },
 
   bingoStatusBox: {
