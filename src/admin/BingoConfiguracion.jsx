@@ -8,6 +8,12 @@ const configuracionVacia = {
   mensaje_cliente: "Tu pedido cumple las condiciones para participar en el Bingo.",
   fecha_inicio: "",
   fecha_fin: "",
+  premio_linea_activo: false,
+  premio_linea_nombre: "",
+  premio_linea_mensaje: "",
+  premio_bingo_activo: false,
+  premio_bingo_nombre: "",
+  premio_bingo_mensaje: "",
 };
 
 export default function BingoConfiguracion() {
@@ -40,6 +46,12 @@ export default function BingoConfiguracion() {
         mensaje_cliente: data.mensaje_cliente || "",
         fecha_inicio: data.fecha_inicio || "",
         fecha_fin: data.fecha_fin || "",
+        premio_linea_activo: Boolean(data.premio_linea_activo),
+        premio_linea_nombre: data.premio_linea_nombre || "",
+        premio_linea_mensaje: data.premio_linea_mensaje || "",
+        premio_bingo_activo: Boolean(data.premio_bingo_activo),
+        premio_bingo_nombre: data.premio_bingo_nombre || "",
+        premio_bingo_mensaje: data.premio_bingo_mensaje || "",
       });
     }
     setCargando(false);
@@ -66,6 +78,16 @@ export default function BingoConfiguracion() {
       setGuardando(false);
       return;
     }
+    if (configuracion.premio_linea_activo && !configuracion.premio_linea_nombre.trim()) {
+      setError("Indica el nombre del premio por línea antes de activarlo.");
+      setGuardando(false);
+      return;
+    }
+    if (configuracion.premio_bingo_activo && !configuracion.premio_bingo_nombre.trim()) {
+      setError("Indica el nombre del premio por Bingo antes de activarlo.");
+      setGuardando(false);
+      return;
+    }
 
     const { data: promocionActual, error: buscarError } = await supabase
       .from("promociones_bingo")
@@ -87,6 +109,12 @@ export default function BingoConfiguracion() {
       mensaje_cliente: configuracion.mensaje_cliente.trim(),
       fecha_inicio: configuracion.fecha_inicio || null,
       fecha_fin: configuracion.fecha_fin || null,
+      premio_linea_activo: configuracion.premio_linea_activo,
+      premio_linea_nombre: configuracion.premio_linea_nombre.trim(),
+      premio_linea_mensaje: configuracion.premio_linea_mensaje.trim(),
+      premio_bingo_activo: configuracion.premio_bingo_activo,
+      premio_bingo_nombre: configuracion.premio_bingo_nombre.trim(),
+      premio_bingo_mensaje: configuracion.premio_bingo_mensaje.trim(),
       updated_at: new Date().toISOString(),
     };
 
@@ -130,6 +158,28 @@ export default function BingoConfiguracion() {
           <textarea style={textarea} value={configuracion.mensaje_cliente} onChange={(e) => cambiarCampo("mensaje_cliente", e.target.value)} rows={3} />
         </label>
       </div>
+
+      <div style={premiosGrid}>
+        <SeccionPremio
+          titulo="🏅 Premio por línea"
+          activo={configuracion.premio_linea_activo}
+          nombre={configuracion.premio_linea_nombre}
+          mensaje={configuracion.premio_linea_mensaje}
+          onActivo={(valor) => cambiarCampo("premio_linea_activo", valor)}
+          onNombre={(valor) => cambiarCampo("premio_linea_nombre", valor)}
+          onMensaje={(valor) => cambiarCampo("premio_linea_mensaje", valor)}
+        />
+        <SeccionPremio
+          titulo="🎱 Premio por Bingo"
+          activo={configuracion.premio_bingo_activo}
+          nombre={configuracion.premio_bingo_nombre}
+          mensaje={configuracion.premio_bingo_mensaje}
+          onActivo={(valor) => cambiarCampo("premio_bingo_activo", valor)}
+          onNombre={(valor) => cambiarCampo("premio_bingo_nombre", valor)}
+          onMensaje={(valor) => cambiarCampo("premio_bingo_mensaje", valor)}
+        />
+      </div>
+
       <div style={ayuda}>
         La variedad mínima indica cuántas referencias distintas de la lista configurada debe incluir el pedido para que el cliente identificado consiga su cartón de Bingo. Identificarse por sí solo no genera ningún cartón.
       </div>
@@ -137,6 +187,39 @@ export default function BingoConfiguracion() {
       {mensaje && <div style={okStyle}>{mensaje}</div>}
       <button type="submit" style={boton} disabled={guardando}>{guardando ? "Guardando..." : "Guardar configuración"}</button>
     </form>
+  );
+}
+
+function SeccionPremio({ titulo, activo, nombre, mensaje, onActivo, onNombre, onMensaje }) {
+  return (
+    <section style={premioCard}>
+      <div style={premioCabecera}>
+        <h5 style={premioTitulo}>{titulo}</h5>
+        <label style={switchLabel}>
+          <input type="checkbox" checked={activo} onChange={(e) => onActivo(e.target.checked)} />
+          {activo ? "Activo" : "Inactivo"}
+        </label>
+      </div>
+      <label style={label}>Nombre del premio {activo && <span style={obligatorio}>*</span>}
+        <input
+          style={input}
+          type="text"
+          value={nombre}
+          onChange={(e) => onNombre(e.target.value)}
+          placeholder="Ej.: Lote de productos"
+          required={activo}
+        />
+      </label>
+      <label style={label}>Mensaje o descripción
+        <textarea
+          style={textarea}
+          value={mensaje}
+          onChange={(e) => onMensaje(e.target.value)}
+          placeholder="Describe el premio o el mensaje que verá el ganador."
+          rows={3}
+        />
+      </label>
+    </section>
   );
 }
 
@@ -148,6 +231,12 @@ const label={display:"flex",flexDirection:"column",gap:"6px",fontSize:"13px",fon
 const checkLabel={display:"flex",alignItems:"center",gap:"8px",fontSize:"13px",fontWeight:"700",color:"#374151",paddingTop:"24px"};
 const input={border:"1px solid #d1d5db",borderRadius:"10px",padding:"10px",fontSize:"14px",background:"#fff"};
 const textarea={...input,resize:"vertical"};
+const premiosGrid={display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(280px, 1fr))",gap:"14px",margin:"4px 0 14px"};
+const premioCard={display:"flex",flexDirection:"column",gap:"12px",padding:"14px",border:"1px solid #e5e7eb",borderRadius:"12px",background:"#f9fafb"};
+const premioCabecera={display:"flex",justifyContent:"space-between",alignItems:"center",gap:"12px"};
+const premioTitulo={margin:0,fontSize:"15px",color:"#111827"};
+const switchLabel={display:"flex",alignItems:"center",gap:"7px",fontSize:"13px",fontWeight:"700",color:"#374151"};
+const obligatorio={color:"#b91c1c"};
 const ayuda={margin:"0 0 12px",padding:"10px 12px",borderRadius:"10px",background:"#eff6ff",border:"1px solid #bfdbfe",color:"#1e3a8a",fontSize:"13px",lineHeight:1.45};
 const boton={border:"none",background:"#111827",color:"#fff",borderRadius:"10px",padding:"10px 14px",fontSize:"14px",cursor:"pointer"};
 const errorStyle={marginBottom:"10px",color:"#b91c1c",fontSize:"14px",fontWeight:"700"};
