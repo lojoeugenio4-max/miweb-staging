@@ -114,8 +114,6 @@ function DrumCanvas({ moving, phase, excludedNumber }) {
     let raf = 0;
     let last = performance.now();
     let rotation = 0;
-    const logoImage = new Image();
-    logoImage.src = logoLojo;
 
     function fit() {
       const rect = canvas.getBoundingClientRect();
@@ -369,17 +367,6 @@ function DrumCanvas({ moving, phase, excludedNumber }) {
       ctx.strokeStyle = "#fff0a4";
       ctx.lineWidth = radius * 0.018;
       ctx.stroke();
-      if (logoImage.complete && logoImage.naturalWidth) {
-        const logoSize = radius * 0.255;
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius * 0.145, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.fillStyle = "#fff";
-        ctx.fillRect(cx - logoSize / 2, cy - logoSize / 2, logoSize, logoSize);
-        ctx.drawImage(logoImage, cx - logoSize / 2, cy - logoSize / 2, logoSize, logoSize);
-        ctx.restore();
-      }
       ctx.restore();
 
       // Glass highlights.
