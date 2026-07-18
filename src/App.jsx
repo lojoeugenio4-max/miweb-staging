@@ -17,6 +17,7 @@ import { supabaseStorage } from "./supabaseStorageClient";
 import StorePage from "./pages/StorePage";
 import DisplayPage from "./pages/DisplayPage";
 import BingoDemo from "./pages/bingo/BingoDemo";
+import BingoShow from "./pages/bingo/BingoShow";
 import BingoCard from "./components/bingo/BingoCard";
 import BingoDrum from "./components/bingo/BingoDrum";
 import logoLojo from "./assets/logo-lojo.jpg";
@@ -359,6 +360,7 @@ export default function App() {
   const isStoreMode = searchParams?.get("store") === "1";
   const isDisplayMode = searchParams?.get("display") === "1";
   const isBingoMode = searchParams?.get("bingo") === "1";
+  const isBingoDisplayMode = searchParams?.get("bingoDisplay") === "1";
 
   const clienteToken =
     typeof window !== "undefined" && window.location.pathname.startsWith("/cliente/")
@@ -367,6 +369,10 @@ export default function App() {
 
   if (isDisplayMode) {
     return <DisplayPage />;
+  }
+
+  if (isBingoDisplayMode) {
+    return <BingoShow />;
   }
 
   if (isBingoMode) {
