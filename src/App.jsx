@@ -2270,6 +2270,13 @@ export default function App() {
                           </div>
 
                           <div style={styles.productTopActions}>
+                            {product.participaRuleta && (
+                              <MiniRuletaPromocion
+                                cantidadMinima={product.cantidadMinimaRuleta}
+                                permiteUnidades={product.permite_unidades}
+                              />
+                            )}
+
                             {clienteIdentificado && (
                               <button
                                 type="button"
@@ -2301,13 +2308,6 @@ export default function App() {
                                 />
                               </button>
                             )}
-
-                          {product.participaRuleta && (
-                            <MiniRuletaPromocion
-                              cantidadMinima={product.cantidadMinimaRuleta}
-                              permiteUnidades={product.permite_unidades}
-                            />
-                          )}
                           </div>
                         </div>
 
