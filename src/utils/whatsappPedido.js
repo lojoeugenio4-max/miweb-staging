@@ -25,6 +25,7 @@ export function construirTextoPedidoWhatsApp({
   codigoParticipacion = null,
   tiradasRuleta = 0,
   participacionBingo = null,
+  participacionJuegos = null,
 }) {
   const lines = [];
 
@@ -85,7 +86,9 @@ export function construirTextoPedidoWhatsApp({
     lines.push("");
   }
 
-  const codigoRuleta =
+  const codigoJuegos =
+    participacionJuegos?.code ||
+    participacionJuegos?.codigo ||
     codigoParticipacion ||
     participacionRuleta?.code ||
     participacionRuleta?.codigo ||
@@ -95,8 +98,8 @@ export function construirTextoPedidoWhatsApp({
     participacionBingo?.qualified ?? participacionBingo?.clasificado ?? participacionBingo?.eligible
   );
 
-  if (codigoRuleta) {
-    const urlQr = construirUrlQr(codigoRuleta);
+  if (codigoJuegos) {
+    const urlQr = construirUrlQr(codigoJuegos);
 
     const numeroTiradas = Math.max(
       1,
@@ -113,7 +116,7 @@ export function construirTextoPedidoWhatsApp({
     lines.push("");
     if (numeroTiradas > 0) lines.push(`🎡 Ruleta: *${numeroTiradas} tirada${numeroTiradas === 1 ? "" : "s"}*`);
     if (bingoConseguido) lines.push("🎱 Bingo: *1 bola disponible* (máximo una al día)");
-    lines.push(`Código manual: *${codigoRuleta}*`);
+    lines.push(`Código manual: *${codigoJuegos}*`);
     lines.push("");
 
     if (urlQr) {
@@ -128,8 +131,8 @@ export function construirTextoPedidoWhatsApp({
   } else if (bingoConseguido) {
     lines.push("🎱 *PARTICIPACIÓN DE BINGO CONSEGUIDA*");
     lines.push("");
-    lines.push("Tu pedido cumple las condiciones del Bingo.");
-    lines.push("Estamos terminando la activación del QR único para pedidos que solo incluyen Bingo.");
+    lines.push("Tu pedido cumple las condiciones del Bingo, pero no se pudo generar el código común.");
+    lines.push("Contacta con Cash Lojo antes de presentar el pedido en caja.");
     lines.push("");
   } else if (premio) {
     lines.push("🎁 *PREMIO RULETA:*");
