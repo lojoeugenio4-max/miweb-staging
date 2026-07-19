@@ -2101,7 +2101,7 @@ export default function App() {
       p_customer_phone: null,
       p_customer_name: customerNamePedido || null,
       p_expires_at: null,
-      p_created_by: "miweb-staging",
+      p_created_by: null,
     });
 
     if (error) {
