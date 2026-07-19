@@ -2098,7 +2098,8 @@ export default function App() {
     const { data, error } = await supabase.rpc("create_promotion_participation", {
       p_promotion_id: promocionId,
       p_order_id: pedidoId,
-      p_customer_phone: null,
+      p_customer_phone:
+        clienteIdentificado?.telefono || `ANON-${pedidoId}`,
       p_customer_name: customerNamePedido || null,
       p_expires_at: null,
       p_created_by: null,
@@ -2185,7 +2186,9 @@ export default function App() {
   }
 
   async function registrarPedidoParaBingo(itemsPedido, pedidoId) {
-    if (!clienteToken || !configuracionBingoCliente) return null;
+    // Bingo solo está disponible para clientes realmente identificados.
+    // Los clientes anónimos conservan intacto el flujo histórico de pedido + Ruleta.
+    if (!clienteIdentificado?.id || !clienteToken || !configuracionBingoCliente) return null;
     const items = itemsPedido.map((item) => ({
       codigo: String(item.product.codigo || item.product.idnum || "").trim(),
       cajas: Number(item.boxes || 0),
@@ -2285,10 +2288,19 @@ export default function App() {
       }
     }
 
-    const participacionBingo = await registrarPedidoParaBingo(itemsPedido, pedidoId);
+    const participacionBingo = clienteIdentificado?.id
+      ? await registrarPedidoParaBingo(itemsPedido, pedidoId)
+      : null;
 
     let participacionJuegos = null;
-    if (participacionRuleta || participacionBingo?.qualified || participacionBingo?.clasificado || participacionBingo?.eligible) {
+    const clientePuedeUsarFlujoNuevo = Boolean(clienteIdentificado?.id && clienteToken);
+    if (
+      clientePuedeUsarFlujoNuevo &&
+      (participacionRuleta ||
+        participacionBingo?.qualified ||
+        participacionBingo?.clasificado ||
+        participacionBingo?.eligible)
+    ) {
       try {
         participacionJuegos = await crearParticipacionJuegos({
           pedidoId,
