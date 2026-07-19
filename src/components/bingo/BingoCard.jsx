@@ -1,6 +1,54 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Clock3, Gift, UserRound, Volume2, VolumeX } from "lucide-react";
 import logoBingo from "../../assets/logo-bingo.png";
+
+let bingoAudioContext = null;
+
+function obtenerAudioContext() {
+  if (typeof window === "undefined") return null;
+  if (!bingoAudioContext) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+    bingoAudioContext = new AudioContextClass();
+  }
+  return bingoAudioContext;
+}
+
+function reproducirTono(frequency, delay = 0, duration = 0.16, volume = 0.09) {
+  const context = obtenerAudioContext();
+  if (!context) return;
+
+  const startAt = context.currentTime + delay;
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(frequency, startAt);
+  gain.gain.setValueAtTime(0.0001, startAt);
+  gain.gain.exponentialRampToValueAtTime(volume, startAt + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start(startAt);
+  oscillator.stop(startAt + duration + 0.03);
+}
+
+function reproducirCelebracion(tipo = "numero") {
+  const context = obtenerAudioContext();
+  if (!context) return;
+  context.resume?.().catch(() => {});
+
+  const secuencias = {
+    numero: [659, 784, 988],
+    linea: [523, 659, 784, 1047],
+    bingo: [523, 659, 784, 1047, 1319, 1568],
+  };
+
+  (secuencias[tipo] || secuencias.numero).forEach((frequency, index) => {
+    reproducirTono(frequency, index * 0.12, tipo === "bingo" ? 0.24 : 0.18, tipo === "bingo" ? 0.12 : 0.09);
+  });
+}
 
 function normalizarNumeros(numbers) {
   return new Set(Array.isArray(numbers) ? numbers.map(Number).filter(Number.isFinite) : []);
@@ -65,6 +113,12 @@ export default function BingoCard({
   endDate = "",
 }) {
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [highlightedNumbers, setHighlightedNumbers] = useState([]);
+  const [liveMessage, setLiveMessage] = useState("");
+  const previousDrawnRef = useRef(null);
+  const previousLineRef = useRef(false);
+  const previousBingoRef = useRef(false);
+  const celebrationTimeoutRef = useRef(null);
   const rows = useMemo(() => normalizarFilas(card), [card]);
   const markedNumbers = useMemo(() => normalizarNumeros(drawnNumbers), [drawnNumbers]);
   const lineCompleted = useMemo(() => tieneLinea(rows, markedNumbers), [rows, markedNumbers]);
@@ -74,9 +128,88 @@ export default function BingoCard({
   const specialWon = Boolean(bingoCompleted && specialPrize?.active && specialPrize?.maxBalls > 0 && drawnCount <= specialPrize.maxBalls);
   const formattedEndDate = endDate ? new Date(`${endDate}T12:00:00`).toLocaleDateString("es-ES") : "Sin fecha límite";
 
+  useEffect(() => {
+    const currentDrawn = normalizarNumeros(drawnNumbers);
+
+    // La primera carga representa el estado ya conocido del cartón y no debe
+    // disparar celebraciones antiguas. A partir de ahí solo reaccionamos a bolas nuevas.
+    if (previousDrawnRef.current === null) {
+      previousDrawnRef.current = currentDrawn;
+      previousLineRef.current = lineCompleted;
+      previousBingoRef.current = bingoCompleted;
+      return;
+    }
+
+    const newNumbers = [...currentDrawn].filter(
+      (number) => !previousDrawnRef.current.has(number)
+    );
+    previousDrawnRef.current = currentDrawn;
+
+    const cardNumbers = new Set(
+      rows.flat().map(Number).filter(Number.isFinite)
+    );
+    const matches = newNumbers.filter((number) => cardNumbers.has(number));
+
+    if (matches.length) {
+      const achievedBingo = bingoCompleted && !previousBingoRef.current;
+      const achievedLine = lineCompleted && !previousLineRef.current;
+      const celebrationType = achievedBingo ? "bingo" : achievedLine ? "linea" : "numero";
+
+      setHighlightedNumbers(matches);
+      setLiveMessage(
+        achievedBingo
+          ? "¡BINGO! Has completado tu cartón"
+          : achievedLine
+            ? "¡LÍNEA! Has completado una línea"
+            : matches.length === 1
+              ? `¡La bola ${matches[0]} está en tu cartón!`
+              : `¡${matches.length} bolas nuevas están en tu cartón!`
+      );
+
+      if (soundEnabled) reproducirCelebracion(celebrationType);
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(achievedBingo ? [180, 90, 180, 90, 320] : [120, 70, 180]);
+      }
+
+      window.clearTimeout(celebrationTimeoutRef.current);
+      celebrationTimeoutRef.current = window.setTimeout(() => {
+        setHighlightedNumbers([]);
+        setLiveMessage("");
+      }, achievedBingo ? 6500 : 4200);
+    }
+
+    previousLineRef.current = lineCompleted;
+    previousBingoRef.current = bingoCompleted;
+  }, [drawnNumbers, rows, lineCompleted, bingoCompleted, soundEnabled]);
+
+  useEffect(() => () => {
+    window.clearTimeout(celebrationTimeoutRef.current);
+  }, []);
+
+  function toggleSound() {
+    setSoundEnabled((enabled) => {
+      const next = !enabled;
+      if (next) {
+        obtenerAudioContext()?.resume?.().catch(() => {});
+        reproducirTono(784, 0, 0.12, 0.07);
+      }
+      return next;
+    });
+  }
+
   return (
-    <section className="cl-bingo" aria-label="Cartón de Bingo Cash Lojo">
+    <section className={`cl-bingo ${liveMessage ? "cl-bingo--celebrating" : ""}`} aria-label="Cartón de Bingo Cash Lojo">
       <style>{styles}</style>
+
+      {liveMessage && (
+        <div className="cl-live-celebration" role="status" aria-live="assertive">
+          <div className="cl-live-celebration__sparkles" aria-hidden="true">
+            {Array.from({ length: 18 }, (_, index) => <i key={index} />)}
+          </div>
+          <strong>{liveMessage}</strong>
+          <span>Tu cartón se ha actualizado en tiempo real</span>
+        </div>
+      )}
 
       <header className="cl-bingo__header">
         <div className="cl-brand">
@@ -97,8 +230,9 @@ export default function BingoCard({
                   const number = Number(value);
                   const filled = value !== null && value !== undefined && value !== "" && Number.isFinite(number);
                   const marked = filled && markedNumbers.has(number);
+                  const justMatched = marked && highlightedNumbers.includes(number);
                   return (
-                    <div className={`cl-card-cell ${marked ? "cl-card-cell--marked" : ""}`} key={`${rowIndex}-${columnIndex}`}>
+                    <div className={`cl-card-cell ${marked ? "cl-card-cell--marked" : ""} ${justMatched ? "cl-card-cell--new" : ""}`} key={`${rowIndex}-${columnIndex}`}>
                       {filled ? number : ""}
                     </div>
                   );
@@ -112,7 +246,7 @@ export default function BingoCard({
             <div className={`cl-check ${bingoCompleted ? "cl-check--won" : ""}`}>
               {bingoCompleted ? "¡BINGO!" : lineCompleted ? "¡LÍNEA!" : `${markedCount} NÚMEROS MARCADOS`}
             </div>
-            <button type="button" className="cl-sound" onClick={() => setSoundEnabled((value) => !value)} aria-label={soundEnabled ? "Desactivar sonido" : "Activar sonido"}>
+            <button type="button" className="cl-sound" onClick={toggleSound} aria-label={soundEnabled ? "Desactivar sonido" : "Activar sonido"}>
               {soundEnabled ? <Volume2 size={27} /> : <VolumeX size={27} />}
             </button>
           </div>
@@ -137,7 +271,41 @@ export default function BingoCard({
 
 const styles = `
 .cl-bingo, .cl-bingo * { box-sizing: border-box; }
-.cl-bingo { width:100%; min-width:0; overflow:hidden; border:4px solid #f02620; border-radius:30px; padding:14px; color:#fff; background:radial-gradient(circle at 45% 20%,#0b428d 0,#082d68 30%,#061d4c 72%,#051637 100%); box-shadow:0 20px 55px rgba(0,20,65,.35); font-family:Arial,Helvetica,sans-serif; }
+.cl-bingo { position:relative; width:100%; min-width:0; overflow:hidden; border:4px solid #f02620; border-radius:30px; padding:14px; color:#fff; background:radial-gradient(circle at 45% 20%,#0b428d 0,#082d68 30%,#061d4c 72%,#051637 100%); box-shadow:0 20px 55px rgba(0,20,65,.35); font-family:Arial,Helvetica,sans-serif; }
+
+.cl-bingo--celebrating { animation:cl-bingo-glow .75s ease-in-out 3; }
+.cl-live-celebration { position:fixed; z-index:10050; left:50%; top:max(18px,env(safe-area-inset-top)); width:min(92vw,520px); transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:5px; overflow:hidden; padding:18px 24px; border:3px solid #fff2a6; border-radius:20px; color:#fff; background:linear-gradient(135deg,#d90f10,#f13b25 55%,#ba0710); box-shadow:0 18px 48px rgba(0,0,0,.45),0 0 0 7px rgba(255,220,82,.22); text-align:center; animation:cl-live-enter .45s cubic-bezier(.2,1.5,.5,1); }
+.cl-live-celebration strong { position:relative; z-index:2; font-size:clamp(20px,5vw,30px); line-height:1.1; text-shadow:0 2px 5px rgba(0,0,0,.3); }
+.cl-live-celebration span { position:relative; z-index:2; color:#fff9d8; font-weight:800; }
+.cl-live-celebration__sparkles { position:absolute; inset:0; pointer-events:none; }
+.cl-live-celebration__sparkles i { position:absolute; left:50%; top:50%; width:8px; height:18px; border-radius:4px; background:#ffe56a; transform-origin:0 0; animation:cl-spark 1.25s ease-out infinite; }
+.cl-live-celebration__sparkles i:nth-child(3n+2){background:#fff}.cl-live-celebration__sparkles i:nth-child(3n){background:#65e6ff}
+.cl-live-celebration__sparkles i:nth-child(1){transform:rotate(0deg) translateY(-18px);animation-delay:0.00s}
+.cl-live-celebration__sparkles i:nth-child(2){transform:rotate(20deg) translateY(-18px);animation-delay:0.07s}
+.cl-live-celebration__sparkles i:nth-child(3){transform:rotate(40deg) translateY(-18px);animation-delay:0.14s}
+.cl-live-celebration__sparkles i:nth-child(4){transform:rotate(60deg) translateY(-18px);animation-delay:0.21s}
+.cl-live-celebration__sparkles i:nth-child(5){transform:rotate(80deg) translateY(-18px);animation-delay:0.28s}
+.cl-live-celebration__sparkles i:nth-child(6){transform:rotate(100deg) translateY(-18px);animation-delay:0.35s}
+.cl-live-celebration__sparkles i:nth-child(7){transform:rotate(120deg) translateY(-18px);animation-delay:0.00s}
+.cl-live-celebration__sparkles i:nth-child(8){transform:rotate(140deg) translateY(-18px);animation-delay:0.07s}
+.cl-live-celebration__sparkles i:nth-child(9){transform:rotate(160deg) translateY(-18px);animation-delay:0.14s}
+.cl-live-celebration__sparkles i:nth-child(10){transform:rotate(180deg) translateY(-18px);animation-delay:0.21s}
+.cl-live-celebration__sparkles i:nth-child(11){transform:rotate(200deg) translateY(-18px);animation-delay:0.28s}
+.cl-live-celebration__sparkles i:nth-child(12){transform:rotate(220deg) translateY(-18px);animation-delay:0.35s}
+.cl-live-celebration__sparkles i:nth-child(13){transform:rotate(240deg) translateY(-18px);animation-delay:0.00s}
+.cl-live-celebration__sparkles i:nth-child(14){transform:rotate(260deg) translateY(-18px);animation-delay:0.07s}
+.cl-live-celebration__sparkles i:nth-child(15){transform:rotate(280deg) translateY(-18px);animation-delay:0.14s}
+.cl-live-celebration__sparkles i:nth-child(16){transform:rotate(300deg) translateY(-18px);animation-delay:0.21s}
+.cl-live-celebration__sparkles i:nth-child(17){transform:rotate(320deg) translateY(-18px);animation-delay:0.28s}
+.cl-live-celebration__sparkles i:nth-child(18){transform:rotate(340deg) translateY(-18px);animation-delay:0.35s}
+
+.cl-card-cell--new { position:relative; z-index:3; animation:cl-number-hit 1s cubic-bezier(.2,1.6,.4,1) 3; }
+.cl-card-cell--new::after { content:"✓"; position:absolute; right:5px; top:5px; width:28px; height:28px; display:grid; place-items:center; border-radius:50%; color:#a50d12; background:#fff4a8; font-size:17px; box-shadow:0 3px 10px rgba(0,0,0,.25); }
+@keyframes cl-live-enter { from { opacity:0; transform:translate(-50%,-30px) scale(.8) } to { opacity:1; transform:translate(-50%,0) scale(1) } }
+@keyframes cl-spark { 0% { opacity:1; transform:rotate(var(--r,0deg)) translateY(-8px) scale(1) } 100% { opacity:0; margin-left:160px; transform:rotate(var(--r,0deg)) translateY(-70px) scale(.3) } }
+@keyframes cl-number-hit { 0% { transform:scale(.78) rotate(-4deg); filter:brightness(1.9) } 45% { transform:scale(1.16) rotate(3deg); box-shadow:inset 0 0 0 7px #fff,0 0 30px 12px rgba(255,224,70,.9) } 100% { transform:scale(1); } }
+@keyframes cl-bingo-glow { 50% { box-shadow:0 0 0 8px rgba(255,222,74,.55),0 20px 70px rgba(255,209,36,.55) } }
+
 .cl-bingo__header { min-height:154px; display:flex; align-items:center; justify-content:flex-start; gap:24px; padding:4px 18px 12px; }
 .cl-brand { display:flex; align-items:center; gap:24px; min-width:0; }
 .cl-brand__logo { width:126px; height:134px; padding:5px; flex:none; overflow:hidden; border:4px solid #fff; border-radius:7px; background:#09235a; }
