@@ -427,8 +427,8 @@ export default function StorePage() {
     setProcesandoBingo(true);
     setMensaje("");
 
-    const { data: raw, error } = await supabase.rpc("consume_game_bingo_play", {
-      p_entitlement_id: entitlement.id,
+    const { data: raw, error } = await supabase.rpc("consume_game_bingo_play_by_code", {
+      p_code: entitlement.code || codigo,
     });
     const result = Array.isArray(raw) ? raw[0] : raw;
     setProcesandoBingo(false);
