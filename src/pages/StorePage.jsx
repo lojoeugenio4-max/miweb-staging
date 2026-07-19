@@ -174,13 +174,11 @@ function seleccionarPremioRuleta(premios = []) {
   return activos[activos.length - 1];
 }
 
-async function actualizarSaldoTiradas(entry, prize = null) {
+async function actualizarSaldoTiradas(entry, prize = null, qrCode = "") {
   if (!entry?.id) {
     throw new Error("La participación no tiene un identificador válido.");
   }
 
-  // Los códigos permanentes siguen siendo reutilizables y no consumen saldo.
-  // No se registran en promotion_spins porque pueden girarse indefinidamente.
   if (entry.is_permanent === true) {
     return {
       ...entry,
@@ -191,21 +189,36 @@ async function actualizarSaldoTiradas(entry, prize = null) {
     };
   }
 
-  const { data: spinResult, error: spinError } = await supabase.rpc(
-    "register_promotion_spin",
-    {
+  const normalizedQr = normalizarCodigo(qrCode);
+  let spinResult = null;
+
+  if (normalizedQr) {
+    const { data, error } = await supabase.rpc(
+      "consume_game_roulette_play_by_code",
+      {
+        p_code: normalizedQr,
+        p_prize_id: prize?.id ?? null,
+      }
+    );
+    spinResult = Array.isArray(data) ? data[0] : data;
+
+    if (error || !spinResult?.ok) {
+      const detail = spinResult?.message || error?.message || "No se pudo registrar la tirada.";
+      console.error("No se pudo registrar la tirada por QR:", error || spinResult);
+      throw new Error(detail);
+    }
+  } else {
+    const { data, error } = await supabase.rpc("register_promotion_spin", {
       p_participation_id: entry.id,
       p_prize_id: prize?.id ?? null,
+    });
+    spinResult = data;
+    if (error) {
+      console.error("No se pudo registrar la tirada:", error);
+      throw error;
     }
-  );
-
-  if (spinError) {
-    console.error("No se pudo registrar la tirada:", spinError);
-    throw spinError;
   }
 
-  // Recuperamos la fila actualizada para que la interfaz use el estado real
-  // confirmado por la base de datos, no un cálculo local aproximado.
   const { data: participation, error: participationError } = await supabase
     .from("promotion_participations")
     .select("*")
@@ -213,17 +226,12 @@ async function actualizarSaldoTiradas(entry, prize = null) {
     .single();
 
   if (participationError) {
-    console.error(
-      "La tirada se registró, pero no se pudo recargar la participación:",
-      participationError
-    );
-
+    console.error("La tirada se registró, pero no se pudo recargar la participación:", participationError);
     return {
       ...entry,
       spins_total: Number(spinResult?.spins_total ?? entry.spins_total ?? 1),
       spins_used: Number(spinResult?.spins_used ?? entry.spins_used ?? 0),
-      status:
-        Number(spinResult?.spins_remaining ?? 0) > 0 ? "pending" : "played",
+      status: Number(spinResult?.spins_remaining ?? 0) > 0 ? "pending" : "played",
     };
   }
 
@@ -250,49 +258,6 @@ function obtenerTiradasRestantesEntrada(entrada) {
   );
 }
 
-
-function crearCartonBingo90() {
-  const columnasUsadas = [1, 2, 2, 1, 2, 2, 1, 2, 2];
-  for (let intento = 0; intento < 500; intento += 1) {
-    const posiciones = Array.from({ length: 3 }, () => Array(9).fill(false));
-    const huecosFila = [5, 5, 5];
-    let valido = true;
-
-    for (let columna = 0; columna < 9; columna += 1) {
-      const cantidad = columnasUsadas[columna];
-      const disponibles = [0, 1, 2].filter((fila) => huecosFila[fila] > 0);
-      if (disponibles.length < cantidad) { valido = false; break; }
-      disponibles.sort(() => Math.random() - 0.5);
-      disponibles.slice(0, cantidad).forEach((fila) => {
-        posiciones[fila][columna] = true;
-        huecosFila[fila] -= 1;
-      });
-    }
-
-    if (!valido || huecosFila.some((valor) => valor !== 0)) continue;
-
-    const carton = Array.from({ length: 3 }, () => Array(9).fill(null));
-    for (let columna = 0; columna < 9; columna += 1) {
-      const minimo = columna === 0 ? 1 : columna * 10;
-      const maximo = columna === 8 ? 90 : columna * 10 + 9;
-      const cantidad = columnasUsadas[columna];
-      const numeros = [];
-      while (numeros.length < cantidad) {
-        const numero = minimo + Math.floor(Math.random() * (maximo - minimo + 1));
-        if (!numeros.includes(numero)) numeros.push(numero);
-      }
-      numeros.sort((a, b) => a - b);
-      const filas = [0, 1, 2].filter((fila) => posiciones[fila][columna]);
-      filas.forEach((fila, indice) => { carton[fila][columna] = numeros[indice]; });
-    }
-    return carton;
-  }
-  throw new Error("No se pudo generar el cartón de Bingo.");
-}
-
-function esperar(ms) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
 export default function StorePage() {
   const inputRef = useRef(null);
   const autoValidatedCodeRef = useRef("");
@@ -467,42 +432,35 @@ export default function StorePage() {
   }
 
   async function consumirBingo() {
-    if (!entitlement?.id || procesandoBingo) return;
+    if (!entitlement?.id || procesandoBingo || bomboGirando) return;
 
+    // El pedido concede el derecho a jugar, pero la bola no existe todavía.
+    // Primero se abre y anima el bombo; la extracción se registra al final.
     setProcesandoBingo(true);
-    setMensaje("Preparando el cartón y abriendo el bombo oficial…");
-
-    // Se abre inmediatamente desde el clic para evitar el bloqueo de ventanas emergentes.
-    const displayUrl = new URL(window.location.origin);
-    displayUrl.searchParams.set("bingoDisplay", "1");
-    const bingoWindow = window.open(displayUrl.toString(), "cash-lojo-bingo-display");
+    setBomboGirando(true);
+    setMensaje("El bombo está girando…");
+    setEstado("bingo-drum");
 
     try {
-      const { data: cardRaw, error: cardError } = await supabase.rpc("ensure_game_bingo_card_by_code", {
-        p_code: entitlement.code || codigo,
-        p_carton: crearCartonBingo90(),
-      });
-      const cardResult = Array.isArray(cardRaw) ? cardRaw[0] : cardRaw;
+      getAudioContext().resume?.();
+      startSpinSound(4200);
+    } catch {}
 
-      if (cardError || !cardResult?.ok) {
-        console.error(cardError, cardResult);
-        throw new Error(
-          cardResult?.message ||
-            "No se pudo obtener o crear el cartón único vinculado a este QR."
-        );
-      }
-
-      // Damos tiempo a que la pantalla oficial cargue el Bingo activo y se suscriba al sorteo.
-      await esperar(1800);
-
+    window.setTimeout(async () => {
       const { data: raw, error } = await supabase.rpc("consume_game_bingo_play_by_code", {
         p_code: entitlement.code || codigo,
       });
       const result = Array.isArray(raw) ? raw[0] : raw;
 
+      stopSpinSound();
+      setProcesandoBingo(false);
+      setBomboGirando(false);
+
       if (error || !result?.ok) {
         console.error(error);
-        throw new Error(result?.message || "No se pudo extraer la bola de Bingo.");
+        setMensaje(result?.message || "No se pudo extraer la bola de Bingo.");
+        setEstado(result?.reason === "used" || result?.reason === "daily_limit" ? "used" : "error");
+        return;
       }
 
       setBolaBingo(Number(result.ball_number));
@@ -511,19 +469,10 @@ export default function StorePage() {
         bingo_available: false,
         bingo_remaining: result.bingo_remaining,
       }));
-      setMensaje(`Bola ${result.ball_number} extraída en el bombo oficial. El cartón del cliente ya está vinculado.`);
+      setMensaje(result.message || `Bola ${result.ball_number} extraída.`);
       setEstado(entitlement.roulette_available ? "bingo-result-with-roulette" : "bingo-result");
       playCampana();
-      bingoWindow?.focus?.();
-    } catch (error) {
-      console.error(error);
-      bingoWindow?.close?.();
-      setMensaje(error?.message || "No se pudo iniciar el Bingo.");
-      setEstado("error");
-    } finally {
-      setProcesandoBingo(false);
-      setBomboGirando(false);
-    }
+    }, 4200);
   }
 
   async function girar() {
@@ -573,7 +522,7 @@ export default function StorePage() {
       stopSpinSound();
 
       try {
-        const entryActualizada = await actualizarSaldoTiradas(entrada, prize);
+        const entryActualizada = await actualizarSaldoTiradas(entrada, prize, entitlement?.code || codigo);
 
         setEntrada(entryActualizada);
         setPremioFinal(prize);
@@ -597,7 +546,8 @@ export default function StorePage() {
         setPremioObjetivo(null);
         setGirando(false);
         setMensaje(
-          "No se pudo registrar la tirada. No vuelvas a girar hasta comprobar la conexión."
+          error?.message ||
+            "No se pudo registrar la tirada. No vuelvas a girar hasta comprobar la conexión."
         );
         setEstado("error");
         enviarEventoDisplay("waiting");
@@ -769,7 +719,7 @@ export default function StorePage() {
         </section>
       )}
 
-      {(estado === "game-choice" || estado === "bingo-ready" || estado === "bingo-result" || estado === "bingo-result-with-roulette") && entitlement && (
+      {(estado === "game-choice" || estado === "bingo-ready" || estado === "bingo-drum" || estado === "bingo-result" || estado === "bingo-result-with-roulette") && entitlement && (
         <section style={styles.card}>
           <h2 style={styles.cardTitle}>QR válido · Pedido identificado</h2>
           <p style={styles.info}>Cliente: <strong>{entitlement.customer_name || "sin nombre"}</strong></p>
@@ -779,7 +729,7 @@ export default function StorePage() {
             <div style={styles.gameChoiceGrid}>
               {entitlement.bingo_available && (
                 <button type="button" onClick={consumirBingo} disabled={procesandoBingo} style={styles.bingoActionButton}>
-                  🎱 {procesandoBingo ? "PREPARANDO..." : "ABRIR BOMBO OFICIAL"}
+                  🎱 {procesandoBingo ? "ABRIENDO BOMBO..." : "ABRIR BOMBO"}
                 </button>
               )}
               {entitlement.roulette_available && entrada && (
@@ -787,6 +737,17 @@ export default function StorePage() {
                   🎡 ABRIR RULETA
                 </button>
               )}
+            </div>
+          )}
+
+          {estado === "bingo-drum" && (
+            <div style={styles.bingoResultBox}>
+              <div style={{ ...styles.bingoDrum, ...(bomboGirando ? styles.bingoDrumSpinning : {}) }}>
+                <div style={styles.bingoDrumBars} />
+                <div style={styles.bingoDrumHub}>CL</div>
+              </div>
+              <h3 style={{ margin: 0 }}>EL BOMBO ESTÁ GIRANDO…</h3>
+              <p style={styles.info}>La bola se asignará cuando termine la extracción.</p>
             </div>
           )}
 
