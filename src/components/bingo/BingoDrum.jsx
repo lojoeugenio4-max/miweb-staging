@@ -21,15 +21,18 @@ export default function BingoDrum({ editionId, initialNumbers = [], onNumbersCha
         (payload) => {
           const number = Number(payload.new?.number);
           if (!number) return;
+
+          // La bola se incorpora inmediatamente al estado compartido para que
+          // el cartón y el indicador de «última bola» no vayan una extracción
+          // por detrás. La animación del bombo puede continuar sin retrasar los datos.
+          setNumbers((current) => {
+            const next = current.includes(number) ? current : [...current, number];
+            onNumbersChange?.(next);
+            return next;
+          });
+
           setSpinning(true);
-          window.setTimeout(() => {
-            setNumbers((current) => {
-              const next = current.includes(number) ? current : [...current, number];
-              onNumbersChange?.(next);
-              return next;
-            });
-            setSpinning(false);
-          }, 5000);
+          window.setTimeout(() => setSpinning(false), 5000);
         }
       )
       .subscribe();
