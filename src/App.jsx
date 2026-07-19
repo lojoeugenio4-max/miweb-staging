@@ -2311,8 +2311,21 @@ export default function App() {
         });
       } catch (error) {
         console.error("Error creando la participación común:", error);
+        const detalleErrorComun = [
+          error?.code ? `Código: ${error.code}` : null,
+          error?.message ? `Mensaje: ${error.message}` : null,
+          error?.details ? `Detalle: ${error.details}` : null,
+          error?.hint ? `Sugerencia: ${error.hint}` : null,
+        ]
+          .filter(Boolean)
+          .join("\n");
+
         alert(
-          "El pedido no se enviará porque no se pudo generar el QR común. Comprueba que la migración de staging está instalada."
+          `El pedido no se enviará porque no se pudo generar el QR común.${
+            detalleErrorComun
+              ? `\n\n${detalleErrorComun}`
+              : " Comprueba que la migración de staging está instalada."
+          }`
         );
         return;
       }
