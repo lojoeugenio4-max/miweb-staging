@@ -2202,6 +2202,14 @@ export default function App() {
     });
     if (error) { console.warn("No se pudo registrar el pedido para Bingo:", error); return null; }
     const result = Array.isArray(data) ? data[0] : data;
+
+    // Diagnóstico temporal de staging: necesitamos conocer el formato real que
+    // devuelve registrar_pedido_bingo antes de construir el resumen y el QR.
+    // Solo se muestra a clientes identificados cuando Bingo está activo.
+    alert(
+      `Diagnóstico Bingo (staging):\n\n${JSON.stringify(result, null, 2)}`
+    );
+
     if (result?.qualified) { setCartonBingo(null); }
     return result;
   }
