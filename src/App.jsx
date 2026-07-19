@@ -2144,6 +2144,46 @@ export default function App() {
     };
   }
 
+  async function crearParticipacionJuegos({
+    pedidoId,
+    customerNamePedido,
+    participacionRuleta = null,
+    tiradasRuleta = 0,
+    participacionBingo = null,
+  }) {
+    const bingoConseguido = Boolean(
+      participacionBingo?.qualified ??
+        participacionBingo?.clasificado ??
+        participacionBingo?.eligible
+    );
+    const ruletaConseguida = Boolean(participacionRuleta);
+
+    if (!ruletaConseguida && !bingoConseguido) return null;
+
+    const participacionRuletaId =
+      participacionRuleta?.id || participacionRuleta?.participation_id || null;
+
+    const { data, error } = await supabase.rpc(
+      "create_or_update_game_entitlement",
+      {
+        p_order_id: pedidoId,
+        p_customer_token: clienteToken || null,
+        p_customer_name: customerNamePedido || null,
+        p_roulette_participation_id: participacionRuletaId,
+        p_roulette_eligible: ruletaConseguida,
+        p_roulette_plays_total: ruletaConseguida
+          ? Math.max(1, Number(tiradasRuleta || 1))
+          : 0,
+        p_bingo_eligible: bingoConseguido,
+        p_bingo_reference: participacionBingo || null,
+        p_expires_at: null,
+      }
+    );
+
+    if (error) throw error;
+    return Array.isArray(data) ? data[0] : data;
+  }
+
   async function registrarPedidoParaBingo(itemsPedido, pedidoId) {
     if (!clienteToken || !configuracionBingoCliente) return null;
     const items = itemsPedido.map((item) => ({
@@ -2169,6 +2209,7 @@ export default function App() {
     pedidoId = crearPedidoId(),
     resumenRuletaPedidoEnvio = null,
     participacionBingo = null,
+    participacionJuegos = null,
   }) {
     const texto = construirTextoPedidoWhatsApp({
       t,
@@ -2178,6 +2219,7 @@ export default function App() {
       participacionRuleta,
       tiradasRuleta: resumenRuletaPedidoEnvio?.tiradasConseguidas || 0,
       participacionBingo,
+      participacionJuegos,
     });
 
     limpiarPedidoDespuesEnvio();
@@ -2232,6 +2274,25 @@ export default function App() {
 
     const participacionBingo = await registrarPedidoParaBingo(itemsPedido, pedidoId);
 
+    let participacionJuegos = null;
+    if (participacionRuleta || participacionBingo?.qualified || participacionBingo?.clasificado || participacionBingo?.eligible) {
+      try {
+        participacionJuegos = await crearParticipacionJuegos({
+          pedidoId,
+          customerNamePedido,
+          participacionRuleta,
+          tiradasRuleta: resumenRuletaPedidoEnvio?.tiradasConseguidas || 0,
+          participacionBingo,
+        });
+      } catch (error) {
+        console.error("Error creando la participación común:", error);
+        alert(
+          "El pedido no se enviará porque no se pudo generar el QR común. Comprueba que la migración de staging está instalada."
+        );
+        return;
+      }
+    }
+
     enviarPedidoFinal({
       itemsPedido,
       customerNamePedido,
@@ -2240,6 +2301,7 @@ export default function App() {
       pedidoId,
       resumenRuletaPedidoEnvio,
       participacionBingo,
+      participacionJuegos,
     });
   };
 
