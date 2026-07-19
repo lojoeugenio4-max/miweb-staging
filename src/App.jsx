@@ -2267,7 +2267,20 @@ export default function App() {
         });
       } catch (error) {
         console.error("Error creando participación de ruleta:", error);
-        alert("No se ha podido generar el código de ruleta. Inténtalo de nuevo.");
+        const detalleError = [
+          error?.code ? `Código: ${error.code}` : null,
+          error?.message ? `Mensaje: ${error.message}` : null,
+          error?.details ? `Detalle: ${error.details}` : null,
+          error?.hint ? `Sugerencia: ${error.hint}` : null,
+        ]
+          .filter(Boolean)
+          .join("\n");
+
+        alert(
+          `No se ha podido generar el código de ruleta.${
+            detalleError ? `\n\n${detalleError}` : " Inténtalo de nuevo."
+          }`
+        );
         return;
       }
     }
