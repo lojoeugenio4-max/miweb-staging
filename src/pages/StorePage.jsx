@@ -4,6 +4,7 @@ import { supabase } from "../supabaseClient";
 import StoreWheel from "../components/StoreWheel";
 
 const DISPLAY_EVENT_KEY = "lojo-ruleta-display-event";
+const BINGO_CONTROL_CHANNEL = "lojo-bingo-control";
 const SPIN_DURATION_MS = 9200;
 
 const PRODUCTOS_PUBLIC_URL =
@@ -285,6 +286,44 @@ export default function StorePage() {
   }, []);
 
   useEffect(() => {
+    function handleBingoEvent(event) {
+      const message = event?.data || event;
+      if (!message || message.type !== "bingo-complete") return;
+      const eventCode = normalizarCodigo(message.code);
+      const currentCode = normalizarCodigo(entitlement?.code || codigo);
+      if (!eventCode || eventCode !== currentCode) return;
+
+      setProcesandoBingo(false);
+      setBolaBingo(Number(message.ball_number) || null);
+      setEntitlement((current) => ({
+        ...current,
+        bingo_available: false,
+        bingo_remaining: Number(message.bingo_remaining || 0),
+      }));
+      setMensaje(`Bola ${message.ball_number} registrada correctamente.`);
+      setEstado(entitlement?.roulette_available ? "game-choice" : "bingo-result");
+    }
+
+    let channel;
+    try {
+      channel = new BroadcastChannel(BINGO_CONTROL_CHANNEL);
+      channel.addEventListener("message", handleBingoEvent);
+    } catch {}
+
+    function handleStorage(event) {
+      if (event.key !== BINGO_CONTROL_CHANNEL || !event.newValue) return;
+      try { handleBingoEvent(JSON.parse(event.newValue)); } catch {}
+    }
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      channel?.removeEventListener?.("message", handleBingoEvent);
+      channel?.close?.();
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [codigo, entitlement?.code, entitlement?.roulette_available]);
+
+  useEffect(() => {
     const codeFromUrl = normalizarCodigo(
       new URLSearchParams(window.location.search).get("code")
     );
@@ -434,9 +473,8 @@ export default function StorePage() {
   async function consumirBingo() {
     if (!entitlement?.id || procesandoBingo) return;
 
-    // Se abre SIEMPRE el display oficial existente. No se dibuja ningún
-    // bombo alternativo dentro de la pantalla de caja.
-    const displayUrl = `${window.location.origin}/?bingoDisplay=1`;
+    const qrCode = normalizarCodigo(entitlement.code || codigo);
+    const displayUrl = `${window.location.origin}/?bingoDisplay=1&code=${encodeURIComponent(qrCode)}`;
     const displayWindow = window.open(displayUrl, "lojo-bingo-display");
 
     if (!displayWindow) {
@@ -446,34 +484,8 @@ export default function StorePage() {
     }
 
     setProcesandoBingo(true);
-    setMensaje("Bombo oficial abierto. Preparando la extracción…");
+    setMensaje("Bombo oficial preparado. Pulsa GIRAR BOMBO en la pantalla de Bingo.");
     setEstado("bingo-waiting");
-
-    // Damos tiempo a que BingoShow se monte y se suscriba a bingo_draws.
-    window.setTimeout(async () => {
-      const { data: raw, error } = await supabase.rpc("consume_game_bingo_play_by_code", {
-        p_code: entitlement.code || codigo,
-      });
-      const result = Array.isArray(raw) ? raw[0] : raw;
-
-      setProcesandoBingo(false);
-
-      if (error || !result?.ok) {
-        console.error("No se pudo registrar la extracción de Bingo:", error || result);
-        setMensaje(result?.message || error?.message || "No se pudo extraer la bola de Bingo.");
-        setEstado(result?.reason === "used" || result?.reason === "daily_limit" ? "used" : "error");
-        return;
-      }
-
-      setBolaBingo(Number(result.ball_number));
-      setEntitlement((current) => ({
-        ...current,
-        bingo_available: false,
-        bingo_remaining: result.bingo_remaining,
-      }));
-      setMensaje(result.message || `Bola ${result.ball_number} registrada en el bombo oficial.`);
-      setEstado(entitlement.roulette_available ? "bingo-result-with-roulette" : "bingo-result");
-    }, 1200);
   }
 
   async function girar() {
@@ -529,6 +541,11 @@ export default function StorePage() {
         setPremioFinal(prize);
         setPremioObjetivo(null);
         setGirando(false);
+        setEntitlement((current) => current ? ({
+          ...current,
+          roulette_available: obtenerTiradasRestantesEntrada(entryActualizada) > 0,
+          roulette_remaining: obtenerTiradasRestantesEntrada(entryActualizada),
+        }) : current);
         setEstado("result");
 
         enviarEventoDisplay("result", {
@@ -570,6 +587,24 @@ export default function StorePage() {
       entrada,
       premios,
     });
+  }
+
+  function continuarTrasRuleta() {
+    setPremioFinal(null);
+    setPremioObjetivo(null);
+    setMensaje("");
+
+    if (entitlement?.bingo_available) {
+      setEstado(entitlement?.roulette_available ? "game-choice" : "bingo-ready");
+      return;
+    }
+
+    if (entitlement?.roulette_available && entrada && obtenerTiradasRestantesEntrada(entrada) > 0) {
+      setEstado("ready");
+      return;
+    }
+
+    reset();
   }
 
   function reset() {
@@ -743,8 +778,8 @@ export default function StorePage() {
 
           {estado === "bingo-waiting" && (
             <div style={styles.bingoResultBox}>
-              <h3 style={{ margin: 0 }}>BOMBO OFICIAL ABIERTO</h3>
-              <p style={styles.info}>La animación y la extracción se muestran en la pantalla oficial de Bingo.</p>
+              <h3 style={{ margin: 0 }}>BOMBO OFICIAL EN ESPERA</h3>
+              <p style={styles.info}>Pulsa <strong>GIRAR BOMBO</strong> en la pantalla oficial. La bola no se extraerá hasta ese momento.</p>
             </div>
           )}
 
@@ -754,7 +789,7 @@ export default function StorePage() {
               <h2 style={{ margin: 0 }}>Bola registrada</h2>
               <p style={styles.info}>El cartón del cliente se actualizará en tiempo real si contiene este número.</p>
               {estado === "bingo-result-with-roulette" ? (
-                <button type="button" onClick={() => setEstado("ready")} style={styles.rouletteActionButton}>CONTINUAR A RULETA ›</button>
+                <button type="button" onClick={() => setEstado("game-choice")} style={styles.rouletteActionButton}>ELEGIR SIGUIENTE JUEGO ›</button>
               ) : (
                 <button type="button" onClick={reset} style={styles.nextButton}>FINALIZAR ›</button>
               )}
@@ -821,8 +856,8 @@ export default function StorePage() {
                     SIGUIENTE TIRADA ({tiradasRestantes}) ›
                   </button>
                 ) : (
-                  <button type="button" onClick={reset} style={styles.nextButton}>
-                    CONTINUAR ›
+                  <button type="button" onClick={continuarTrasRuleta} style={styles.nextButton}>
+                    {entitlement?.bingo_available ? "ELEGIR BINGO ›" : "FINALIZAR ›"}
                   </button>
                 )}
               </div>
