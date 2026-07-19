@@ -2168,6 +2168,7 @@ export default function App() {
     participacionRuleta = null,
     pedidoId = crearPedidoId(),
     resumenRuletaPedidoEnvio = null,
+    participacionBingo = null,
   }) {
     const texto = construirTextoPedidoWhatsApp({
       t,
@@ -2176,6 +2177,7 @@ export default function App() {
       notesPedido,
       participacionRuleta,
       tiradasRuleta: resumenRuletaPedidoEnvio?.tiradasConseguidas || 0,
+      participacionBingo,
     });
 
     limpiarPedidoDespuesEnvio();
@@ -2228,7 +2230,7 @@ export default function App() {
       }
     }
 
-    await registrarPedidoParaBingo(itemsPedido, pedidoId);
+    const participacionBingo = await registrarPedidoParaBingo(itemsPedido, pedidoId);
 
     enviarPedidoFinal({
       itemsPedido,
@@ -2237,6 +2239,7 @@ export default function App() {
       participacionRuleta,
       pedidoId,
       resumenRuletaPedidoEnvio,
+      participacionBingo,
     });
   };
 
