@@ -682,24 +682,33 @@ export default function App() {
 
     try {
       const nuevoCarton = crearCartonBingo90();
-      const { data, error } = await supabase.rpc("obtener_o_crear_carton_bingo", {
+      const { data, error } = await supabase.rpc("ensure_customer_bingo_card", {
         p_token: clienteToken,
         p_carton: nuevoCarton,
       });
 
       if (error) throw error;
-      const resultado = Array.isArray(data) ? data[0] : data;
+      const respuesta = Array.isArray(data) ? data[0] : data;
 
-      if (!resultado) {
-        throw new Error("El enlace personal no corresponde a un cliente activo.");
+      if (!respuesta?.ok) {
+        throw new Error(respuesta?.message || "No se pudo asignar tu cartón de Bingo.");
+      }
+
+      const resultado = respuesta.card_result || respuesta;
+      const carton = resultado.carton || resultado.card || respuesta.card;
+      const cartonId = resultado.carton_id || resultado.id || respuesta.carton_id;
+      const editionId = resultado.edition_id || respuesta.edition_id;
+
+      if (!cartonId || !carton || !editionId) {
+        throw new Error("El cartón fue localizado, pero sus datos están incompletos.");
       }
 
       setCartonBingo({
-        id: resultado.carton_id,
-        card: resultado.carton,
-        drawn_numbers: resultado.numeros_marcados || [],
-        status: resultado.estado || "activo",
-        edition_id: resultado.edition_id,
+        id: cartonId,
+        card: carton,
+        drawn_numbers: resultado.numeros_marcados || resultado.drawn_numbers || [],
+        status: resultado.estado || resultado.status || "activo",
+        edition_id: editionId,
       });
 
       const hoy = getTodayISO();
