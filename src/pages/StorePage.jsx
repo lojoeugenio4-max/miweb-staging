@@ -197,7 +197,7 @@ async function actualizarSaldoTiradas(entry, prize = null, qrCode = "") {
       "consume_game_roulette_play_by_code",
       {
         p_code: normalizedQr,
-        p_prize_id: prize?.id ?? null,
+        p_prize_id: prize?.id == null ? null : String(prize.id),
       }
     );
     spinResult = Array.isArray(data) ? data[0] : data;
@@ -210,7 +210,7 @@ async function actualizarSaldoTiradas(entry, prize = null, qrCode = "") {
   } else {
     const { data, error } = await supabase.rpc("register_promotion_spin", {
       p_participation_id: entry.id,
-      p_prize_id: prize?.id ?? null,
+      p_prize_id: prize?.id == null ? null : String(prize.id),
     });
     spinResult = data;
     if (error) {
@@ -432,33 +432,35 @@ export default function StorePage() {
   }
 
   async function consumirBingo() {
-    if (!entitlement?.id || procesandoBingo || bomboGirando) return;
+    if (!entitlement?.id || procesandoBingo) return;
 
-    // El pedido concede el derecho a jugar, pero la bola no existe todavía.
-    // Primero se abre y anima el bombo; la extracción se registra al final.
+    // Se abre SIEMPRE el display oficial existente. No se dibuja ningún
+    // bombo alternativo dentro de la pantalla de caja.
+    const displayUrl = `${window.location.origin}/?bingoDisplay=1`;
+    const displayWindow = window.open(displayUrl, "lojo-bingo-display");
+
+    if (!displayWindow) {
+      setMensaje("El navegador ha bloqueado la pantalla oficial del Bingo. Permite ventanas emergentes y vuelve a intentarlo.");
+      setEstado("error");
+      return;
+    }
+
     setProcesandoBingo(true);
-    setBomboGirando(true);
-    setMensaje("El bombo está girando…");
-    setEstado("bingo-drum");
+    setMensaje("Bombo oficial abierto. Preparando la extracción…");
+    setEstado("bingo-waiting");
 
-    try {
-      getAudioContext().resume?.();
-      startSpinSound(4200);
-    } catch {}
-
+    // Damos tiempo a que BingoShow se monte y se suscriba a bingo_draws.
     window.setTimeout(async () => {
       const { data: raw, error } = await supabase.rpc("consume_game_bingo_play_by_code", {
         p_code: entitlement.code || codigo,
       });
       const result = Array.isArray(raw) ? raw[0] : raw;
 
-      stopSpinSound();
       setProcesandoBingo(false);
-      setBomboGirando(false);
 
       if (error || !result?.ok) {
-        console.error(error);
-        setMensaje(result?.message || "No se pudo extraer la bola de Bingo.");
+        console.error("No se pudo registrar la extracción de Bingo:", error || result);
+        setMensaje(result?.message || error?.message || "No se pudo extraer la bola de Bingo.");
         setEstado(result?.reason === "used" || result?.reason === "daily_limit" ? "used" : "error");
         return;
       }
@@ -469,10 +471,9 @@ export default function StorePage() {
         bingo_available: false,
         bingo_remaining: result.bingo_remaining,
       }));
-      setMensaje(result.message || `Bola ${result.ball_number} extraída.`);
+      setMensaje(result.message || `Bola ${result.ball_number} registrada en el bombo oficial.`);
       setEstado(entitlement.roulette_available ? "bingo-result-with-roulette" : "bingo-result");
-      playCampana();
-    }, 4200);
+    }, 1200);
   }
 
   async function girar() {
@@ -719,7 +720,7 @@ export default function StorePage() {
         </section>
       )}
 
-      {(estado === "game-choice" || estado === "bingo-ready" || estado === "bingo-drum" || estado === "bingo-result" || estado === "bingo-result-with-roulette") && entitlement && (
+      {(estado === "game-choice" || estado === "bingo-ready" || estado === "bingo-waiting" || estado === "bingo-result" || estado === "bingo-result-with-roulette") && entitlement && (
         <section style={styles.card}>
           <h2 style={styles.cardTitle}>QR válido · Pedido identificado</h2>
           <p style={styles.info}>Cliente: <strong>{entitlement.customer_name || "sin nombre"}</strong></p>
@@ -740,14 +741,10 @@ export default function StorePage() {
             </div>
           )}
 
-          {estado === "bingo-drum" && (
+          {estado === "bingo-waiting" && (
             <div style={styles.bingoResultBox}>
-              <div style={{ ...styles.bingoDrum, ...(bomboGirando ? styles.bingoDrumSpinning : {}) }}>
-                <div style={styles.bingoDrumBars} />
-                <div style={styles.bingoDrumHub}>CL</div>
-              </div>
-              <h3 style={{ margin: 0 }}>EL BOMBO ESTÁ GIRANDO…</h3>
-              <p style={styles.info}>La bola se asignará cuando termine la extracción.</p>
+              <h3 style={{ margin: 0 }}>BOMBO OFICIAL ABIERTO</h3>
+              <p style={styles.info}>La animación y la extracción se muestran en la pantalla oficial de Bingo.</p>
             </div>
           )}
 
