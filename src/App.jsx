@@ -2098,8 +2098,10 @@ export default function App() {
     const { data, error } = await supabase.rpc("create_promotion_participation", {
       p_promotion_id: promocionId,
       p_order_id: pedidoId,
-      p_customer_phone:
-        clienteIdentificado?.telefono || `ANON-${pedidoId}`,
+      // La participación histórica de Ruleta exige un valor único en customer_phone.
+      // No usamos el teléfono real: la tabla subyacente solo permite una partida activa
+      // por teléfono y bloquearía pedidos posteriores del mismo cliente identificado.
+      p_customer_phone: `RULETA-${pedidoId}`,
       p_customer_name: customerNamePedido || null,
       p_expires_at: null,
       p_created_by: null,
