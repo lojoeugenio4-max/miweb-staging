@@ -478,20 +478,18 @@ export default function StorePage() {
     const bingoWindow = window.open(displayUrl.toString(), "cash-lojo-bingo-display");
 
     try {
-      const customerToken = entitlement.customer_token || entitlement.bingo_reference?.customer_token || null;
-      if (!customerToken) {
-        throw new Error("El QR de Bingo no está vinculado al enlace personal del cliente.");
-      }
-
-      const { data: cardRaw, error: cardError } = await supabase.rpc("obtener_o_crear_carton_bingo", {
-        p_token: customerToken,
+      const { data: cardRaw, error: cardError } = await supabase.rpc("ensure_game_bingo_card_by_code", {
+        p_code: entitlement.code || codigo,
         p_carton: crearCartonBingo90(),
       });
       const cardResult = Array.isArray(cardRaw) ? cardRaw[0] : cardRaw;
 
-      if (cardError || !cardResult?.carton_id) {
-        console.error(cardError);
-        throw new Error("No se pudo asignar el cartón único del cliente.");
+      if (cardError || !cardResult?.ok) {
+        console.error(cardError, cardResult);
+        throw new Error(
+          cardResult?.message ||
+            "No se pudo obtener o crear el cartón único vinculado a este QR."
+        );
       }
 
       // Damos tiempo a que la pantalla oficial cargue el Bingo activo y se suscriba al sorteo.
