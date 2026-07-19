@@ -2203,50 +2203,6 @@ export default function App() {
     if (error) { console.warn("No se pudo registrar el pedido para Bingo:", error); return null; }
     const result = Array.isArray(data) ? data[0] : data;
 
-    // Diagnóstico temporal de staging: compara exactamente los códigos enviados
-    // desde el pedido con los códigos configurados en la promoción activa.
-    let articulosConfigurados = [];
-    let errorConfiguracion = null;
-
-    try {
-      const { data: configurados, error: errorArticulos } = await supabase
-        .from("promociones_bingo_articulos")
-        .select("codigo_articulo,nombre_articulo,cantidad_minima")
-        .eq("promocion_id", configuracionBingoCliente.id)
-        .order("nombre_articulo", { ascending: true });
-
-      if (errorArticulos) throw errorArticulos;
-      articulosConfigurados = configurados || [];
-    } catch (diagnosticoError) {
-      errorConfiguracion = diagnosticoError;
-    }
-
-    const itemsDiagnostico = items.map((item, index) => ({
-      ...item,
-      nombre: itemsPedido[index]?.product?.name || itemsPedido[index]?.product?.nombre || "",
-    }));
-
-    alert(
-      [
-        "Diagnóstico Bingo (staging)",
-        "",
-        "RESULTADO RPC:",
-        JSON.stringify(result, null, 2),
-        "",
-        "ARTÍCULOS ENVIADOS:",
-        JSON.stringify(itemsDiagnostico, null, 2),
-        "",
-        "ARTÍCULOS CONFIGURADOS:",
-        errorConfiguracion
-          ? JSON.stringify({
-              code: errorConfiguracion?.code || null,
-              message: errorConfiguracion?.message || String(errorConfiguracion),
-              details: errorConfiguracion?.details || null,
-            }, null, 2)
-          : JSON.stringify(articulosConfigurados, null, 2),
-      ].join("\n")
-    );
-
     if (result?.qualified) { setCartonBingo(null); }
     return result;
   }
