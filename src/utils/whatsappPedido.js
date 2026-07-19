@@ -1,8 +1,9 @@
 function construirUrlQr(codigoParticipacion) {
   if (!codigoParticipacion) return "";
 
-  const urlParticipacion = new URL("https://miweb-staging.vercel.app/");
-  urlParticipacion.searchParams.set("bingo", "1");
+  const baseUrl = String(import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin);
+  const urlParticipacion = new URL(baseUrl);
+  urlParticipacion.searchParams.set("store", "1");
   urlParticipacion.searchParams.set("code", codigoParticipacion);
 
   const params = new URLSearchParams({
@@ -23,6 +24,7 @@ export function construirTextoPedidoWhatsApp({
   participacionRuleta = null,
   codigoParticipacion = null,
   tiradasRuleta = 0,
+  participacionBingo = null,
 }) {
   const lines = [];
 
@@ -89,6 +91,10 @@ export function construirTextoPedidoWhatsApp({
     participacionRuleta?.codigo ||
     null;
 
+  const bingoConseguido = Boolean(
+    participacionBingo?.qualified ?? participacionBingo?.clasificado ?? participacionBingo?.eligible
+  );
+
   if (codigoRuleta) {
     const urlQr = construirUrlQr(codigoRuleta);
 
@@ -105,7 +111,8 @@ export function construirTextoPedidoWhatsApp({
 
     lines.push("🎁 *PARTICIPACIÓN CONSEGUIDA*");
     lines.push("");
-    lines.push(`Tiradas de ruleta: *${numeroTiradas}*`);
+    if (numeroTiradas > 0) lines.push(`🎡 Ruleta: *${numeroTiradas} tirada${numeroTiradas === 1 ? "" : "s"}*`);
+    if (bingoConseguido) lines.push("🎱 Bingo: *1 bola disponible* (máximo una al día)");
     lines.push(`Código manual: *${codigoRuleta}*`);
     lines.push("");
 
@@ -116,7 +123,13 @@ export function construirTextoPedidoWhatsApp({
     }
 
     lines.push("Presenta este QR o el código manual en caja.");
-    lines.push("La ruleta solo se juega en tienda.");
+    lines.push("En caja aparecerán los juegos disponibles para este pedido.");
+    lines.push("");
+  } else if (bingoConseguido) {
+    lines.push("🎱 *PARTICIPACIÓN DE BINGO CONSEGUIDA*");
+    lines.push("");
+    lines.push("Tu pedido cumple las condiciones del Bingo.");
+    lines.push("Estamos terminando la activación del QR único para pedidos que solo incluyen Bingo.");
     lines.push("");
   } else if (premio) {
     lines.push("🎁 *PREMIO RULETA:*");
