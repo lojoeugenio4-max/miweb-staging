@@ -1684,6 +1684,36 @@ export default function App() {
     [orderedItems, configuracionRuleta, articulosRuleta]
   );
 
+  const resumenBingoPedido = useMemo(() => {
+    if (!clienteIdentificado?.id || !configuracionBingoCliente) return null;
+
+    const variedadMinima = Math.max(
+      1,
+      Number(configuracionBingoCliente.variedad_minima || 1)
+    );
+
+    const codigosEnCajas = new Set();
+
+    orderedItems.forEach((item) => {
+      if (Number(item.boxes || 0) <= 0) return;
+
+      const codigo = String(
+        item.product.codigo || item.product.idnum || item.product.id || ""
+      ).trim();
+
+      if (codigo) codigosEnCajas.add(codigo);
+    });
+
+    const variedadActual = codigosEnCajas.size;
+
+    return {
+      cumple: variedadActual >= variedadMinima,
+      variedadActual,
+      variedadMinima,
+      variedadRestante: Math.max(0, variedadMinima - variedadActual),
+    };
+  }, [orderedItems, clienteIdentificado?.id, configuracionBingoCliente]);
+
   const obtenerEstadoArticuloRuleta = (product, quantity = {}) => {
     if (!product?.participaRuleta) return null;
 
@@ -3135,6 +3165,33 @@ export default function App() {
                     Ya tienes {resumenRuletaPedido.tiradasConseguidas} {resumenRuletaPedido.tiradasConseguidas === 1 ? "tirada" : "tiradas"}. Te faltan {resumenRuletaPedido.variedadRestanteSiguienteTirada} artículos diferentes más para la siguiente.
                   </div>
                 )}
+              </div>
+            )}
+
+            {resumenBingoPedido && orderedItems.length > 0 && (
+              <div
+                style={
+                  resumenBingoPedido.cumple
+                    ? styles.bingoSummaryOk
+                    : styles.bingoSummaryPending
+                }
+              >
+                <div style={styles.ruletaSummaryTitle}>Promoción Bingo</div>
+                <div style={styles.ruletaSummaryText}>
+                  Llevas {resumenBingoPedido.variedadActual} {resumenBingoPedido.variedadActual === 1 ? "artículo distinto pedido" : "artículos distintos pedidos"} en cajas.
+                </div>
+                {resumenBingoPedido.cumple ? (
+                  <div style={styles.bingoSummaryMessage}>
+                    Has conseguido 1 bola de Bingo. Se incluirá en el QR del pedido.
+                  </div>
+                ) : (
+                  <div style={styles.bingoSummaryMessage}>
+                    Te faltan {resumenBingoPedido.variedadRestante} {resumenBingoPedido.variedadRestante === 1 ? "artículo distinto en cajas" : "artículos distintos en cajas"} para conseguir 1 bola.
+                  </div>
+                )}
+                <div style={styles.bingoSummaryNote}>
+                  Las unidades no cuentan para Bingo.
+                </div>
               </div>
             )}
 
@@ -4599,6 +4656,30 @@ const styles = {
     boxShadow: "0 14px 28px rgba(14,165,233,0.35)",
   },
 
+  bingoSummaryOk: {
+    marginBottom: "18px",
+    padding: "14px",
+    border: "1px solid #8bc49b",
+    borderRadius: "14px",
+    background: "#eefaf1",
+  },
+  bingoSummaryPending: {
+    marginBottom: "18px",
+    padding: "14px",
+    border: "1px solid #d7b86a",
+    borderRadius: "14px",
+    background: "#fff9e9",
+  },
+  bingoSummaryMessage: {
+    marginTop: "8px",
+    fontWeight: 800,
+    lineHeight: 1.4,
+  },
+  bingoSummaryNote: {
+    marginTop: "6px",
+    fontSize: "13px",
+    opacity: 0.78,
+  },
   bingoButton: {
     display: "inline-flex",
     alignItems: "center",
