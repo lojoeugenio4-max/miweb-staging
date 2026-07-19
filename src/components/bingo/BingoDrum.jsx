@@ -1,44 +1,89 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../supabaseClient";
 
 export default function BingoDrum({ editionId, initialNumbers = [], onNumbersChange }) {
-  const [numbers, setNumbers] = useState(() => [...new Set(initialNumbers.map(Number))]);
+  const [numbers, setNumbers] = useState(() => [...new Set(initialNumbers.map(Number).filter(Boolean))]);
   const [spinning, setSpinning] = useState(false);
+  const onNumbersChangeRef = useRef(onNumbersChange);
+  const spinTimerRef = useRef(null);
+
+  useEffect(() => {
+    onNumbersChangeRef.current = onNumbersChange;
+  }, [onNumbersChange]);
+
+  const publishNumbers = useCallback((updater, animate = false) => {
+    setNumbers((current) => {
+      const next = typeof updater === "function" ? updater(current) : updater;
+      const normalized = [...new Set((next || []).map(Number).filter(Boolean))];
+      if (normalized.length === current.length && normalized.every((value, index) => value === current[index])) {
+        return current;
+      }
+      onNumbersChangeRef.current?.(normalized);
+      return normalized;
+    });
+
+    if (animate) {
+      setSpinning(true);
+      window.clearTimeout(spinTimerRef.current);
+      spinTimerRef.current = window.setTimeout(() => setSpinning(false), 5000);
+    }
+  }, []);
 
   useEffect(() => {
     const normalized = [...new Set((initialNumbers || []).map(Number).filter(Boolean))];
-    setNumbers(normalized);
-  }, [initialNumbers]);
+    publishNumbers(normalized);
+  }, [initialNumbers, publishNumbers]);
 
   useEffect(() => {
     if (!editionId) return undefined;
+    let active = true;
 
+    const incorporateNumber = (value, animate = true) => {
+      const number = Number(value);
+      if (!Number.isInteger(number) || number < 1 || number > 90) return;
+      publishNumbers((current) => current.includes(number) ? current : [...current, number], animate);
+    };
+
+    // Realtime es la vía principal. El efecto depende solo de la edición para no
+    // desmontar y volver a crear el canal cada vez que React actualiza el cartón.
     const channel = supabase
-      .channel(`bingo-edition-${editionId}`)
+      .channel(`bingo-card-edition-${editionId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "bingo_draws", filter: `edition_id=eq.${editionId}` },
-        (payload) => {
-          const number = Number(payload.new?.number);
-          if (!number) return;
-
-          // La bola se incorpora inmediatamente al estado compartido para que
-          // el cartón y el indicador de «última bola» no vayan una extracción
-          // por detrás. La animación del bombo puede continuar sin retrasar los datos.
-          setNumbers((current) => {
-            const next = current.includes(number) ? current : [...current, number];
-            onNumbersChange?.(next);
-            return next;
-          });
-
-          setSpinning(true);
-          window.setTimeout(() => setSpinning(false), 5000);
-        }
+        (payload) => incorporateNumber(payload.new?.number, true)
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [editionId, onNumbersChange]);
+    // Respaldo ligero para móviles: algunos navegadores suspenden momentáneamente
+    // el websocket al cambiar de aplicación. Esta reconciliación evita que el
+    // cartón quede una bola por detrás aun cuando Realtime tarde en reanudarse.
+    const reconcile = async () => {
+      const { data, error } = await supabase
+        .from("bingo_draws")
+        .select("number,drawn_at")
+        .eq("edition_id", editionId)
+        .order("drawn_at", { ascending: true });
+      if (!active || error) return;
+      const latest = (data || []).map((row) => Number(row.number)).filter(Boolean);
+      publishNumbers(latest, false);
+    };
+
+    reconcile();
+    const interval = window.setInterval(reconcile, 800);
+    const onVisibility = () => { if (document.visibilityState === "visible") reconcile(); };
+    window.addEventListener("focus", reconcile);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      window.clearTimeout(spinTimerRef.current);
+      window.removeEventListener("focus", reconcile);
+      document.removeEventListener("visibilitychange", onVisibility);
+      supabase.removeChannel(channel);
+    };
+  }, [editionId, publishNumbers]);
 
   const lastNumber = numbers.at(-1) || null;
   const recent = useMemo(() => numbers.slice(-8).reverse(), [numbers]);
