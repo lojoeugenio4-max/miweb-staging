@@ -265,6 +265,7 @@ export default function StorePage() {
   const [entitlement, setEntitlement] = useState(null);
   const [bolaBingo, setBolaBingo] = useState(null);
   const [procesandoBingo, setProcesandoBingo] = useState(false);
+  const [bomboGirando, setBomboGirando] = useState(false);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -423,27 +424,47 @@ export default function StorePage() {
   }
 
   async function consumirBingo() {
-    if (!entitlement?.id || procesandoBingo) return;
+    if (!entitlement?.id || procesandoBingo || bomboGirando) return;
+
+    // El pedido concede el derecho a jugar, pero la bola no existe todavía.
+    // Primero se abre y anima el bombo; la extracción se registra al final.
     setProcesandoBingo(true);
-    setMensaje("");
+    setBomboGirando(true);
+    setMensaje("El bombo está girando…");
+    setEstado("bingo-drum");
 
-    const { data: raw, error } = await supabase.rpc("consume_game_bingo_play_by_code", {
-      p_code: entitlement.code || codigo,
-    });
-    const result = Array.isArray(raw) ? raw[0] : raw;
-    setProcesandoBingo(false);
+    try {
+      getAudioContext().resume?.();
+      startSpinSound(4200);
+    } catch {}
 
-    if (error || !result?.ok) {
-      console.error(error);
-      setMensaje(result?.message || "No se pudo consumir la bola de Bingo.");
-      setEstado(result?.reason === "used" || result?.reason === "daily_limit" ? "used" : "error");
-      return;
-    }
+    window.setTimeout(async () => {
+      const { data: raw, error } = await supabase.rpc("consume_game_bingo_play_by_code", {
+        p_code: entitlement.code || codigo,
+      });
+      const result = Array.isArray(raw) ? raw[0] : raw;
 
-    setBolaBingo(Number(result.ball_number));
-    setEntitlement((current) => ({ ...current, bingo_available: false, bingo_remaining: result.bingo_remaining }));
-    setEstado(entitlement.roulette_available ? "bingo-result-with-roulette" : "bingo-result");
-    playCampana();
+      stopSpinSound();
+      setProcesandoBingo(false);
+      setBomboGirando(false);
+
+      if (error || !result?.ok) {
+        console.error(error);
+        setMensaje(result?.message || "No se pudo extraer la bola de Bingo.");
+        setEstado(result?.reason === "used" || result?.reason === "daily_limit" ? "used" : "error");
+        return;
+      }
+
+      setBolaBingo(Number(result.ball_number));
+      setEntitlement((current) => ({
+        ...current,
+        bingo_available: false,
+        bingo_remaining: result.bingo_remaining,
+      }));
+      setMensaje(result.message || `Bola ${result.ball_number} extraída.`);
+      setEstado(entitlement.roulette_available ? "bingo-result-with-roulette" : "bingo-result");
+      playCampana();
+    }, 4200);
   }
 
   async function girar() {
@@ -592,6 +613,8 @@ export default function StorePage() {
             100% { transform: scale(1); opacity: 1; }
           }
 
+          @keyframes lojoBingoDrumSpin { to { transform: rotate(360deg); } }
+
           @keyframes lojoFloat {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-10px); }
@@ -687,7 +710,7 @@ export default function StorePage() {
         </section>
       )}
 
-      {(estado === "game-choice" || estado === "bingo-ready" || estado === "bingo-result" || estado === "bingo-result-with-roulette") && entitlement && (
+      {(estado === "game-choice" || estado === "bingo-ready" || estado === "bingo-drum" || estado === "bingo-result" || estado === "bingo-result-with-roulette") && entitlement && (
         <section style={styles.card}>
           <h2 style={styles.cardTitle}>QR válido · Pedido identificado</h2>
           <p style={styles.info}>Cliente: <strong>{entitlement.customer_name || "sin nombre"}</strong></p>
@@ -697,7 +720,7 @@ export default function StorePage() {
             <div style={styles.gameChoiceGrid}>
               {entitlement.bingo_available && (
                 <button type="button" onClick={consumirBingo} disabled={procesandoBingo} style={styles.bingoActionButton}>
-                  🎱 {procesandoBingo ? "REGISTRANDO BOLA..." : "APLICAR BINGO"}
+                  🎱 {procesandoBingo ? "ABRIENDO BOMBO..." : "ABRIR BOMBO"}
                 </button>
               )}
               {entitlement.roulette_available && entrada && (
@@ -705,6 +728,17 @@ export default function StorePage() {
                   🎡 ABRIR RULETA
                 </button>
               )}
+            </div>
+          )}
+
+          {estado === "bingo-drum" && (
+            <div style={styles.bingoResultBox}>
+              <div style={{ ...styles.bingoDrum, ...(bomboGirando ? styles.bingoDrumSpinning : {}) }}>
+                <div style={styles.bingoDrumBars} />
+                <div style={styles.bingoDrumHub}>CL</div>
+              </div>
+              <h3 style={{ margin: 0 }}>EL BOMBO ESTÁ GIRANDO…</h3>
+              <p style={styles.info}>La bola se asignará cuando termine la extracción.</p>
             </div>
           )}
 
@@ -820,6 +854,37 @@ const styles = {
     fontSize: 20,
     fontWeight: 900,
     cursor: "pointer",
+  },
+  bingoDrum: {
+    position: "relative",
+    width: 170,
+    height: 170,
+    margin: "4px auto 16px",
+    border: "10px solid #d9a52b",
+    borderRadius: "50%",
+    overflow: "hidden",
+    background: "radial-gradient(circle, #174a8b 0 55%, #071c46 58%)",
+    boxShadow: "inset 0 0 0 4px #ffef9d, 0 12px 28px #0006",
+  },
+  bingoDrumSpinning: {
+    animation: "lojoBingoDrumSpin .28s linear infinite",
+  },
+  bingoDrumBars: {
+    position: "absolute",
+    inset: -15,
+    background: "repeating-linear-gradient(75deg, transparent 0 14px, #ffe58a99 15px 20px, transparent 21px 31px)",
+  },
+  bingoDrumHub: {
+    position: "absolute",
+    inset: 55,
+    display: "grid",
+    placeItems: "center",
+    border: "4px double #fff0a0",
+    borderRadius: "50%",
+    background: "#a96b0c",
+    color: "#fff4c2",
+    fontWeight: 950,
+    zIndex: 2,
   },
   bingoResultBox: {
     display: "grid",
