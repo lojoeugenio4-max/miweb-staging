@@ -101,16 +101,18 @@ export function construirTextoPedidoWhatsApp({
   if (codigoJuegos) {
     const urlQr = construirUrlQr(codigoJuegos);
 
-    const numeroTiradas = Math.max(
-      1,
-      Number(
-        tiradasRuleta ||
-          participacionRuleta?.tiradas_ruleta ||
-          participacionRuleta?.tiradas_totales ||
-          participacionRuleta?.spins_total ||
-          1
-      )
-    );
+    const numeroTiradas = participacionRuleta
+      ? Math.max(
+          1,
+          Number(
+            tiradasRuleta ||
+              participacionRuleta?.tiradas_ruleta ||
+              participacionRuleta?.tiradas_totales ||
+              participacionRuleta?.spins_total ||
+              1
+          )
+        )
+      : Math.max(0, Number(tiradasRuleta || 0));
 
     lines.push("🎁 *PARTICIPACIÓN CONSEGUIDA*");
     lines.push("");
