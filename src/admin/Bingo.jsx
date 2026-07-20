@@ -212,7 +212,6 @@ export default function Bingo() {
       <div style={aviso}>
         Guardar o activar el Bingo no crea cartones automáticamente. El cartón se entrega únicamente tras validar un pedido que cumpla las condiciones.
       </div>
-      <BingoSorteoControl />
       <BingoConfiguracion />
       <BingoArticulos />
     </div>
