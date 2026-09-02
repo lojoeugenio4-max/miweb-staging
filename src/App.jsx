@@ -11,6 +11,8 @@ import {
   Grid3X3,
   Download,
   Share,
+  Plus,
+  Minus,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { supabaseStorage } from "./supabaseStorageClient";
@@ -1866,6 +1868,17 @@ export default function App() {
     });
   };
 
+  // Botones +/- del catálogo (estilo Yollgo). No es una vía nueva de
+  // negocio: simplemente calcula el siguiente número y se lo pasa a
+  // updateQuantity de toda la vida, así que hereda gratis la exclusividad
+  // cajas/unidades y el aviso de "solo cajas" que ya tenía updateQuantity.
+  const stepQuantity = (productId, field, delta) => {
+    const current = quantities[productId] || {};
+    const currentValue = Number(current[field] || 0) || 0;
+    const nextValue = Math.max(0, currentValue + delta);
+    updateQuantity(productId, field, String(nextValue));
+  };
+
   const updateNotes = (productId, value) => {
     setQuantities((current) => ({
       ...current,
@@ -2852,7 +2865,8 @@ export default function App() {
               {department.products.length === 0 ? (
                 <div style={styles.emptyBox}>{t.noItems}</div>
               ) : (
-                department.products.map((product) => {
+                <div style={styles.productsGrid}>
+                {department.products.map((product) => {
                   const quantity = quantities[product.id] || {};
 
                   return (
@@ -2949,8 +2963,17 @@ export default function App() {
                         </div>
 
                         <div style={styles.quantityGrid}>
-                          <label style={styles.quantityLabel}>
-                            {t.boxes}
+                          <div style={styles.quantityRow}>
+                            <span style={styles.quantityLabel}>{t.boxes}</span>
+                            <div style={styles.stepperControl}>
+                              <button
+                                type="button"
+                                onClick={() => stepQuantity(product.id, "boxes", -1)}
+                                style={styles.stepperButtonMinus}
+                                aria-label="Restar caja"
+                              >
+                                <Minus size={13} strokeWidth={3} />
+                              </button>
                             <input
                               type="number"
                               inputMode="numeric"
@@ -2980,10 +3003,38 @@ export default function App() {
                                   : {}),
                               }}
                             />
-                          </label>
+                              <button
+                                type="button"
+                                onClick={() => stepQuantity(product.id, "boxes", 1)}
+                                style={styles.stepperButtonPlus}
+                                aria-label="Sumar caja"
+                              >
+                                <Plus size={13} strokeWidth={3} />
+                              </button>
+                            </div>
+                          </div>
 
-                          <label style={styles.quantityLabel}>
-                            {t.units}
+                          <div style={styles.quantityRow}>
+                            <span style={styles.quantityLabel}>{t.units}</span>
+                            <div style={styles.stepperControl}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!product.permite_unidades) {
+                                    avisarSoloCajas(product.id);
+                                    return;
+                                  }
+                                  stepQuantity(product.id, "units", -1);
+                                }}
+                                style={
+                                  product.permite_unidades
+                                    ? styles.stepperButtonMinus
+                                    : styles.stepperButtonDisabled
+                                }
+                                aria-label="Restar unidad"
+                              >
+                                <Minus size={13} strokeWidth={3} />
+                              </button>
                             <input
                               type="number"
                               inputMode="numeric"
@@ -3030,7 +3081,26 @@ export default function App() {
                                   : {}),
                               }}
                             />
-                          </label>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!product.permite_unidades) {
+                                    avisarSoloCajas(product.id);
+                                    return;
+                                  }
+                                  stepQuantity(product.id, "units", 1);
+                                }}
+                                style={
+                                  product.permite_unidades
+                                    ? styles.stepperButtonPlus
+                                    : styles.stepperButtonDisabled
+                                }
+                                aria-label="Sumar unidad"
+                              >
+                                <Plus size={13} strokeWidth={3} />
+                              </button>
+                            </div>
+                          </div>
 
                           {(() => {
                             const campoActivoCajas =
@@ -3103,7 +3173,8 @@ export default function App() {
                       </div>
                     </article>
                   );
-                })
+                })}
+                </div>
               )}
             </section>
           ))}
@@ -3901,16 +3972,22 @@ const styles = {
     fontWeight: "800",
   },
 
+  productsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: "8px",
+  },
+
   productCard: {
     display: "flex",
-    gap: "6px",
+    flexDirection: "column",
+    gap: "0",
     background: "#fff",
     border: "1px solid #e5e7eb",
-    borderRadius: "10px",
-    padding: "4px",
-    marginBottom: "4px",
+    borderRadius: "12px",
+    padding: "0",
+    marginBottom: "0",
     boxShadow: "0 2px 5px rgba(15,23,42,0.03)",
-    minHeight: "58px",
     width: "100%",
     maxWidth: "100%",
     boxSizing: "border-box",
@@ -3926,12 +4003,15 @@ const styles = {
   },
 
   photoBox: {
-    width: "46px",
-    height: "46px",
-    flex: "0 0 46px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "8px",
-    background: "#fff",
+    width: "100%",
+    aspectRatio: "1 / 1",
+    flex: "0 0 auto",
+    border: "none",
+    borderBottom: "1px solid #e5e7eb",
+    borderRadius: "0",
+    background: "#f8fafc",
+    borderTopLeftRadius: "12px",
+    borderTopRightRadius: "12px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -3954,18 +4034,24 @@ const styles = {
   productContent: {
     flex: 1,
     minWidth: 0,
+    padding: "6px",
   },
 
   productTop: {
     display: "flex",
+    flexWrap: "wrap",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    gap: "8px",
+    gap: "6px",
   },
 
   productTitleBlock: {
     minWidth: 0,
-    flex: 1,
+    // flex-basis 100% obliga al bloque de título a ocupar toda la fila:
+    // en la tarjeta estrecha de la cuadrícula (2 columnas), la pastilla
+    // de Ruleta y el corazón de favoritos ya no caben al lado del
+    // nombre, así que bajan a su propia fila (productTop tiene flexWrap).
+    flex: "1 1 100%",
   },
 
   productTopActions: {
@@ -3973,6 +4059,7 @@ const styles = {
     alignItems: "flex-start",
     gap: "4px",
     flexShrink: 0,
+    marginTop: "2px",
   },
 
   favoriteButton: {
@@ -4076,63 +4163,127 @@ const styles = {
   },
 
   quantityGrid: {
-    display: "grid",
-    gridTemplateColumns: "52px 52px 52px",
-    gap: "4px",
-    marginTop: "3px",
-    alignItems: "end",
-    width: "164px",
-    maxWidth: "164px",
-    flexShrink: 0,
+    display: "flex",
+    flexDirection: "column",
+    gap: "5px",
+    marginTop: "6px",
+    width: "100%",
+  },
+
+  quantityRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    gap: "6px",
   },
 
   quantityLabel: {
     color: "#374151",
-    fontSize: "9px",
+    fontSize: "11px",
     fontWeight: "800",
+    flexShrink: 0,
+  },
+
+  stepperControl: {
+    display: "flex",
+    alignItems: "stretch",
+    border: "1px solid #d1d5db",
+    borderRadius: "8px",
+    overflow: "hidden",
+    flexShrink: 0,
+  },
+
+  stepperButtonMinus: {
+    width: "26px",
+    minWidth: "26px",
+    height: "26px",
+    border: "none",
+    background: "#f8fafc",
+    color: "#111827",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    padding: 0,
+    touchAction: "manipulation",
+    WebkitTapHighlightColor: "transparent",
+  },
+
+  stepperButtonPlus: {
+    width: "26px",
+    minWidth: "26px",
+    height: "26px",
+    border: "none",
+    background: "#dcfce7",
+    color: "#16a34a",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    padding: 0,
+    touchAction: "manipulation",
+    WebkitTapHighlightColor: "transparent",
+  },
+
+  stepperButtonDisabled: {
+    width: "26px",
+    minWidth: "26px",
+    height: "26px",
+    border: "none",
+    background: "#fee2e2",
+    color: "#991b1b",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "not-allowed",
+    padding: 0,
+    touchAction: "manipulation",
+    WebkitTapHighlightColor: "transparent",
   },
 
   quantityInput: {
-    width: "52px",
-    minWidth: "52px",
-    maxWidth: "52px",
+    width: "32px",
+    minWidth: "32px",
+    maxWidth: "32px",
     boxSizing: "border-box",
-    marginTop: "1px",
-    border: "1px solid #d1d5db",
-    borderRadius: "7px",
-    padding: "1px 3px",
-    fontSize: "16px",
+    border: "none",
+    borderLeft: "1px solid #e5e7eb",
+    borderRight: "1px solid #e5e7eb",
+    borderRadius: "0",
+    padding: "1px 2px",
+    fontSize: "14px",
     lineHeight: "20px",
-    height: "24px",
-    minHeight: "24px",
-    maxHeight: "24px",
+    height: "26px",
+    minHeight: "26px",
+    maxHeight: "26px",
     textAlign: "center",
     outline: "none",
+    background: "#fff",
     appearance: "textfield",
     WebkitAppearance: "none",
   },
 
   quantityInputActive: {
     background: "#fef08a",
-    border: "2px solid #f59e0b",
-    boxShadow: "0 0 0 3px rgba(245,158,11,0.22)",
     fontWeight: "900",
   },
 
   quantityInputBlocked: {
-    width: "52px",
-    minWidth: "52px",
-    maxWidth: "52px",
+    width: "32px",
+    minWidth: "32px",
+    maxWidth: "32px",
     boxSizing: "border-box",
-    marginTop: "1px",
-    border: "1px solid #fecaca",
-    borderRadius: "7px",
-    padding: "1px 3px",
-    fontSize: "16px",
+    border: "none",
+    borderLeft: "1px solid #fecaca",
+    borderRight: "1px solid #fecaca",
+    borderRadius: "0",
+    padding: "1px 2px",
+    fontSize: "14px",
     lineHeight: "20px",
-    height: "24px",
-    minHeight: "24px",
-    maxHeight: "24px",
+    height: "26px",
+    minHeight: "26px",
+    maxHeight: "26px",
     textAlign: "center",
     outline: "none",
     background: "#fee2e2",
@@ -4152,10 +4303,9 @@ const styles = {
   },
 
   acceptQuantityButton: {
-    gridColumn: "1 / -1",
-    width: "164px",
-    minWidth: "164px",
-    maxWidth: "164px",
+    width: "100%",
+    minWidth: "100%",
+    maxWidth: "100%",
     minHeight: "30px",
     border: "none",
     borderRadius: "8px",
