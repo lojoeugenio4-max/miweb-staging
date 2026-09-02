@@ -4145,7 +4145,7 @@ const styles = {
 
   addButton: {
     width: "100%",
-    marginTop: "6px",
+    marginTop: "auto",
     padding: "7px",
     border: "none",
     borderRadius: "8px",
@@ -4160,7 +4160,7 @@ const styles = {
 
   addButtonActive: {
     width: "100%",
-    marginTop: "6px",
+    marginTop: "auto",
     padding: "7px",
     border: "1px solid #22c55e",
     borderRadius: "8px",
@@ -4201,7 +4201,7 @@ const styles = {
     width: "100%",
     height: "min(26dvh, 200px)",
     flex: "0 0 auto",
-    background: "#f8fafc",
+    background: "#dc2626",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -4397,6 +4397,8 @@ const styles = {
     flex: 1,
     minWidth: 0,
     padding: "6px",
+    display: "flex",
+    flexDirection: "column",
   },
 
   productTop: {
