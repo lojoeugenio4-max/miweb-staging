@@ -408,6 +408,7 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("TODOS");
   const [articuloDestacado, setArticuloDestacado] = useState(null);
+  const [fichaProductoId, setFichaProductoId] = useState(null);
   const [campoCantidadActivo, setCampoCantidadActivo] = useState(null);
   const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
   const [showOrderSummary, setShowOrderSummary] = useState(false);
@@ -2882,20 +2883,26 @@ export default function App() {
                           : {}),
                       }}
                     >
-                      <div style={styles.photoBox}>
+                      <div
+                        style={styles.photoBox}
+                        onClick={() => setFichaProductoId(product.id)}
+                      >
                         {product.image ? (
                           <img
                             src={product.image}
                             alt=""
                             style={styles.productImage}
-                            onClick={(event) => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              setSelectedImage(product.image);
-                            }}
                           />
                         ) : (
                           <span style={styles.noPhoto}>{t.noPhoto}</span>
+                        )}
+
+                        {(Number(quantity.boxes) > 0 || Number(quantity.units) > 0) && (
+                          <span style={styles.quantityBadge}>
+                            {Number(quantity.boxes) > 0
+                              ? `${quantity.boxes} ${t.boxes}`
+                              : `${quantity.units} ${t.units}`}
+                          </span>
                         )}
                       </div>
 
@@ -2962,214 +2969,19 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div style={styles.quantityGrid}>
-                          <div style={styles.quantityRow}>
-                            <span style={styles.quantityLabel}>{t.boxes}</span>
-                            <div style={styles.stepperControl}>
-                              <button
-                                type="button"
-                                onClick={() => stepQuantity(product.id, "boxes", -1)}
-                                style={styles.stepperButtonMinus}
-                                aria-label="Restar caja"
-                              >
-                                <Minus size={13} strokeWidth={3} />
-                              </button>
-                            <input
-                              type="number"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              enterKeyHint="done"
-                              min="0"
-                              step="1"
-                              autoComplete="off"
-                              value={quantity.boxes || ""}
-                              onPointerDown={(event) =>
-                                prepararCampoCantidad(event, product.id, "boxes")
-                              }
-                              onFocus={() => activarCampoCantidad(product.id, "boxes")}
-                              onKeyDown={(event) => manejarEnterCantidad(event, product.id)}
-                              onBlur={() => setCampoCantidadActivo(null)}
-                              onChange={(event) =>
-                                updateQuantity(
-                                  product.id,
-                                  "boxes",
-                                  event.target.value.replace(/[^0-9]/g, "")
-                                )
-                              }
-                              style={{
-                                ...styles.quantityInput,
-                                ...(campoCantidadActivo === `${product.id}:boxes`
-                                  ? styles.quantityInputActive
-                                  : {}),
-                              }}
-                            />
-                              <button
-                                type="button"
-                                onClick={() => stepQuantity(product.id, "boxes", 1)}
-                                style={styles.stepperButtonPlus}
-                                aria-label="Sumar caja"
-                              >
-                                <Plus size={13} strokeWidth={3} />
-                              </button>
-                            </div>
-                          </div>
-
-                          <div style={styles.quantityRow}>
-                            <span style={styles.quantityLabel}>{t.units}</span>
-                            <div style={styles.stepperControl}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (!product.permite_unidades) {
-                                    avisarSoloCajas(product.id);
-                                    return;
-                                  }
-                                  stepQuantity(product.id, "units", -1);
-                                }}
-                                style={
-                                  product.permite_unidades
-                                    ? styles.stepperButtonMinus
-                                    : styles.stepperButtonDisabled
-                                }
-                                aria-label="Restar unidad"
-                              >
-                                <Minus size={13} strokeWidth={3} />
-                              </button>
-                            <input
-                              type="number"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              enterKeyHint="done"
-                              min="0"
-                              step="1"
-                              autoComplete="off"
-                              readOnly={!product.permite_unidades}
-                              value={product.permite_unidades ? quantity.units || "" : ""}
-                              placeholder={product.permite_unidades ? "" : "—"}
-                              onPointerDown={(event) => {
-                                if (product.permite_unidades) {
-                                  prepararCampoCantidad(event, product.id, "units");
-                                }
-                              }}
-                              onFocus={() => {
-                                activarCampoCantidad(product.id, "units");
-                                if (!product.permite_unidades) {
-                                  avisarSoloCajas(product.id);
-                                }
-                              }}
-                              onClick={() => {
-                                if (!product.permite_unidades) {
-                                  avisarSoloCajas(product.id);
-                                }
-                              }}
-                              onKeyDown={(event) => manejarEnterCantidad(event, product.id)}
-                              onBlur={() => setCampoCantidadActivo(null)}
-                              onChange={(event) =>
-                                updateQuantity(
-                                  product.id,
-                                  "units",
-                                  event.target.value.replace(/[^0-9]/g, "")
-                                )
-                              }
-                              style={{
-                                ...(product.permite_unidades
-                                  ? styles.quantityInput
-                                  : styles.quantityInputBlocked),
-                                ...(product.permite_unidades &&
-                                campoCantidadActivo === `${product.id}:units`
-                                  ? styles.quantityInputActive
-                                  : {}),
-                              }}
-                            />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (!product.permite_unidades) {
-                                    avisarSoloCajas(product.id);
-                                    return;
-                                  }
-                                  stepQuantity(product.id, "units", 1);
-                                }}
-                                style={
-                                  product.permite_unidades
-                                    ? styles.stepperButtonPlus
-                                    : styles.stepperButtonDisabled
-                                }
-                                aria-label="Sumar unidad"
-                              >
-                                <Plus size={13} strokeWidth={3} />
-                              </button>
-                            </div>
-                          </div>
-
-                          {(() => {
-                            const campoActivoCajas =
-                              campoCantidadActivo === `${product.id}:boxes`;
-                            const campoActivoUnidades =
-                              campoCantidadActivo === `${product.id}:units`;
-                            const cantidadEscrita = campoActivoCajas
-                              ? quantity.boxes
-                              : campoActivoUnidades
-                                ? quantity.units
-                                : "";
-
-                            if (
-                              !campoActivoCajas &&
-                              !campoActivoUnidades
-                            ) {
-                              return null;
-                            }
-
-                            if (cantidadEscrita === "" || cantidadEscrita == null) {
-                              return null;
-                            }
-
-                            return (
-                              <button
-                                type="button"
-                                style={styles.acceptQuantityButton}
-                                onPointerDown={(event) => {
-                                  // Evita que el botón pierda el foco antes de ejecutar
-                                  // el clic. Así no desaparece prematuramente en iPhone.
-                                  event.preventDefault();
-                                }}
-                                onClick={() => aceptarCantidad(product.id)}
-                                aria-label="Aceptar cantidad"
-                              >
-                                <Check size={15} strokeWidth={3} />
-                                <span>Aceptar cantidad</span>
-                              </button>
-                            );
-                          })()}
-
-                        </div>
-
-                        {product.participaRuleta && (() => {
-                          const estadoRuleta = obtenerEstadoArticuloRuleta(
-                            product,
-                            quantity
-                          );
-
-                          return (
-                            <div
-                              style={
-                                estadoRuleta?.completo
-                                  ? styles.ruletaProductStatusOk
-                                  : styles.ruletaProductStatusPending
-                              }
-                            >
-                              {estadoRuleta?.texto}
-                            </div>
-                          );
-                        })()}
-
-                        {!product.permite_unidades && soloCajasAviso === product.id && (
-                          <div style={styles.onlyBoxesMessage}>
-                            {t.onlyBoxes}
-                          </div>
-                        )}
-
-
+                        <button
+                          type="button"
+                          onClick={() => setFichaProductoId(product.id)}
+                          style={
+                            Number(quantity.boxes) > 0 || Number(quantity.units) > 0
+                              ? styles.addButtonActive
+                              : styles.addButton
+                          }
+                        >
+                          {Number(quantity.boxes) > 0 || Number(quantity.units) > 0
+                            ? "Editar cantidad"
+                            : "Añadir"}
+                        </button>
                       </div>
                     </article>
                   );
@@ -3179,6 +2991,256 @@ export default function App() {
             </section>
           ))}
       </main>
+
+      {(() => {
+        if (!fichaProductoId) return null;
+        const fichaProducto = productos.find((item) => item.id === fichaProductoId);
+        if (!fichaProducto) return null;
+        const fichaQuantity = quantities[fichaProductoId] || {};
+
+        const estadoRuleta = fichaProducto.participaRuleta
+          ? obtenerEstadoArticuloRuleta(fichaProducto, fichaQuantity)
+          : null;
+
+        const campoActivoCajas = campoCantidadActivo === `${fichaProducto.id}:boxes`;
+        const campoActivoUnidades = campoCantidadActivo === `${fichaProducto.id}:units`;
+        const cantidadEscrita = campoActivoCajas
+          ? fichaQuantity.boxes
+          : campoActivoUnidades
+            ? fichaQuantity.units
+            : "";
+        const mostrarAceptarCantidad =
+          (campoActivoCajas || campoActivoUnidades) &&
+          cantidadEscrita !== "" &&
+          cantidadEscrita != null;
+
+        return (
+          <div style={styles.fichaOverlay} onClick={() => setFichaProductoId(null)}>
+            <div style={styles.fichaPanel} onClick={(event) => event.stopPropagation()}>
+              <div style={styles.fichaPhotoBox}>
+                {fichaProducto.image ? (
+                  <img
+                    src={fichaProducto.image}
+                    alt=""
+                    style={styles.productImage}
+                    onClick={() => setSelectedImage(fichaProducto.image)}
+                  />
+                ) : (
+                  <span style={styles.noPhoto}>{t.noPhoto}</span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setFichaProductoId(null)}
+                  style={styles.fichaCloseButton}
+                  aria-label="Cerrar"
+                >
+                  <X size={16} strokeWidth={3} />
+                </button>
+              </div>
+
+              <div style={styles.fichaBody}>
+                <h3 style={styles.fichaProductName}>
+                  {fichaProducto.codigo ? `${fichaProducto.codigo} · ` : ""}
+                  {fichaProducto.name}
+                </h3>
+
+                <div style={styles.badges}>
+                  {fichaProducto.novedad && (
+                    <span style={styles.newsBadge}>⭐ {t.news}</span>
+                  )}
+                  {fichaProducto.offerText && (
+                    <span style={styles.offerBadge}>🏷️ {fichaProducto.offerText}</span>
+                  )}
+                </div>
+
+                {fichaProducto.participaRuleta && (
+                  <div style={styles.fichaPromoBadgeWrap}>
+                    <MiniRuletaPromocion
+                      cantidadMinima={fichaProducto.cantidadMinimaRuleta}
+                      permiteUnidades={fichaProducto.permite_unidades}
+                    />
+                  </div>
+                )}
+
+                <div style={styles.quantityGrid}>
+                  <div style={styles.quantityRow}>
+                    <span style={styles.quantityLabel}>{t.boxes}</span>
+                    <div style={styles.stepperControl}>
+                      <button
+                        type="button"
+                        onClick={() => stepQuantity(fichaProducto.id, "boxes", -1)}
+                        style={styles.stepperButtonMinus}
+                        aria-label="Restar caja"
+                      >
+                        <Minus size={15} strokeWidth={3} />
+                      </button>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        enterKeyHint="done"
+                        min="0"
+                        step="1"
+                        autoComplete="off"
+                        value={fichaQuantity.boxes || ""}
+                        onPointerDown={(event) =>
+                          prepararCampoCantidad(event, fichaProducto.id, "boxes")
+                        }
+                        onFocus={() => activarCampoCantidad(fichaProducto.id, "boxes")}
+                        onKeyDown={(event) => manejarEnterCantidad(event, fichaProducto.id)}
+                        onBlur={() => setCampoCantidadActivo(null)}
+                        onChange={(event) =>
+                          updateQuantity(
+                            fichaProducto.id,
+                            "boxes",
+                            event.target.value.replace(/[^0-9]/g, "")
+                          )
+                        }
+                        style={{
+                          ...styles.quantityInputFicha,
+                          ...(campoActivoCajas ? styles.quantityInputActive : {}),
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => stepQuantity(fichaProducto.id, "boxes", 1)}
+                        style={styles.stepperButtonPlus}
+                        aria-label="Sumar caja"
+                      >
+                        <Plus size={15} strokeWidth={3} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={styles.quantityRow}>
+                    <span style={styles.quantityLabel}>{t.units}</span>
+                    <div style={styles.stepperControl}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!fichaProducto.permite_unidades) {
+                            avisarSoloCajas(fichaProducto.id);
+                            return;
+                          }
+                          stepQuantity(fichaProducto.id, "units", -1);
+                        }}
+                        style={
+                          fichaProducto.permite_unidades
+                            ? styles.stepperButtonMinus
+                            : styles.stepperButtonDisabled
+                        }
+                        aria-label="Restar unidad"
+                      >
+                        <Minus size={15} strokeWidth={3} />
+                      </button>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        enterKeyHint="done"
+                        min="0"
+                        step="1"
+                        autoComplete="off"
+                        readOnly={!fichaProducto.permite_unidades}
+                        value={fichaProducto.permite_unidades ? fichaQuantity.units || "" : ""}
+                        placeholder={fichaProducto.permite_unidades ? "" : "—"}
+                        onPointerDown={(event) => {
+                          if (fichaProducto.permite_unidades) {
+                            prepararCampoCantidad(event, fichaProducto.id, "units");
+                          }
+                        }}
+                        onFocus={() => {
+                          activarCampoCantidad(fichaProducto.id, "units");
+                          if (!fichaProducto.permite_unidades) {
+                            avisarSoloCajas(fichaProducto.id);
+                          }
+                        }}
+                        onClick={() => {
+                          if (!fichaProducto.permite_unidades) {
+                            avisarSoloCajas(fichaProducto.id);
+                          }
+                        }}
+                        onKeyDown={(event) => manejarEnterCantidad(event, fichaProducto.id)}
+                        onBlur={() => setCampoCantidadActivo(null)}
+                        onChange={(event) =>
+                          updateQuantity(
+                            fichaProducto.id,
+                            "units",
+                            event.target.value.replace(/[^0-9]/g, "")
+                          )
+                        }
+                        style={{
+                          ...(fichaProducto.permite_unidades
+                            ? styles.quantityInputFicha
+                            : styles.quantityInputBlockedFicha),
+                          ...(fichaProducto.permite_unidades && campoActivoUnidades
+                            ? styles.quantityInputActive
+                            : {}),
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!fichaProducto.permite_unidades) {
+                            avisarSoloCajas(fichaProducto.id);
+                            return;
+                          }
+                          stepQuantity(fichaProducto.id, "units", 1);
+                        }}
+                        style={
+                          fichaProducto.permite_unidades
+                            ? styles.stepperButtonPlus
+                            : styles.stepperButtonDisabled
+                        }
+                        aria-label="Sumar unidad"
+                      >
+                        <Plus size={15} strokeWidth={3} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {mostrarAceptarCantidad && (
+                    <button
+                      type="button"
+                      style={styles.acceptQuantityButton}
+                      onPointerDown={(event) => event.preventDefault()}
+                      onClick={() => aceptarCantidad(fichaProducto.id)}
+                      aria-label="Aceptar cantidad"
+                    >
+                      <Check size={15} strokeWidth={3} />
+                      <span>Aceptar cantidad</span>
+                    </button>
+                  )}
+                </div>
+
+                {estadoRuleta && (
+                  <div
+                    style={
+                      estadoRuleta.completo
+                        ? styles.ruletaProductStatusOk
+                        : styles.ruletaProductStatusPending
+                    }
+                  >
+                    {estadoRuleta.texto}
+                  </div>
+                )}
+
+                {!fichaProducto.permite_unidades && soloCajasAviso === fichaProducto.id && (
+                  <div style={styles.onlyBoxesMessage}>{t.onlyBoxes}</div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setFichaProductoId(null)}
+                  style={styles.fichaListoButton}
+                >
+                  Listo
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <div ref={stickyCardRef} style={styles.stickySummary}>
         <div>
@@ -3978,6 +4040,173 @@ const styles = {
     gap: "8px",
   },
 
+  quantityBadge: {
+    position: "absolute",
+    top: "6px",
+    right: "6px",
+    background: "#22c55e",
+    color: "#fff",
+    fontSize: "11px",
+    fontWeight: "800",
+    padding: "2px 7px",
+    borderRadius: "999px",
+    lineHeight: "1.3",
+  },
+
+  addButton: {
+    width: "100%",
+    marginTop: "6px",
+    padding: "7px",
+    border: "none",
+    borderRadius: "8px",
+    background: "#111827",
+    color: "#fff",
+    fontSize: "12px",
+    fontWeight: "800",
+    cursor: "pointer",
+    touchAction: "manipulation",
+    WebkitTapHighlightColor: "transparent",
+  },
+
+  addButtonActive: {
+    width: "100%",
+    marginTop: "6px",
+    padding: "7px",
+    border: "1px solid #22c55e",
+    borderRadius: "8px",
+    background: "#dcfce7",
+    color: "#15803d",
+    fontSize: "12px",
+    fontWeight: "800",
+    cursor: "pointer",
+    touchAction: "manipulation",
+    WebkitTapHighlightColor: "transparent",
+  },
+
+  fichaOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(15,23,42,0.55)",
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "center",
+    zIndex: 60,
+  },
+
+  fichaPanel: {
+    width: "100%",
+    maxWidth: "480px",
+    maxHeight: "90dvh",
+    overflowY: "auto",
+    background: "#fff",
+    borderTopLeftRadius: "16px",
+    borderTopRightRadius: "16px",
+    boxSizing: "border-box",
+  },
+
+  fichaPhotoBox: {
+    position: "relative",
+    width: "100%",
+    aspectRatio: "1 / 1",
+    background: "#f8fafc",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+
+  fichaCloseButton: {
+    position: "absolute",
+    top: "10px",
+    right: "10px",
+    width: "30px",
+    height: "30px",
+    borderRadius: "999px",
+    border: "none",
+    background: "rgba(15,23,42,0.55)",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+  },
+
+  fichaBody: {
+    padding: "14px",
+    boxSizing: "border-box",
+    paddingBottom: "calc(14px + env(safe-area-inset-bottom))",
+  },
+
+  fichaProductName: {
+    fontSize: "15px",
+    fontWeight: "800",
+    color: "#111827",
+    margin: "0 0 6px",
+  },
+
+  fichaPromoBadgeWrap: {
+    display: "flex",
+    justifyContent: "flex-start",
+    margin: "8px 0",
+  },
+
+  fichaListoButton: {
+    width: "100%",
+    marginTop: "12px",
+    padding: "12px",
+    border: "none",
+    borderRadius: "10px",
+    background: "#22c55e",
+    color: "#fff",
+    fontSize: "14px",
+    fontWeight: "900",
+    cursor: "pointer",
+  },
+
+  quantityInputFicha: {
+    width: "44px",
+    minWidth: "44px",
+    maxWidth: "44px",
+    boxSizing: "border-box",
+    border: "none",
+    borderLeft: "1px solid #e5e7eb",
+    borderRight: "1px solid #e5e7eb",
+    borderRadius: "0",
+    padding: "1px 2px",
+    fontSize: "16px",
+    lineHeight: "22px",
+    height: "30px",
+    minHeight: "30px",
+    maxHeight: "30px",
+    textAlign: "center",
+    outline: "none",
+    background: "#fff",
+    appearance: "textfield",
+    WebkitAppearance: "none",
+  },
+
+  quantityInputBlockedFicha: {
+    width: "44px",
+    minWidth: "44px",
+    maxWidth: "44px",
+    boxSizing: "border-box",
+    border: "none",
+    borderLeft: "1px solid #fecaca",
+    borderRight: "1px solid #fecaca",
+    borderRadius: "0",
+    padding: "1px 2px",
+    fontSize: "16px",
+    lineHeight: "22px",
+    height: "30px",
+    minHeight: "30px",
+    maxHeight: "30px",
+    textAlign: "center",
+    outline: "none",
+    background: "#fee2e2",
+    color: "#991b1b",
+    cursor: "not-allowed",
+  },
+
   productCard: {
     display: "flex",
     flexDirection: "column",
@@ -4006,6 +4235,7 @@ const styles = {
     width: "100%",
     aspectRatio: "1 / 1",
     flex: "0 0 auto",
+    position: "relative",
     border: "none",
     borderBottom: "1px solid #e5e7eb",
     borderRadius: "0",
