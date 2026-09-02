@@ -87,7 +87,7 @@ const translations = {
     noPhoto: "Sin foto",
     boxes: "Cajas",
     boxesLower: "cajas",
-    units: "Unid.",
+    units: "Unidades Sueltas",
     unitsLower: "unidades",
     notes: "Observaciones",
     summary: "Resumen",
@@ -128,7 +128,7 @@ const translations = {
     noPhoto: "无图片",
     boxes: "箱",
     boxesLower: "箱",
-    units: "件",
+    units: "散件",
     unitsLower: "件",
     notes: "备注",
     summary: "订单摘要",
@@ -2781,21 +2781,42 @@ export default function App() {
             </button>
 
             {departmentDropdownOpen && (
-              <div style={styles.departmentMenu}>
-                {departmentOptions.map((option) => (
-                  <button
-                    key={option.name}
-                    type="button"
-                    onClick={() => {
-                      setSelectedDepartment(option.name);
-                      setDepartmentDropdownOpen(false);
-                    }}
-                    style={styles.departmentOption}
-                  >
-                    <span>{option.label}</span>
-                    <span style={styles.departmentCount}>{option.count}</span>
-                  </button>
-                ))}
+              <div
+                style={styles.departmentMenuOverlay}
+                onClick={() => setDepartmentDropdownOpen(false)}
+              >
+                <div
+                  style={styles.departmentMenuSheet}
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <div style={styles.departmentMenuSheetHeader}>
+                    <strong>{t.department}</strong>
+                    <button
+                      type="button"
+                      onClick={() => setDepartmentDropdownOpen(false)}
+                      style={styles.departmentMenuCloseButton}
+                      aria-label="Cerrar"
+                    >
+                      <X size={16} strokeWidth={3} />
+                    </button>
+                  </div>
+                  <div style={styles.departmentMenuSheetList}>
+                    {departmentOptions.map((option) => (
+                      <button
+                        key={option.name}
+                        type="button"
+                        onClick={() => {
+                          setSelectedDepartment(option.name);
+                          setDepartmentDropdownOpen(false);
+                        }}
+                        style={styles.departmentOption}
+                      >
+                        <span>{option.label}</span>
+                        <span style={styles.departmentCount}>{option.count}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -3984,6 +4005,63 @@ const styles = {
     WebkitOverflowScrolling: "touch",
   },
 
+  departmentMenuOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(15,23,42,0.55)",
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "center",
+    zIndex: 300,
+  },
+
+  departmentMenuSheet: {
+    width: "100%",
+    maxWidth: "480px",
+    maxHeight: "80dvh",
+    background: "#fff",
+    borderTopLeftRadius: "20px",
+    borderTopRightRadius: "20px",
+    boxSizing: "border-box",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
+  },
+
+  departmentMenuSheetHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "16px 16px 12px",
+    borderBottom: "1px solid #e5e7eb",
+    fontSize: "16px",
+    fontWeight: "800",
+    color: "#111827",
+    flex: "0 0 auto",
+  },
+
+  departmentMenuCloseButton: {
+    width: "30px",
+    height: "30px",
+    borderRadius: "999px",
+    border: "none",
+    background: "#f1f5f9",
+    color: "#111827",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+  },
+
+  departmentMenuSheetList: {
+    flex: "1 1 auto",
+    minHeight: 0,
+    overflowY: "auto",
+    WebkitOverflowScrolling: "touch",
+    overscrollBehavior: "contain",
+    padding: "4px 0 calc(4px + env(safe-area-inset-bottom))",
+  },
+
   departmentOption: {
     width: "100%",
     border: "none",
@@ -4453,16 +4531,17 @@ const styles = {
   quantityRow: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     width: "100%",
     gap: "10px",
   },
 
   quantityLabel: {
-    color: "#374151",
-    fontSize: "15px",
-    fontWeight: "700",
+    color: "#111827",
+    fontSize: "17px",
+    fontWeight: "900",
     flexShrink: 0,
+    whiteSpace: "nowrap",
   },
 
   stepperControl: {
