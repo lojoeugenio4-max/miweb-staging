@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ShoppingCart,
   Trash2,
@@ -2780,7 +2781,7 @@ export default function App() {
               <ChevronDown size={17} />
             </button>
 
-            {departmentDropdownOpen && (
+            {departmentDropdownOpen && createPortal(
               <div
                 style={styles.departmentMenuOverlay}
                 onClick={() => setDepartmentDropdownOpen(false)}
@@ -2817,7 +2818,8 @@ export default function App() {
                     ))}
                   </div>
                 </div>
-              </div>
+              </div>,
+              document.body
             )}
           </div>
 
@@ -3136,7 +3138,17 @@ export default function App() {
                   </div>
 
                   <div style={styles.quantityRow}>
-                    <span style={styles.quantityLabel}>{t.units}</span>
+                    <span style={styles.quantityLabel}>
+                      {t.units.includes(" ") ? (
+                        <>
+                          {t.units.split(" ")[0]}
+                          <br />
+                          {t.units.split(" ").slice(1).join(" ")}
+                        </>
+                      ) : (
+                        t.units
+                      )}
+                    </span>
                     <div style={styles.stepperControl}>
                       <button
                         type="button"
@@ -4319,8 +4331,8 @@ const styles = {
     maxWidth: "56px",
     boxSizing: "border-box",
     border: "none",
-    borderLeft: "1px solid #fecaca",
-    borderRight: "1px solid #fecaca",
+    borderLeft: "1px solid #f3a5a5",
+    borderRight: "1px solid #f3a5a5",
     borderRadius: "0",
     padding: "1px 2px",
     fontSize: "19px",
@@ -4533,15 +4545,16 @@ const styles = {
     alignItems: "center",
     justifyContent: "flex-start",
     width: "100%",
-    gap: "10px",
+    gap: "12px",
   },
 
   quantityLabel: {
     color: "#111827",
-    fontSize: "17px",
-    fontWeight: "900",
+    fontSize: "15px",
+    fontWeight: "800",
     flexShrink: 0,
-    whiteSpace: "nowrap",
+    width: "84px",
+    lineHeight: "1.2",
   },
 
   stepperControl: {
