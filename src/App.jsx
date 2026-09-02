@@ -3039,10 +3039,10 @@ export default function App() {
               </div>
 
               <div style={styles.fichaBody}>
-                <h3 style={styles.fichaProductName}>
-                  {fichaProducto.codigo ? `${fichaProducto.codigo} · ` : ""}
-                  {fichaProducto.name}
-                </h3>
+                {fichaProducto.codigo && (
+                  <p style={styles.fichaProductCode}>{fichaProducto.codigo}</p>
+                )}
+                <h3 style={styles.fichaProductName}>{fichaProducto.name}</h3>
 
                 <div style={styles.badges}>
                   {fichaProducto.novedad && (
@@ -3062,6 +3062,8 @@ export default function App() {
                   </div>
                 )}
 
+                <p style={styles.fichaSectionLabel}>Cantidad</p>
+                <div style={styles.fichaQuantityCard}>
                 <div style={styles.quantityGrid}>
                   <div style={styles.quantityRow}>
                     <span style={styles.quantityLabel}>{t.boxes}</span>
@@ -3072,7 +3074,7 @@ export default function App() {
                         style={styles.stepperButtonMinus}
                         aria-label="Restar caja"
                       >
-                        <Minus size={15} strokeWidth={3} />
+                        <Minus size={18} strokeWidth={3} />
                       </button>
                       <input
                         type="number"
@@ -3107,7 +3109,7 @@ export default function App() {
                         style={styles.stepperButtonPlus}
                         aria-label="Sumar caja"
                       >
-                        <Plus size={15} strokeWidth={3} />
+                        <Plus size={18} strokeWidth={3} />
                       </button>
                     </div>
                   </div>
@@ -3131,7 +3133,7 @@ export default function App() {
                         }
                         aria-label="Restar unidad"
                       >
-                        <Minus size={15} strokeWidth={3} />
+                        <Minus size={18} strokeWidth={3} />
                       </button>
                       <input
                         type="number"
@@ -3194,7 +3196,7 @@ export default function App() {
                         }
                         aria-label="Sumar unidad"
                       >
-                        <Plus size={15} strokeWidth={3} />
+                        <Plus size={18} strokeWidth={3} />
                       </button>
                     </div>
                   </div>
@@ -3212,7 +3214,10 @@ export default function App() {
                     </button>
                   )}
                 </div>
+                </div>
 
+                {(estadoRuleta || (!fichaProducto.permite_unidades && soloCajasAviso === fichaProducto.id)) && (
+                <div style={{ marginTop: "14px" }}>
                 {estadoRuleta && (
                   <div
                     style={
@@ -3228,7 +3233,11 @@ export default function App() {
                 {!fichaProducto.permite_unidades && soloCajasAviso === fichaProducto.id && (
                   <div style={styles.onlyBoxesMessage}>{t.onlyBoxes}</div>
                 )}
+                </div>
+                )}
+              </div>
 
+              <div style={styles.fichaFooter}>
                 <button
                   type="button"
                   onClick={() => setFichaProductoId(null)}
@@ -4096,11 +4105,11 @@ const styles = {
   fichaPanel: {
     width: "100%",
     maxWidth: "480px",
-    maxHeight: "90dvh",
+    maxHeight: "92dvh",
     overflowY: "auto",
     background: "#fff",
-    borderTopLeftRadius: "16px",
-    borderTopRightRadius: "16px",
+    borderTopLeftRadius: "20px",
+    borderTopRightRadius: "20px",
     boxSizing: "border-box",
   },
 
@@ -4108,6 +4117,7 @@ const styles = {
     position: "relative",
     width: "100%",
     aspectRatio: "1 / 1",
+    maxHeight: "46dvh",
     background: "#f8fafc",
     display: "flex",
     alignItems: "center",
@@ -4117,10 +4127,10 @@ const styles = {
 
   fichaCloseButton: {
     position: "absolute",
-    top: "10px",
-    right: "10px",
-    width: "30px",
-    height: "30px",
+    top: "12px",
+    right: "12px",
+    width: "34px",
+    height: "34px",
     borderRadius: "999px",
     border: "none",
     background: "rgba(15,23,42,0.55)",
@@ -4132,52 +4142,88 @@ const styles = {
   },
 
   fichaBody: {
-    padding: "14px",
+    padding: "20px 20px 0",
     boxSizing: "border-box",
-    paddingBottom: "calc(14px + env(safe-area-inset-bottom))",
+  },
+
+  fichaProductCode: {
+    fontSize: "13px",
+    fontWeight: "700",
+    color: "#9ca3af",
+    textTransform: "uppercase",
+    letterSpacing: "0.04em",
+    margin: "0 0 4px",
   },
 
   fichaProductName: {
-    fontSize: "15px",
+    fontSize: "21px",
     fontWeight: "800",
     color: "#111827",
-    margin: "0 0 6px",
+    lineHeight: "1.25",
+    margin: "0 0 10px",
   },
 
   fichaPromoBadgeWrap: {
     display: "flex",
     justifyContent: "flex-start",
-    margin: "8px 0",
+    margin: "4px 0 16px",
+  },
+
+  fichaSectionLabel: {
+    fontSize: "13px",
+    fontWeight: "800",
+    color: "#6b7280",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+    margin: "0 0 10px",
+  },
+
+  fichaQuantityCard: {
+    background: "#f8fafc",
+    border: "1px solid #e5e7eb",
+    borderRadius: "14px",
+    padding: "16px",
+    boxSizing: "border-box",
+  },
+
+  fichaFooter: {
+    position: "sticky",
+    bottom: 0,
+    background: "#fff",
+    borderTop: "1px solid #e5e7eb",
+    padding: "14px 20px calc(14px + env(safe-area-inset-bottom))",
+    marginTop: "18px",
+    boxSizing: "border-box",
   },
 
   fichaListoButton: {
     width: "100%",
-    marginTop: "12px",
-    padding: "12px",
+    padding: "15px",
     border: "none",
-    borderRadius: "10px",
+    borderRadius: "12px",
     background: "#22c55e",
     color: "#fff",
-    fontSize: "14px",
+    fontSize: "16px",
     fontWeight: "900",
     cursor: "pointer",
   },
 
   quantityInputFicha: {
-    width: "44px",
-    minWidth: "44px",
-    maxWidth: "44px",
+    width: "56px",
+    minWidth: "56px",
+    maxWidth: "56px",
     boxSizing: "border-box",
     border: "none",
-    borderLeft: "1px solid #e5e7eb",
-    borderRight: "1px solid #e5e7eb",
+    borderLeft: "1px solid #d1d5db",
+    borderRight: "1px solid #d1d5db",
     borderRadius: "0",
     padding: "1px 2px",
-    fontSize: "16px",
-    lineHeight: "22px",
-    height: "30px",
-    minHeight: "30px",
-    maxHeight: "30px",
+    fontSize: "19px",
+    fontWeight: "800",
+    lineHeight: "26px",
+    height: "38px",
+    minHeight: "38px",
+    maxHeight: "38px",
     textAlign: "center",
     outline: "none",
     background: "#fff",
@@ -4186,20 +4232,21 @@ const styles = {
   },
 
   quantityInputBlockedFicha: {
-    width: "44px",
-    minWidth: "44px",
-    maxWidth: "44px",
+    width: "56px",
+    minWidth: "56px",
+    maxWidth: "56px",
     boxSizing: "border-box",
     border: "none",
     borderLeft: "1px solid #fecaca",
     borderRight: "1px solid #fecaca",
     borderRadius: "0",
     padding: "1px 2px",
-    fontSize: "16px",
-    lineHeight: "22px",
-    height: "30px",
-    minHeight: "30px",
-    maxHeight: "30px",
+    fontSize: "19px",
+    fontWeight: "800",
+    lineHeight: "26px",
+    height: "38px",
+    minHeight: "38px",
+    maxHeight: "38px",
     textAlign: "center",
     outline: "none",
     background: "#fee2e2",
@@ -4251,7 +4298,7 @@ const styles = {
   productImage: {
     width: "100%",
     height: "100%",
-    objectFit: "contain",
+    objectFit: "cover",
     cursor: "pointer",
   },
 
@@ -4395,8 +4442,7 @@ const styles = {
   quantityGrid: {
     display: "flex",
     flexDirection: "column",
-    gap: "5px",
-    marginTop: "6px",
+    gap: "14px",
     width: "100%",
   },
 
@@ -4405,13 +4451,13 @@ const styles = {
     alignItems: "center",
     justifyContent: "space-between",
     width: "100%",
-    gap: "6px",
+    gap: "10px",
   },
 
   quantityLabel: {
     color: "#374151",
-    fontSize: "11px",
-    fontWeight: "800",
+    fontSize: "15px",
+    fontWeight: "700",
     flexShrink: 0,
   },
 
@@ -4419,17 +4465,18 @@ const styles = {
     display: "flex",
     alignItems: "stretch",
     border: "1px solid #d1d5db",
-    borderRadius: "8px",
+    borderRadius: "10px",
     overflow: "hidden",
     flexShrink: 0,
+    background: "#fff",
   },
 
   stepperButtonMinus: {
-    width: "26px",
-    minWidth: "26px",
-    height: "26px",
+    width: "38px",
+    minWidth: "38px",
+    height: "38px",
     border: "none",
-    background: "#f8fafc",
+    background: "#f1f5f9",
     color: "#111827",
     display: "flex",
     alignItems: "center",
@@ -4441,9 +4488,9 @@ const styles = {
   },
 
   stepperButtonPlus: {
-    width: "26px",
-    minWidth: "26px",
-    height: "26px",
+    width: "38px",
+    minWidth: "38px",
+    height: "38px",
     border: "none",
     background: "#dcfce7",
     color: "#16a34a",
@@ -4457,9 +4504,9 @@ const styles = {
   },
 
   stepperButtonDisabled: {
-    width: "26px",
-    minWidth: "26px",
-    height: "26px",
+    width: "38px",
+    minWidth: "38px",
+    height: "38px",
     border: "none",
     background: "#fee2e2",
     color: "#991b1b",
