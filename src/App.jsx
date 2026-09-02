@@ -963,24 +963,15 @@ export default function App() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        departmentDropdownRef.current &&
-        !departmentDropdownRef.current.contains(event.target)
-      ) {
-        setDepartmentDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("touchstart", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
-    };
-  }, []);
+  // El cierre al tocar fuera del desplegable de Departamentos ya lo
+  // gestiona el propio overlay (backdrop con onClick + panel con
+  // stopPropagation), así que este listener global ya no hace falta
+  // para eso. Se quitó porque, al pasar el menú a un portal (fuera del
+  // DOM de departmentDropdownRef), CUALQUIER toque dentro del propio
+  // menú —incluido el gesto de hacer scroll— hacía que
+  // departmentDropdownRef.current.contains(event.target) diera false, y
+  // el desplegable se cerraba en el instante de tocarlo, antes de poder
+  // desplazar la lista.
 
   useEffect(() => {
     async function cargarCatalogo() {
