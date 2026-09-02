@@ -4105,19 +4105,21 @@ const styles = {
   fichaPanel: {
     width: "100%",
     maxWidth: "480px",
-    maxHeight: "92dvh",
-    overflowY: "auto",
+    maxHeight: "96dvh",
+    overflow: "hidden",
     background: "#fff",
     borderTopLeftRadius: "20px",
     borderTopRightRadius: "20px",
     boxSizing: "border-box",
+    display: "flex",
+    flexDirection: "column",
   },
 
   fichaPhotoBox: {
     position: "relative",
     width: "100%",
-    aspectRatio: "1 / 1",
-    maxHeight: "46dvh",
+    height: "min(26dvh, 200px)",
+    flex: "0 0 auto",
     background: "#f8fafc",
     display: "flex",
     alignItems: "center",
@@ -4142,68 +4144,70 @@ const styles = {
   },
 
   fichaBody: {
-    padding: "20px 20px 0",
+    padding: "14px 16px 0",
     boxSizing: "border-box",
+    overflow: "hidden",
+    flex: "1 1 auto",
+    minHeight: 0,
   },
 
   fichaProductCode: {
-    fontSize: "13px",
+    fontSize: "12px",
     fontWeight: "700",
     color: "#9ca3af",
     textTransform: "uppercase",
     letterSpacing: "0.04em",
-    margin: "0 0 4px",
+    margin: "0 0 2px",
   },
 
   fichaProductName: {
-    fontSize: "21px",
+    fontSize: "18px",
     fontWeight: "800",
     color: "#111827",
     lineHeight: "1.25",
-    margin: "0 0 10px",
+    margin: "0 0 6px",
   },
 
   fichaPromoBadgeWrap: {
     display: "flex",
     justifyContent: "flex-start",
-    margin: "4px 0 16px",
+    margin: "2px 0 10px",
   },
 
   fichaSectionLabel: {
-    fontSize: "13px",
+    fontSize: "12px",
     fontWeight: "800",
     color: "#6b7280",
     textTransform: "uppercase",
     letterSpacing: "0.05em",
-    margin: "0 0 10px",
+    margin: "0 0 6px",
   },
 
   fichaQuantityCard: {
     background: "#f8fafc",
     border: "1px solid #e5e7eb",
     borderRadius: "14px",
-    padding: "16px",
+    padding: "12px",
     boxSizing: "border-box",
   },
 
   fichaFooter: {
-    position: "sticky",
-    bottom: 0,
+    flex: "0 0 auto",
     background: "#fff",
     borderTop: "1px solid #e5e7eb",
-    padding: "14px 20px calc(14px + env(safe-area-inset-bottom))",
-    marginTop: "18px",
+    padding: "10px 16px calc(10px + env(safe-area-inset-bottom))",
+    marginTop: "10px",
     boxSizing: "border-box",
   },
 
   fichaListoButton: {
     width: "100%",
-    padding: "15px",
+    padding: "13px",
     border: "none",
     borderRadius: "12px",
     background: "#22c55e",
     color: "#fff",
-    fontSize: "16px",
+    fontSize: "15px",
     fontWeight: "900",
     cursor: "pointer",
   },
@@ -4298,7 +4302,7 @@ const styles = {
   productImage: {
     width: "100%",
     height: "100%",
-    objectFit: "cover",
+    objectFit: "contain",
     cursor: "pointer",
   },
 
@@ -4442,7 +4446,7 @@ const styles = {
   quantityGrid: {
     display: "flex",
     flexDirection: "column",
-    gap: "14px",
+    gap: "10px",
     width: "100%",
   },
 
